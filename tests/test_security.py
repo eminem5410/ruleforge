@@ -4,9 +4,9 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 import pytest
 from ruleforge.lexer import Lexer
 from ruleforge.parser import Parser
-from ruleforge.semantic import SemanticAnalyzer, SemanticError
+from ruleforge.semantic.semantic_analyzer import SemanticAnalyzer, SemanticError, MAX_AST_NODES
 from ruleforge.evaluator import Evaluator, EvaluatorError
-import ruleforge.semantic as sem_mod
+import ruleforge.semantic.semantic_analyzer as sem_mod
 
 SCHEMA = {"a": {"b": "Boolean"}}
 

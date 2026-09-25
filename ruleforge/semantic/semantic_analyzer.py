@@ -61,6 +61,9 @@ class SemanticAnalyzer:
             raise SemanticError("RF3002", "A block can have at most ONE terminal decision")
 
     def check_node(self, node):
+        valid_numeric = ["Integer", "Decimal", "Numeric"]
+        valid_comparison = ["Integer", "Decimal", "Numeric", "Date"]
+        
         if isinstance(node, LiteralNode): return {"INTEGER": "Integer", "DECIMAL": "Decimal", "STRING": "String", "BOOLEAN": "Boolean", "DATE": "Date"}.get(node.type, "Unknown")
         elif isinstance(node, IdentifierNode): raise SemanticError("RF3002", f"Unknown context property '{node.name}'")
         elif isinstance(node, PropertyAccessNode):
@@ -76,7 +79,6 @@ class SemanticAnalyzer:
                 return "Boolean"
         elif isinstance(node, BinaryOpNode):
             l, r, op = self.check_node(node.left), self.check_node(node.right), node.op
-            valid_numeric = ["Integer", "Decimal", "Numeric"]
             if op in ["AND", "OR"]:
                 if l != "Boolean" or r != "Boolean": raise SemanticError("RF3001", f"Operator '{op}' requires Boolean")
                 return "Boolean"
@@ -85,7 +87,7 @@ class SemanticAnalyzer:
                 if l != r: raise SemanticError("RF3001", f"Cannot compare {l} with {r}")
                 return "Boolean"
             elif op in [">", "<", ">=", "<="]:
-                if l not in valid_numeric or r not in valid_numeric: raise SemanticError("RF3001", f"Operator '{op}' requires numeric/date")
+                if l not in valid_comparison or r not in valid_comparison: raise SemanticError("RF3001", f"Operator '{op}' requires numeric/date")
                 return "Boolean"
             elif op in ["+", "-", "*", "/"]:
                 if l not in valid_numeric or r not in valid_numeric: raise SemanticError("RF3001", f"Operator '{op}' requires numeric")
