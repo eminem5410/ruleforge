@@ -10,10 +10,10 @@ public class ApiKeyAuthenticationHandler : AuthenticationHandler<AuthenticationS
     private static readonly Dictionary<string, string[]> ApiKeys = new()
     {
         { "rf_live_test_key_123", new[] { "rules:evaluate", "rules:read" } },
-        { "rf_live_admin_key_456", new[] { "rules:evaluate", "rules:read", "rules:write", "rules:admin" } }
+        { "rf_live_admin_key_456", new[] { "rules:evaluate", "rules:read", "rules:write", "rules:admin" } },
+        { "rf_live_ratelimit_key", new[] { "rules:evaluate", "rules:read" } }
     };
 
-    // El constructor de .NET 8 ya no requiere ISystemClock
     public ApiKeyAuthenticationHandler(IOptionsMonitor<AuthenticationSchemeOptions> options, ILoggerFactory logger, UrlEncoder encoder) 
         : base(options, logger, encoder) { }
 
