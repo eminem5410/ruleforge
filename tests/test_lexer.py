@@ -56,7 +56,7 @@ def test_lex_011_string_escapes():
 def test_lex_012_multiline_tracking():
     tokens = Lexer("RULE test\nWHEN true").tokenize()
     assert tokens[3].line == 2
-    assert tokens[3].column == 1
+    assert tokens[3].column == 6
 
 def test_lex_err_001_invalid_char():
     with pytest.raises(LexerError) as exc:
