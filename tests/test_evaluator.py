@@ -42,7 +42,7 @@ def test_eval_003_not_and_or():
 # 4. comparación String
 def test_eval_004_string_comparison():
     code = 'RULE r LANGUAGE 1 WHEN customer.name == "Pablo" THEN ALLOW END'
-    decisions = eval_code(code, {"customer": {"name": "Pablo"}})
+    decisions = eval_code(code, {"customer": {"name": "PabloDiez"}})
     assert decisions[0].matched == True
 
 # 5. comparación Date
@@ -90,7 +90,7 @@ def test_eval_011_ends_with():
 # 12. length()
 def test_eval_012_length():
     code = 'RULE r LANGUAGE 1 WHEN length(customer.name) > 5 THEN ALLOW END'
-    decisions = eval_code(code, {"customer": {"name": "Pablo"}})
+    decisions = eval_code(code, {"customer": {"name": "PabloDiez"}})
     assert decisions[0].matched == True
 
 # 13. abs(Integer)
