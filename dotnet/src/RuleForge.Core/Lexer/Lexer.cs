@@ -65,7 +65,6 @@ public class Lexer
         
         while (_currentChar.HasValue && _currentChar != '"')
         {
-            // Simplified escape handling for V1
             value += _currentChar;
             Advance();
         }
@@ -83,7 +82,6 @@ public class Lexer
     {
         int startLine = _line, startCol = _column;
         
-        // Check for Date first
         var match = DateRegex.Match(_source, _pos);
         if (match.Success && match.Index == _pos)
         {
@@ -144,9 +142,6 @@ public class Lexer
 
             int startLine = _line, startCol = _column;
 
-            if (_currentChar == '"') return new List<Token> { ReadString() }; // Simplified for single token return in loop
-            
-            // Due to C# control flow, we build tokens directly here
             if (_currentChar == '"') { tokens.Add(ReadString()); continue; }
             if (char.IsDigit(_currentChar.Value)) { tokens.Add(ReadNumber()); continue; }
             if (char.IsLetter(_currentChar.Value) || _currentChar == '_') { tokens.Add(ReadIdentifier()); continue; }
