@@ -1,3 +1,4 @@
+using RuleForge.Core.Lexing;
 namespace RuleForge.Core.Syntax;
 
 public abstract record Expression;

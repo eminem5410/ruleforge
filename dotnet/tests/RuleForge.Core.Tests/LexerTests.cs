@@ -51,3 +51,14 @@ public class LexerTests
         Assert.Contains("Unexpected character '@'", ex.Message);
     }
 }
+
+    [Fact]
+    public void LEX_005_StringThenIdentifier()
+    {
+        var tokens = Tokenize("\"hello\" customer");
+        Assert.Equal(TokenType.STRING, tokens[0].Type);
+        Assert.Equal("hello", tokens[0].Value);
+        Assert.Equal(TokenType.IDENTIFIER, tokens[1].Type);
+        Assert.Equal("customer", tokens[1].Value);
+        Assert.Equal(TokenType.EOF, tokens[2].Type);
+    }
