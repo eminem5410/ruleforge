@@ -41,7 +41,7 @@ def test_trace_002_logical_and():
     assert trace["right"]["left"]["value"] is True
 
 def test_trace_003_short_circuit_and():
-    code = 'RULE r LANGUAGE 1 WHEN customer.active == false AND customer.age / 0 == 1 THEN ALLOW END'
+    code = 'RULE r LANGUAGE 1 WHEN customer.active == true AND customer.age / 0 == 1 THEN ALLOW END'
     trace = get_trace(code, {"customer": {"active": False, "age": 20}})
     
     assert trace["type"] == "short_circuit"
