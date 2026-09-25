@@ -20,3 +20,15 @@ def test_core_does_not_import_adapters():
                             violations.append(f"File {file_path} contains forbidden keyword: {keyword}")
                             
     assert not violations, f"Architectural violation! Core depends on Adapters: {violations}"
+
+from adapters.fhir_adapter import FhirAdapter
+from adapters.erp_adapter import ErpAdapter
+from adapters.shipping_adapter import ShippingAdapter
+from adapters import RuleForgeAdapter
+
+def test_adapters_comply_with_protocol():
+    # Validamos en runtime que todos los adapters implementan el método to_context
+    # con la firma esperada por el Protocol.
+    assert isinstance(FhirAdapter, RuleForgeAdapter), "FhirAdapter does not comply with RuleForgeAdapter protocol"
+    assert isinstance(ErpAdapter, RuleForgeAdapter), "ErpAdapter does not comply with RuleForgeAdapter protocol"
+    assert isinstance(ShippingAdapter, RuleForgeAdapter), "ShippingAdapter does not comply with RuleForgeAdapter protocol"
