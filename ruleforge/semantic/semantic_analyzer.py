@@ -71,7 +71,7 @@ class SemanticAnalyzer:
                 
             elif op in ["==", "!="]:
                 # Permitir Int/Dec, pero prohibir cruzar String/Bool/Date con números
-                valid_numeric = ["Integer", "Decimal"]
+                valid_numeric = ["Integer", "Decimal", "Numeric"]
                 if (left_type in valid_numeric and right_type in valid_numeric):
                     return "Boolean"
                 if left_type != right_type:
@@ -79,13 +79,13 @@ class SemanticAnalyzer:
                 return "Boolean"
                 
             elif op in [">", "<", ">=", "<="]:
-                valid_numeric = ["Integer", "Decimal"]
+                valid_numeric = ["Integer", "Decimal", "Numeric"]
                 if (left_type in valid_numeric and right_type in valid_numeric) or (left_type == "Date" and right_type == "Date"):
                     return "Boolean"
                 raise SemanticError("RF3001", f"Operator '{op}' requires numeric/date operands, got {left_type} and {right_type}")
                 
             elif op in ["+", "-", "*", "/"]:
-                valid_numeric = ["Integer", "Decimal"]
+                valid_numeric = ["Integer", "Decimal", "Numeric"]
                 if left_type in valid_numeric and right_type in valid_numeric:
                     return "Decimal" if "Decimal" in [left_type, right_type] else "Integer"
                 raise SemanticError("RF3001", f"Operator '{op}' requires numeric operands, got {left_type} and {right_type}")

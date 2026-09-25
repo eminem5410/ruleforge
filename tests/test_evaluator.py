@@ -31,7 +31,7 @@ def test_eval_002_no_match_else():
 
 def test_eval_003_short_circuit_and():
     # false AND (division by zero) -> debe dar False, NO debe tirar RF4001
-    code = 'RULE r LANGUAGE 1 WHEN customer.active == false AND invoice.amount / 0 == 1 THEN ALLOW END'
+    code = 'RULE r LANGUAGE 1 WHEN customer.active == true AND invoice.amount / 0 == 1 THEN ALLOW END'
     decisions = eval_code(code, {"customer": {"active": False}, "invoice": {"amount": 10}})
     assert decisions[0].matched == False
 

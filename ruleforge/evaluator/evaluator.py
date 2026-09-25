@@ -79,6 +79,12 @@ class Evaluator:
                     if self.explain_mode: self.trace.append(f"Short-circuit AND: {left_val} AND ... -> False")
                     return False
                 right_val = self.eval_node(node.right)
+            
+            # Fix: Coercion de fechas para comparacion
+            if isinstance(left_val, date) and isinstance(right_val, str):
+                right_val = date.fromisoformat(right_val)
+            elif isinstance(right_val, date) and isinstance(left_val, str):
+                left_val = date.fromisoformat(left_val)
                 result = bool(right_val)
                 if self.explain_mode: self.trace.append(f"Evaluando: {left_val} AND {right_val} -> {result}")
                 return result
@@ -87,12 +93,24 @@ class Evaluator:
                     if self.explain_mode: self.trace.append(f"Short-circuit OR: {left_val} OR ... -> True")
                     return True
                 right_val = self.eval_node(node.right)
+            
+            # Fix: Coercion de fechas para comparacion
+            if isinstance(left_val, date) and isinstance(right_val, str):
+                right_val = date.fromisoformat(right_val)
+            elif isinstance(right_val, date) and isinstance(left_val, str):
+                left_val = date.fromisoformat(left_val)
                 result = True if right_val else False
                 if self.explain_mode: self.trace.append(f"Evaluando: {left_val} OR {right_val} -> {result}")
                 return result
 
             # Evaluación normal para el resto
             right_val = self.eval_node(node.right)
+            
+            # Fix: Coercion de fechas para comparacion
+            if isinstance(left_val, date) and isinstance(right_val, str):
+                right_val = date.fromisoformat(right_val)
+            elif isinstance(right_val, date) and isinstance(left_val, str):
+                left_val = date.fromisoformat(left_val)
             result = None
             
             if op == "==": result = left_val == right_val
