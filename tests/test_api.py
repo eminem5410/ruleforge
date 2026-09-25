@@ -18,7 +18,7 @@ def test_api_evaluate_valid_rule():
     payload = {
         "rules": RULE,
         "context": {"customer": {"age": 21}},
-        "schema": SCHEMA
+        "context_schema": SCHEMA
     }
     res = client.post("/v1/evaluate", json=payload)
     assert res.status_code == 200
@@ -30,7 +30,7 @@ def test_api_evaluate_semantic_error():
     payload = {
         "rules": 'RULE r LANGUAGE 1 WHEN customer.age > "18" THEN ALLOW END',
         "context": {"customer": {"age": 21}},
-        "schema": SCHEMA
+        "context_schema": SCHEMA
     }
     res = client.post("/v1/evaluate", json=payload)
     assert res.status_code == 400
@@ -39,7 +39,7 @@ def test_api_evaluate_semantic_error():
 def test_api_missing_rules_field():
     payload = {
         "context": {"customer": {"age": 21}},
-        "schema": SCHEMA
+        "context_schema": SCHEMA
     }
     res = client.post("/v1/evaluate", json=payload)
     # 422 Unprocessable Entity por validación de Pydantic
@@ -49,7 +49,7 @@ def test_api_decimal_serialization():
     payload = {
         "rules": 'RULE r LANGUAGE 1 WHEN invoice.total == 100.50 THEN ALLOW END',
         "context": {"invoice": {"total": 100.50}},
-        "schema": {"invoice": {"total": "Decimal"}}
+        "context_schema": {"invoice": {"total": "Decimal"}}
     }
     res = client.post("/v1/evaluate", json=payload)
     assert res.status_code == 200

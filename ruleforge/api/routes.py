@@ -22,7 +22,7 @@ class RuleForgeEncoder(json.JSONEncoder):
 @router.post("/evaluate")
 def evaluate_rule(request: EvaluateRequest):
     try:
-        engine = RuleForgeEngine(request.schema)
+        engine = RuleForgeEngine(request.context_schema)
         decisions = engine.evaluate(request.rules, request.context, explain=request.explain)
         
         output = {"decisions": [d.to_dict() for d in decisions]}
