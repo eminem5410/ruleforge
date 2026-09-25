@@ -11,7 +11,8 @@ public class ApiKeyAuthenticationHandler : AuthenticationHandler<AuthenticationS
     {
         { "rf_live_test_key_123", new[] { "rules:evaluate", "rules:read" } },
         { "rf_live_admin_key_456", new[] { "rules:evaluate", "rules:read", "rules:write", "rules:admin" } },
-        { "rf_live_ratelimit_key", new[] { "rules:evaluate", "rules:read" } }
+        { "rf_live_rl_key_1", new[] { "rules:evaluate", "rules:read" } },
+        { "rf_live_rl_key_2", new[] { "rules:evaluate", "rules:read" } }
     };
 
     public ApiKeyAuthenticationHandler(IOptionsMonitor<AuthenticationSchemeOptions> options, ILoggerFactory logger, UrlEncoder encoder) 

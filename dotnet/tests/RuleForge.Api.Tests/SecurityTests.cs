@@ -11,7 +11,8 @@ public class SecurityTests : IClassFixture<WebApplicationFactory<Program>>
     private readonly HttpClient _client;
     private const string ValidKey = "rf_live_test_key_123";
     private const string AdminKey = "rf_live_admin_key_456";
-    private const string RateLimitKey = "rf_live_ratelimit_key";
+    private const string RateLimitKey1 = "rf_live_rl_key_1";
+    private const string RateLimitKey2 = "rf_live_rl_key_2";
 
     public SecurityTests(WebApplicationFactory<Program> factory)
     {
@@ -68,7 +69,7 @@ public class SecurityTests : IClassFixture<WebApplicationFactory<Program>>
     [Fact]
     public async Task AUTH_006_RateLimitExceededAndRetryAfter()
     {
-        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", RateLimitKey);
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", RateLimitKey1);
         
         // Send 100 requests (should be 200 OK)
         for (int i = 0; i < 100; i++)
@@ -88,20 +89,20 @@ public class SecurityTests : IClassFixture<WebApplicationFactory<Program>>
     [Fact]
     public async Task AUTH_007_IsolatedBuckets()
     {
-        // 1. Exhaust the rate limit for RateLimitKey
-        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", RateLimitKey);
+        // 1. Exhaust the rate limit for RateLimitKey2
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", RateLimitKey2);
         for (int i = 0; i < 100; i++)
         {
             await _client.PostAsJsonAsync("/api/v1/evaluate", Request);
         }
         
-        // 101st request for RateLimitKey should be 429
+        // 101st request for RateLimitKey2 should be 429
         var blockedRes = await _client.PostAsJsonAsync("/api/v1/evaluate", Request);
         Assert.Equal(System.Net.HttpStatusCode.TooManyRequests, blockedRes.StatusCode);
 
         // 2. AdminKey should still have its full quota available
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", AdminKey);
         var adminRes = await _client.PostAsJsonAsync("/api/v1/evaluate", Request);
-        Assert.True(adminRes.IsSuccessStatusCode, "AdminKey was blocked due to RateLimitKey's rate limit!");
+        Assert.True(adminRes.IsSuccessStatusCode, "AdminKey was blocked due to RateLimitKey2's rate limit!");
     }
 }
