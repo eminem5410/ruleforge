@@ -53,6 +53,10 @@ class Evaluator:
             if obj is None: return None
             return obj.get(node.prop)
             
+        elif isinstance(node, IdentifierNode):
+            # Fix 1: Manejar IdentifierNode sueltos contra el contexto
+            return self.context.get(node.name)
+            
         elif isinstance(node, NullCheckNode):
             val = self.eval_node(node.left)
             if node.is_not:
@@ -98,12 +102,7 @@ class Evaluator:
             left_val = self.eval_node(node.left)
             right_val = self.eval_node(node.right)
             
-            # Fix: Coerción de fechas para comparación
-            if isinstance(left_val, date) and isinstance(right_val, str):
-                right_val = date.fromisoformat(right_val)
-            elif isinstance(right_val, date) and isinstance(left_val, str):
-                left_val = date.fromisoformat(left_val)
-                
+            # Fix 2: Quitar la coerción de fechas. El estricto tipado exige que los datos ya vengan con su tipo correcto.
             result = None
             if op == "==": result = left_val == right_val
             elif op == "!=": result = left_val != right_val
