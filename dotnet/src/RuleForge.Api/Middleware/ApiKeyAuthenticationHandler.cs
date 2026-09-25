@@ -13,8 +13,9 @@ public class ApiKeyAuthenticationHandler : AuthenticationHandler<AuthenticationS
         { "rf_live_admin_key_456", new[] { "rules:evaluate", "rules:read", "rules:write", "rules:admin" } }
     };
 
-    public ApiKeyAuthenticationHandler(IOptionsMonitor<AuthenticationSchemeOptions> options, ILoggerFactory logger, UrlEncoder encoder, ISystemClock clock) 
-        : base(options, logger, encoder, clock) { }
+    // El constructor de .NET 8 ya no requiere ISystemClock
+    public ApiKeyAuthenticationHandler(IOptionsMonitor<AuthenticationSchemeOptions> options, ILoggerFactory logger, UrlEncoder encoder) 
+        : base(options, logger, encoder) { }
 
     protected override Task<AuthenticateResult> HandleAuthenticateAsync()
     {
