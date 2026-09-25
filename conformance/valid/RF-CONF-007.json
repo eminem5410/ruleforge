@@ -1,0 +1,11 @@
+{
+  "id": "RF-CONF-007",
+  "name": "Null Check (IS NOT NULL)",
+  "source": "RULE null_check LANGUAGE 1 WHEN customer.email IS NOT NULL THEN ALERT \"Email exists\" END",
+  "context_schema": {"customer": {"email": "String"}},
+  "context": {"customer": {"email": "test@test.com"}},
+  "expected": {
+    "status": "ok",
+    "decisions": [{"rule_id": "null_check", "matched": true, "actions": [{"type": "ALERT", "value": "Email exists"}]}]
+  }
+}

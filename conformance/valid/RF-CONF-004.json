@@ -1,0 +1,11 @@
+{
+  "id": "RF-CONF-004",
+  "name": "Boolean Logic (AND / OR / NOT)",
+  "source": "RULE logic_check LANGUAGE 1 WHEN customer.age >= 18 AND NOT customer.active == false THEN ALLOW END",
+  "context_schema": {"customer": {"age": "Integer", "active": "Boolean"}},
+  "context": {"customer": {"age": 21, "active": true}},
+  "expected": {
+    "status": "ok",
+    "decisions": [{"rule_id": "logic_check", "matched": true, "actions": [{"type": "ALLOW", "value": null}]}]
+  }
+}

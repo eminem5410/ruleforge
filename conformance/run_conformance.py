@@ -4,6 +4,7 @@ import sys
 import glob
 from decimal import Decimal
 from datetime import date
+import argparse
 
 # Agregar el paquete al path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
@@ -20,19 +21,32 @@ class RuleForgeEncoder(json.JSONEncoder):
         if isinstance(obj, date): return obj.isoformat()
         return super().default(obj)
 
-def run_vectors():
-    vector_dir = os.path.dirname(__file__)
-    vector_files = glob.glob(os.path.join(vector_dir, "*.json"))
+def run_vectors(verbose=False):
+    base_dir = os.path.dirname(__file__)
+    manifest_path = os.path.join(base_dir, "manifest.json")
     
+    if not os.path.exists(manifest_path):
+        print("manifest.json not found!")
+        return False
+        
+    with open(manifest_path, 'r') as f:
+        manifest = json.load(f)
+        
     passed = 0
     failed = 0
+    total = len(manifest['vectors'])
     
-    for file_path in sorted(vector_files):
+    print("RuleForge Cross-Language Conformance")
+    print("====================================")
+    print(f"Contract Version: {manifest['contract_version']}")
+    print(f"Language Version: {manifest['language_version']}")
+    print(f"Vectors found: {total}\n")
+    
+    for vec_file in manifest['vectors']:
+        file_path = os.path.join(base_dir, vec_file)
         with open(file_path, 'r') as f:
             vector = json.load(f)
             
-        print(f"Running {vector['id']}: {vector['name']}... ", end="")
-        
         try:
             engine = RuleForgeEngine(vector['context_schema'])
             decisions = engine.evaluate(vector['source'], vector['context'])
@@ -43,31 +57,56 @@ def run_vectors():
             }
             
             if actual_output == vector['expected']:
-                print("PASS")
+                status_str = "PASS"
                 passed += 1
             else:
-                print("FAIL (Mismatch)")
-                print(f"  Expected: {vector['expected']}")
-                print(f"  Actual:   {actual_output}")
+                status_str = "FAIL (Mismatch)"
                 failed += 1
+                
+            if verbose and status_str == "PASS":
+                print(f"[{vector['id']}] {status_str} - {vector['name']}")
+                print(f"  Output: {json.dumps(actual_output, cls=RuleForgeEncoder)}")
+            elif status_str != "PASS":
+                print(f"[{vector['id']}] {status_str} - {vector['name']}")
+                print(f"  Expected: {json.dumps(vector['expected'])}")
+                print(f"  Actual:   {json.dumps(actual_output, cls=RuleForgeEncoder)}")
+            else:
+                print(f"[{vector['id']}] {status_str} - {vector['name']}")
                 
         except (LexerError, ParserError, SemanticError, EvaluatorError) as e:
             if vector['expected']['status'] == 'error' and e.code == vector['expected']['error_code']:
-                print("PASS")
+                status_str = "PASS"
                 passed += 1
+                if verbose:
+                    print(f"[{vector['id']}] {status_str} - {vector['name']}")
+                    print(f"  Error: {e.code} - {e.message}")
+                else:
+                    print(f"[{vector['id']}] {status_str} - {vector['name']}")
             else:
-                print("FAIL (Unexpected Error)")
-                print(f"  Expected: {vector['expected']}")
-                print(f"  Actual Error: {e.code} - {e.message}")
+                status_str = "FAIL (Unexpected Error)"
                 failed += 1
+                print(f"[{vector['id']}] {status_str} - {vector['name']}")
+                print(f"  Expected: {json.dumps(vector['expected'])}")
+                print(f"  Actual Error: {e.code} - {e.message}")
         except Exception as e:
-            print("FAIL (Crash)")
-            print(f"  Exception: {e}")
+            status_str = "FAIL (Crash)"
             failed += 1
+            print(f"[{vector['id']}] {status_str} - {vector['name']}")
+            print(f"  Exception: {e}")
             
-    print(f"\nConformance Summary: {passed} passed, {failed} failed out of {passed+failed}.")
+    print("------------------------------------")
+    print(f"{passed} passed, {failed} failed out of {total}.")
+    if failed == 0:
+        print("\nCONFORMANCE PASS")
+    else:
+        print("\nCONFORMANCE FAIL")
+        
     return failed == 0
 
 if __name__ == "__main__":
-    success = run_vectors()
+    parser = argparse.ArgumentParser(description="RuleForge Cross-Language Conformance Runner")
+    parser.add_argument("--verbose", action="store_true", help="Show full output for passing tests")
+    args = parser.parse_args()
+    
+    success = run_vectors(verbose=args.verbose)
     sys.exit(0 if success else 1)

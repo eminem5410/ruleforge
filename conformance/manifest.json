@@ -1,0 +1,17 @@
+{
+  "contract_version": "1.0",
+  "language_version": 1,
+  "vectors": [
+    "valid/RF-CONF-001.json",
+    "valid/RF-CONF-002.json",
+    "valid/RF-CONF-003.json",
+    "valid/RF-CONF-004.json",
+    "valid/RF-CONF-005.json",
+    "valid/RF-CONF-006.json",
+    "valid/RF-CONF-007.json",
+    "invalid/RF-CONF-ERR-001.json",
+    "invalid/RF-CONF-ERR-002.json",
+    "invalid/RF-CONF-ERR-003.json",
+    "invalid/RF-CONF-ERR-004.json"
+  ]
+}

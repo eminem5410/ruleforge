@@ -1,0 +1,11 @@
+{
+  "id": "RF-CONF-ERR-004",
+  "name": "Runtime Error (Division by Zero)",
+  "source": "RULE div_zero LANGUAGE 1 WHEN invoice.total / 0 > 10 THEN ALLOW END",
+  "context_schema": {"invoice": {"total": "Decimal"}},
+  "context": {"invoice": {"total": 100.0}},
+  "expected": {
+    "status": "error",
+    "error_code": "RF4001"
+  }
+}

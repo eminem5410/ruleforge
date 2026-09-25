@@ -1,0 +1,11 @@
+{
+  "id": "RF-CONF-ERR-003",
+  "name": "Parse Error (Missing END)",
+  "source": "RULE missing_end LANGUAGE 1 WHEN true THEN ALLOW",
+  "context_schema": {},
+  "context": {},
+  "expected": {
+    "status": "error",
+    "error_code": "RF2002"
+  }
+}

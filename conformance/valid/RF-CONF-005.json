@@ -1,0 +1,11 @@
+{
+  "id": "RF-CONF-005",
+  "name": "String Functions (contains, length)",
+  "source": "RULE string_funcs LANGUAGE 1 WHEN contains(customer.name, \"VIP\") AND length(customer.name) > 5 THEN ALLOW END",
+  "context_schema": {"customer": {"name": "String"}},
+  "context": {"customer": {"name": "Pablo VIP"}},
+  "expected": {
+    "status": "ok",
+    "decisions": [{"rule_id": "string_funcs", "matched": true, "actions": [{"type": "ALLOW", "value": null}]}]
+  }
+}

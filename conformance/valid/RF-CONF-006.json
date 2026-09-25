@@ -1,0 +1,11 @@
+{
+  "id": "RF-CONF-006",
+  "name": "Date Comparison",
+  "source": "RULE date_check LANGUAGE 1 WHEN customer.birth_date > 1990-01-01 THEN ALLOW END",
+  "context_schema": {"customer": {"birth_date": "Date"}},
+  "context": {"customer": {"birth_date": "1995-05-20"}},
+  "expected": {
+    "status": "ok",
+    "decisions": [{"rule_id": "date_check", "matched": true, "actions": [{"type": "ALLOW", "value": null}]}]
+  }
+}
