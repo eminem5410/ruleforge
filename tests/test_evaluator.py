@@ -90,7 +90,7 @@ def test_eval_011_ends_with():
 # 12. length()
 def test_eval_012_length():
     code = 'RULE r LANGUAGE 1 WHEN length(customer.name) > 5 THEN ALLOW END'
-    decisions = eval_code(code, {"customer": {"name": "Pablo"}})
+    decisions = eval_code(code, {"customer": {"name": "PabloDiez"}})
     assert decisions[0].matched == True
 
 # 13. abs(Integer)
