@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ruleforge"
-version = "4.0.0"
+version = "4.1.0"
 description = "A deterministic, typed, and sandboxed domain-independent rule engine."
 authors = [{name = "Pablo Diez"}]
 requires-python = ">=3.10"
@@ -12,7 +12,9 @@ readme = "README.md"
 dependencies = [
     "fastapi",
     "pydantic",
-    "uvicorn"
+    "uvicorn",
+    "sqlalchemy[asyncio]",
+    "asyncpg"
 ]
 
 [project.optional-dependencies]

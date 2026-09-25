@@ -1,7 +1,8 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
-from typing import Dict, Any
+from typing import Dict, Any, Annotated
 from ..registry.in_memory_repository import InMemoryRuleRepository
+from ..registry.repository import RuleRepository
 from .. import RuleForgeEngine
 from ..lexer import LexerError
 from ..parser import ParserError
@@ -13,7 +14,12 @@ from datetime import date
 import copy
 
 router = APIRouter()
-repo = InMemoryRuleRepository()  # Singleton simple para V4.0.0
+
+# Singleton simple para V4.1.0 (luego será reemplazado por configuración de Postgres)
+_repo_instance = InMemoryRuleRepository()
+
+async def get_repository() -> RuleRepository:
+    return _repo_instance
 
 class RuleForgeEncoder(json.JSONEncoder):
     def default(self, obj):
@@ -32,30 +38,36 @@ class EvaluateRegisteredRuleRequest(BaseModel):
     explain: bool = False
 
 @router.post("/rules", status_code=201)
-def create_rule(request: CreateRuleRequest):
+async def create_rule(request: CreateRuleRequest, repo: Annotated[RuleRepository, Depends(get_repository)]):
     try:
-        rule = repo.save_rule(request.rule_id, request.source, request.language_version)
+        rule = await repo.save_rule(request.rule_id, request.source, request.language_version)
         return rule.model_dump()
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 @router.get("/rules/{rule_id}")
-def get_rule(rule_id: str):
+async def get_rule(rule_id: str, repo: Annotated[RuleRepository, Depends(get_repository)]):
     try:
-        rule = repo.get_rule(rule_id)
+        rule = await repo.get_rule(rule_id)
         return rule.model_dump()
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
-@router.post("/rules/{rule_id}/evaluate")
-def evaluate_registered_rule(rule_id: str, request: EvaluateRegisteredRuleRequest):
+@router.delete("/rules/{rule_id}")
+async def archive_rule(rule_id: str, repo: Annotated[RuleRepository, Depends(get_repository)]):
     try:
-        rule = repo.get_rule(rule_id)
+        await repo.archive_rule(rule_id)
+        return {"status": "archived"}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+@router.post("/rules/{rule_id}/evaluate")
+async def evaluate_registered_rule(rule_id: str, request: EvaluateRegisteredRuleRequest, repo: Annotated[RuleRepository, Depends(get_repository)]):
+    try:
+        rule = await repo.get_rule(rule_id)
         
-        # 1. Immutabilidad: Deep copy
         ctx_copy = copy.deepcopy(request.context)
         
-        # 2. Normalizar Decimals (igual que en /evaluate)
         for obj_name, props in request.context_schema.items():
             if obj_name in ctx_copy and isinstance(ctx_copy[obj_name], dict):
                 for prop_name, prop_type in props.items():
@@ -64,7 +76,6 @@ def evaluate_registered_rule(rule_id: str, request: EvaluateRegisteredRuleReques
                         if val is not None and prop_type == "Decimal" and not isinstance(val, Decimal):
                             ctx_copy[obj_name][prop_name] = Decimal(str(val))
         
-        # 3. Evaluate
         engine = RuleForgeEngine(request.context_schema)
         decisions = engine.evaluate(rule.source, ctx_copy, explain=request.explain)
         

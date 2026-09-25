@@ -1,12 +1,13 @@
 from typing import List, Optional
 from datetime import datetime
 from .models import Rule
+import copy
 
 class InMemoryRuleRepository:
     def __init__(self):
         self._store = {}  # {rule_id: {version: Rule}}
 
-    def save_rule(self, rule_id: str, source: str, language_version: int) -> Rule:
+    async def save_rule(self, rule_id: str, source: str, language_version: int) -> Rule:
         if rule_id not in self._store:
             self._store[rule_id] = {}
             
@@ -26,7 +27,7 @@ class InMemoryRuleRepository:
         versions[new_version] = rule
         return rule
 
-    def get_rule(self, rule_id: str, version: Optional[int] = None) -> Rule:
+    async def get_rule(self, rule_id: str, version: Optional[int] = None) -> Rule:
         if rule_id not in self._store:
             raise ValueError(f"Rule '{rule_id}' not found")
             
@@ -36,11 +37,10 @@ class InMemoryRuleRepository:
                 raise ValueError(f"Rule '{rule_id}' version {version} not found")
             return versions[version]
             
-        # Return the latest version if no specific version is requested
         latest_version = max(versions.keys())
         return versions[latest_version]
 
-    def list_rules(self, status: Optional[str] = None) -> List[Rule]:
+    async def list_rules(self, status: Optional[str] = None) -> List[Rule]:
         all_rules = []
         for versions in self._store.values():
             latest_version = max(versions.keys())
@@ -49,8 +49,11 @@ class InMemoryRuleRepository:
                 all_rules.append(rule)
         return all_rules
 
-    def delete_rule(self, rule_id: str) -> None:
-        if rule_id in self._store:
-            del self._store[rule_id]
-        else:
+    async def archive_rule(self, rule_id: str) -> None:
+        if rule_id not in self._store:
             raise ValueError(f"Rule '{rule_id}' not found")
+        
+        versions = self._store[rule_id]
+        latest_version = max(versions.keys())
+        versions[latest_version].status = "ARCHIVED"
+        versions[latest_version].updated_at = datetime.now()
