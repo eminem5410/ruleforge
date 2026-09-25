@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.RateLimiting;
 using RuleForge.Api.Authorization;
 using RuleForge.Api.Middleware;
