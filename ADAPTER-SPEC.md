@@ -24,3 +24,8 @@ Domain Adapter / Host Application (e.g., Vantari mapping Decision to FHIR Action
 Adapters DO NOT execute side effects.
 RuleForge returns a Decision (e.g., `APPLY "AUTO_APPROVE"`).
 The host application (Vantari/ContaFlow) decides what `AUTO_APPROVE` actually does in the database or API.
+
+## 4. The Golden Architectural Rule
+An adapter may translate domain data into a RuleForge-compatible context, but the RuleForge Core must remain unaware of the domain that produced that context.
+
+This ensures that RuleForge remains a pure, domain-agnostic decision engine, allowing it to be reused across Vantari (HealthTech), ContaFlow (ERP), or any future system without modifying the core.
