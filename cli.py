@@ -1,7 +1,11 @@
 import sys
 import json
 import os
-from ruleforge import RuleForgeEngine, LexerError, ParserError, SemanticError, EvaluatorError
+from ruleforge import RuleForgeEngine
+from ruleforge.lexer import LexerError
+from ruleforge.parser import ParserError
+from ruleforge.semantic import SemanticError
+from ruleforge.evaluator import EvaluatorError
 
 def run_eval(rule_path, data_path, schema_path, explain=False):
     for p in [rule_path, data_path, schema_path]:
