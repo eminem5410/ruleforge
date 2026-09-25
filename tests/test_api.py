@@ -105,7 +105,11 @@ async def test_api_create_rule(client):
     assert data["version"] == 1
 
 async def test_api_get_rule(client):
-    # Asumimos que el test anterior creó adult_check v1
+    # Activate the rule first
+    res = await client.post("/v1/rules/adult_check/versions/1/activate")
+    assert res.status_code == 200
+    assert res.json()["status"] == "ACTIVE"
+
     res = await client.get("/v1/rules/adult_check")
     assert res.status_code == 200
     assert res.json()["rule_id"] == "adult_check"

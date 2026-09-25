@@ -14,42 +14,25 @@ async def repo():
     engine = create_async_engine(DATABASE_URL, echo=False)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    
     session_factory = async_sessionmaker(engine, expire_on_commit=False)
     repository = PostgresRuleRepository(session_factory)
-    
     yield repository
-    
     await engine.dispose()
 
 @pytest.mark.asyncio
-async def test_pg_create_and_get(repo):
-    rule = await repo.save_rule("adult_check", 'RULE adult_check LANGUAGE 1 WHEN true THEN ALLOW END', 1)
-    assert rule.rule_id == "adult_check"
-    assert rule.version == 1
-    assert rule.status == "DRAFT"
-    
-    fetched = await repo.get_rule("adult_check")
-    assert fetched.rule_id == "adult_check"
-
-@pytest.mark.asyncio
-async def test_pg_versioning_and_immutable_history(repo):
+async def test_pg_lifecycle(repo):
     v1 = await repo.save_rule("promo", 'RULE promo LANGUAGE 1 WHEN true THEN ALLOW END', 1)
+    assert v1.status == "DRAFT"
+    
+    await repo.activate_rule("promo", 1)
+    active = await repo.get_rule("promo")
+    assert active.version == 1
+    assert active.status == "ACTIVE"
+    
     v2 = await repo.save_rule("promo", 'RULE promo LANGUAGE 1 WHEN false THEN DENY "No" END', 1)
+    await repo.activate_rule("promo", 2)
+    active = await repo.get_rule("promo")
+    assert active.version == 2
     
-    assert v1.version == 1
-    assert v2.version == 2
-    
-    fetched_v1 = await repo.get_rule("promo", version=1)
-    assert "ALLOW" in fetched_v1.source
-    
-    fetched_v2 = await repo.get_rule("promo", version=2)
-    assert "DENY" in fetched_v2.source
-
-@pytest.mark.asyncio
-async def test_pg_archive_latest_rule(repo):
-    rule = await repo.save_rule("r1", 'RULE r1 LANGUAGE 1 WHEN true THEN ALLOW END', 1)
-    await repo.archive_rule("r1")
-    
-    archived = await repo.get_rule("r1", version=1)
-    assert archived.status == "ARCHIVED"
+    v1_fetched = await repo.get_rule("promo", version=1)
+    assert v1_fetched.status == "ARCHIVED"

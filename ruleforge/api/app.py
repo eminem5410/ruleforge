@@ -1,14 +1,20 @@
 from fastapi import FastAPI
+from contextlib import asynccontextmanager
 from importlib.metadata import version as pkg_version
 from .routes import router as evaluate_router
-from .registry_routes import router as registry_router
+from .registry_routes import router as registry_router, init_db
 
 try:
     app_version = pkg_version("ruleforge")
 except Exception:
     app_version = "0.0.0"
 
-app = FastAPI(title="RuleForge API", version=app_version)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await init_db()
+    yield
+
+app = FastAPI(title="RuleForge API", version=app_version, lifespan=lifespan)
 
 @app.get("/health")
 def health_check():
