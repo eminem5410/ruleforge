@@ -38,3 +38,17 @@ The Host (Vantari, ContaFlow, etc.) is responsible for:
 - Calling `RuleForgeEngine.evaluate()`.
 - Receiving the `Decision`.
 - Deciding what `APPLY "AUTO_APPROVE"` actually means in the database or API.
+
+## 5. Architectural Isolation (The Golden Rule)
+The RuleForge Core MUST NOT import or reference any adapter package.
+The Core remains completely domain-agnostic. Adapters depend on the Core, but the Core never depends on Adapters.
+This is enforced automatically by `tests/test_architecture.py`.
+
+## 6. Protocol Definition
+All adapters should conceptually implement the `RuleForgeAdapter` Protocol defined in `adapters/__init__.py`:
+
+```python
+class RuleForgeAdapter(Protocol):
+    @staticmethod
+    def to_context(*args: Any, **kwargs: Any) -> dict:
+        ...
