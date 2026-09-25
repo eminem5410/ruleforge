@@ -93,3 +93,25 @@ async def test_api_013_date_serialization(client):
     res = await client.post("/v1/evaluate", json=payload)
     assert res.status_code == 200
     assert res.json()["decisions"][0]["matched"] == True
+
+# --- V4.0.0 Registry API Tests ---
+
+async def test_api_create_rule(client):
+    payload = {"rule_id": "adult_check", "source": 'RULE adult_check LANGUAGE 1 WHEN customer.age >= 18 THEN ALLOW END', "language_version": 1}
+    res = await client.post("/v1/rules", json=payload)
+    assert res.status_code == 201
+    data = res.json()
+    assert data["rule_id"] == "adult_check"
+    assert data["version"] == 1
+
+async def test_api_get_rule(client):
+    # Asumimos que el test anterior creó adult_check v1
+    res = await client.get("/v1/rules/adult_check")
+    assert res.status_code == 200
+    assert res.json()["rule_id"] == "adult_check"
+
+async def test_api_evaluate_registered_rule(client):
+    payload = {"context": {"customer": {"age": 21}}, "context_schema": {"customer": {"age": "Integer"}}}
+    res = await client.post("/v1/rules/adult_check/evaluate", json=payload)
+    assert res.status_code == 200
+    assert res.json()["decisions"][0]["matched"] == True
