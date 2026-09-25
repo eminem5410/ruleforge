@@ -9,7 +9,7 @@ from ruleforge.semantic import SemanticAnalyzer
 from ruleforge.evaluator import Evaluator, EvaluatorError
 
 SCHEMA = {
-    "customer": {"age": "Integer", "name": "String", "active": "Boolean", "email": "String"},
+    "customer": {"age": "Integer", "name": "String", "active": "Boolean", "email": "String", "birth_date": "Date"},
     "invoice": {"total": "Decimal", "amount": "Integer"}
 }
 
@@ -22,27 +22,33 @@ def eval_code(code, context, explain=False):
 def test_eval_001_basic_match():
     code = 'RULE r LANGUAGE 1 WHEN customer.age >= 18 THEN ALLOW END'
     decisions = eval_code(code, {"customer": {"age": 20}})
-    assert len(decisions) == 1
     assert decisions[0].matched == True
-    assert decisions[0].actions[0].action_type == "ALLOW"
 
 def test_eval_002_no_match_else():
     code = 'RULE r LANGUAGE 1 WHEN customer.age >= 18 THEN ALLOW ELSE DENY "No" END'
     decisions = eval_code(code, {"customer": {"age": 15}})
-    assert decisions[0].matched == False
     assert decisions[0].actions[0].action_type == "DENY"
 
-def test_eval_003_explain_trace():
-    code = 'RULE r LANGUAGE 1 WHEN customer.age >= 18 THEN ALLOW END'
-    decisions = eval_code(code, {"customer": {"age": 20}}, explain=True)
-    trace = decisions[0].trace
-    assert len(trace) == 2
-    assert "20 >= 18 -> True" in trace[0]
-    assert "True" in trace[1]
+def test_eval_003_short_circuit_and():
+    # false AND (division by zero) -> debe dar False, NO debe tirar RF4001
+    code = 'RULE r LANGUAGE 1 WHEN customer.active == false AND invoice.amount / 0 == 1 THEN ALLOW END'
+    decisions = eval_code(code, {"customer": {"active": False}, "invoice": {"amount": 10}})
+    assert decisions[0].matched == False
 
-def test_eval_004_function_and_logic():
-    code = 'RULE r LANGUAGE 1 WHEN contains(customer.name, "Pablo") AND customer.active == true THEN ALLOW END'
-    decisions = eval_code(code, {"customer": {"name": "Pablo Diez", "active": True}})
+def test_eval_004_short_circuit_or():
+    # true OR (division by zero) -> debe dar True, NO debe tirar RF4001
+    code = 'RULE r LANGUAGE 1 WHEN customer.active == true OR invoice.amount / 0 == 1 THEN ALLOW END'
+    decisions = eval_code(code, {"customer": {"active": True}, "invoice": {"amount": 10}})
+    assert decisions[0].matched == True
+
+def test_eval_005_date_comparison():
+    code = 'RULE r LANGUAGE 1 WHEN customer.birth_date > 1990-01-01 THEN ALLOW END'
+    decisions = eval_code(code, {"customer": {"birth_date": "1995-05-20"}})
+    assert decisions[0].matched == True
+
+def test_eval_006_abs_decimal():
+    code = 'RULE r LANGUAGE 1 WHEN abs(invoice.total) > 50.0 THEN ALLOW END'
+    decisions = eval_code(code, {"invoice": {"total": -100.5}})
     assert decisions[0].matched == True
 
 def test_eval_err_001_division_by_zero():

@@ -4,12 +4,13 @@ from .errors import SemanticError
 class SemanticAnalyzer:
     def __init__(self, context_schema):
         self.schema = context_schema
+        # Fix abs: soporta Integer y Decimal
         self.functions = {
             "contains": (["String", "String"], "Boolean"),
             "length": (["String"], "Integer"),
             "starts_with": (["String", "String"], "Boolean"),
             "ends_with": (["String", "String"], "Boolean"),
-            "abs": (["Integer"], "Integer")
+            "abs": (["Numeric"], "Numeric")
         }
 
     def analyze(self, ast):
@@ -35,7 +36,6 @@ class SemanticAnalyzer:
             return mapping.get(node.type, "Unknown")
             
         elif isinstance(node, IdentifierNode):
-            # En V1, un identificador suelto no pertenece al schema, debe fallar semánticamente
             raise SemanticError("RF3002", f"Unknown context property '{node.name}'")
             
         elif isinstance(node, PropertyAccessNode):
@@ -57,6 +57,7 @@ class SemanticAnalyzer:
                 if operand_type != "Boolean":
                     raise SemanticError("RF3001", f"Operator 'NOT' requires Boolean, got {operand_type}")
                 return "Boolean"
+            raise SemanticError("RF3001", f"Unknown unary operator {node.op}")
                 
         elif isinstance(node, BinaryOpNode):
             left_type = self.check_node(node.left)
@@ -67,18 +68,27 @@ class SemanticAnalyzer:
                 if left_type != "Boolean" or right_type != "Boolean":
                     raise SemanticError("RF3001", f"Operator '{op}' requires Boolean operands, got {left_type} and {right_type}")
                 return "Boolean"
+                
             elif op in ["==", "!="]:
+                # Permitir Int/Dec, pero prohibir cruzar String/Bool/Date con números
+                valid_numeric = ["Integer", "Decimal"]
+                if (left_type in valid_numeric and right_type in valid_numeric):
+                    return "Boolean"
                 if left_type != right_type:
                     raise SemanticError("RF3001", f"Cannot compare {left_type} with {right_type} using '{op}'")
                 return "Boolean"
+                
             elif op in [">", "<", ">=", "<="]:
-                if left_type not in ["Integer", "Decimal", "Date"] or right_type not in ["Integer", "Decimal", "Date"]:
-                    raise SemanticError("RF3001", f"Operator '{op}' requires numeric/date operands, got {left_type} and {right_type}")
-                return "Boolean"
+                valid_numeric = ["Integer", "Decimal"]
+                if (left_type in valid_numeric and right_type in valid_numeric) or (left_type == "Date" and right_type == "Date"):
+                    return "Boolean"
+                raise SemanticError("RF3001", f"Operator '{op}' requires numeric/date operands, got {left_type} and {right_type}")
+                
             elif op in ["+", "-", "*", "/"]:
-                if left_type not in ["Integer", "Decimal"] or right_type not in ["Integer", "Decimal"]:
-                    raise SemanticError("RF3001", f"Operator '{op}' requires numeric operands, got {left_type} and {right_type}")
-                return "Decimal" if "Decimal" in [left_type, right_type] else "Integer"
+                valid_numeric = ["Integer", "Decimal"]
+                if left_type in valid_numeric and right_type in valid_numeric:
+                    return "Decimal" if "Decimal" in [left_type, right_type] else "Integer"
+                raise SemanticError("RF3001", f"Operator '{op}' requires numeric operands, got {left_type} and {right_type}")
             else:
                 raise SemanticError("RF3001", f"Unknown operator {op}")
                 
@@ -90,7 +100,11 @@ class SemanticAnalyzer:
                 raise SemanticError("RF3003", f"Function '{node.name}' expects {len(expected_args)} arguments, got {len(node.args)}")
             for i, arg_node in enumerate(node.args):
                 arg_type = self.check_node(arg_node)
-                if arg_type != expected_args[i]:
+                # Fix para abs(Numeric)
+                if expected_args[i] == "Numeric":
+                    if arg_type not in ["Integer", "Decimal"]:
+                        raise SemanticError("RF3003", f"Argument {i+1} of '{node.name}' must be Numeric, got {arg_type}")
+                elif arg_type != expected_args[i]:
                     raise SemanticError("RF3003", f"Argument {i+1} of '{node.name}' must be {expected_args[i]}, got {arg_type}")
             return return_type
         else:
