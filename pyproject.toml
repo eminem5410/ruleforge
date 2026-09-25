@@ -16,3 +16,8 @@ ruleforge = "ruleforge.cli:main"
 [tool.setuptools.packages.find]
 include = ["ruleforge*"]
 
+
+[tool.pytest.ini_options]
+filterwarnings = [
+    "ignore:Using 'httpx' with 'starlette.testclient' is deprecated:DeprecationWarning"
+]

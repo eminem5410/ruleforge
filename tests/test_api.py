@@ -1,12 +1,10 @@
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-import httpx
+from fastapi.testclient import TestClient
 from ruleforge import app
 
-# Usamos ASGITransport de httpx para testear sin warnings de Starlette deprecado
-transport = httpx.ASGITransport(app=app)
-client = httpx.Client(transport=transport, base_url="http://testserver")
+client = TestClient(app)
 
 SCHEMA = {"customer": {"age": "Integer", "active": "Boolean"}}
 RULE = 'RULE adult_check LANGUAGE 1 WHEN customer.age >= 18 THEN ALLOW END'
@@ -17,21 +15,13 @@ def test_api_health():
     assert res.json() == {"status": "ok"}
 
 def test_api_evaluate_valid_rule():
-    payload = {
-        "rules": RULE,
-        "context": {"customer": {"age": 21}},
-        "context_schema": SCHEMA
-    }
+    payload = {"rules": RULE, "context": {"customer": {"age": 21}}, "context_schema": SCHEMA}
     res = client.post("/v1/evaluate", json=payload)
     assert res.status_code == 200
     assert res.json()["decisions"][0]["matched"] == True
 
 def test_api_semantic_error():
-    payload = {
-        "rules": 'RULE r LANGUAGE 1 WHEN customer.age > "18" THEN ALLOW END',
-        "context": {"customer": {"age": 21}},
-        "context_schema": SCHEMA
-    }
+    payload = {"rules": 'RULE r LANGUAGE 1 WHEN customer.age > "18" THEN ALLOW END', "context": {"customer": {"age": 21}}, "context_schema": SCHEMA}
     res = client.post("/v1/evaluate", json=payload)
     assert res.status_code == 400
     assert res.json()["error"]["code"] == "RF3001"
@@ -42,11 +32,7 @@ def test_api_missing_rules_field():
     assert res.status_code == 422
 
 def test_api_decimal_serialization():
-    payload = {
-        "rules": 'RULE r LANGUAGE 1 WHEN invoice.total == 100.50 THEN ALLOW END',
-        "context": {"invoice": {"total": "100.50"}},
-        "context_schema": {"invoice": {"total": "Decimal"}}
-    }
+    payload = {"rules": 'RULE r LANGUAGE 1 WHEN invoice.total == 100.50 THEN ALLOW END', "context": {"invoice": {"total": "100.50"}}, "context_schema": {"invoice": {"total": "Decimal"}}}
     res = client.post("/v1/evaluate", json=payload)
     assert res.status_code == 200
     assert res.json()["decisions"][0]["matched"] == True
