@@ -1,11 +1,12 @@
-using RuleForge.Api.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using RuleForge.Api.Authorization;
 using RuleForge.Api.Contracts;
+using RuleForge.Api.Services;
 using RuleForge.Core.Evaluation;
 using RuleForge.Core.Lexing;
 using RuleForge.Core.Parsing;
 using RuleForge.Core.Semantic;
-using System.Text.Json;
 
 namespace RuleForge.Api.Controllers;
 
@@ -14,9 +15,10 @@ namespace RuleForge.Api.Controllers;
 public class EvaluationController : ControllerBase
 {
     [HttpPost("evaluate")]
+    [Authorize(Policy = "rules:evaluate")]
     public IActionResult Evaluate([FromBody] EvaluateRequest request)
     {
-        // 1. Normalize Context (JSON to .NET types)
+        // 1. Normalize Context
         var context = ContextNormalizer.Normalize(request.Context, request.ContextSchema);
         
         // 2. Execute Pipeline
@@ -37,5 +39,12 @@ public class EvaluationController : ControllerBase
         };
 
         return Ok(response);
+    }
+
+    [HttpGet("health")]
+    [AllowAnonymous]
+    public IActionResult Health()
+    {
+        return Ok(new { status = "healthy" });
     }
 }
