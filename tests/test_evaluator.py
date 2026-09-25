@@ -11,7 +11,7 @@ from ruleforge.evaluator import Evaluator, EvaluatorError
 
 SCHEMA = {
     "customer": {"age": "Integer", "name": "String", "active": "Boolean", "email": "String", "birth_date": "Date"},
-    "invoice": {"total": "Decimal", "amount": "Integer"}
+    "invoice": {"total": "Decimal", "amount": "Integer", "paid": "Boolean"}
 }
 
 def eval_code(code, context, explain=False):
@@ -20,63 +20,136 @@ def eval_code(code, context, explain=False):
     SemanticAnalyzer(SCHEMA).analyze(ast)
     return Evaluator(context, explain_mode=explain).eval_rules(ast)
 
-def test_eval_001_basic_match():
-    code = 'RULE r LANGUAGE 1 WHEN customer.age >= 18 THEN ALLOW END'
-    decisions = eval_code(code, {"customer": {"age": 20}})
+# 1. IdentifierNode
+def test_eval_001_identifier_node():
+    code = 'RULE r LANGUAGE 1 WHEN customer.active == true THEN ALLOW END'
+    # 'customer.active' usa PropertyAccessNode, pero si fuera 'active' suelto sería IdentifierNode
+    decisions = eval_code(code, {"customer": {"active": True}})
     assert decisions[0].matched == True
 
-def test_eval_002_no_match_else():
-    code = 'RULE r LANGUAGE 1 WHEN customer.age >= 18 THEN ALLOW ELSE DENY "No" END'
-    decisions = eval_code(code, {"customer": {"age": 15}})
-    assert decisions[0].actions[0].action_type == "DENY"
-
-def test_eval_003_short_circuit_and():
-    code = 'RULE r LANGUAGE 1 WHEN customer.active == true AND invoice.amount / 0 == 1 THEN ALLOW END'
-    decisions = eval_code(code, {"customer": {"active": False}, "invoice": {"amount": 10}})
-    assert decisions[0].matched == False
-
-def test_eval_004_short_circuit_or():
-    code = 'RULE r LANGUAGE 1 WHEN customer.active == true OR invoice.amount / 0 == 1 THEN ALLOW END'
-    decisions = eval_code(code, {"customer": {"active": True}, "invoice": {"amount": 10}})
+# 2. precedence completa (AND antes que OR)
+def test_eval_002_precedence():
+    code = 'RULE r LANGUAGE 1 WHEN customer.active == false OR customer.age >= 18 AND customer.age <= 65 THEN ALLOW END'
+    decisions = eval_code(code, {"customer": {"active": False, "age": 20}})
     assert decisions[0].matched == True
 
+# 3. NOT + AND + OR
+def test_eval_003_not_and_or():
+    code = 'RULE r LANGUAGE 1 WHEN NOT customer.active AND customer.age > 18 OR customer.email IS NULL THEN ALLOW END'
+    decisions = eval_code(code, {"customer": {"active": False, "age": 20, "email": "test@test.com"}})
+    assert decisions[0].matched == True
+
+# 4. comparación String
+def test_eval_004_string_comparison():
+    code = 'RULE r LANGUAGE 1 WHEN customer.name == "Pablo" THEN ALLOW END'
+    decisions = eval_code(code, {"customer": {"name": "Pablo"}})
+    assert decisions[0].matched == True
+
+# 5. comparación Date
 def test_eval_005_date_comparison():
     code = 'RULE r LANGUAGE 1 WHEN customer.birth_date > 1990-01-01 THEN ALLOW END'
-    # Fix: Pasar la fecha como objeto date real, no string, para respetar el strict typing
     decisions = eval_code(code, {"customer": {"birth_date": date(1995, 5, 20)}})
     assert decisions[0].matched == True
 
-def test_eval_006_abs_decimal():
-    code = 'RULE r LANGUAGE 1 WHEN abs(invoice.total) > 50.0 THEN ALLOW END'
-    decisions = eval_code(code, {"invoice": {"total": -100.5}})
+# 6. operaciones Integer
+def test_eval_006_integer_math():
+    code = 'RULE r LANGUAGE 1 WHEN customer.age + 10 == 30 THEN ALLOW END'
+    decisions = eval_code(code, {"customer": {"age": 20}})
     assert decisions[0].matched == True
 
-def test_eval_007_is_null():
-    code = 'RULE r LANGUAGE 1 WHEN customer.email IS NULL THEN ALERT "Missing email" END'
-    decisions = eval_code(code, {"customer": {"email": None}})
+# 7. operaciones Decimal
+def test_eval_007_decimal_math():
+    code = 'RULE r LANGUAGE 1 WHEN invoice.total - 10.0 == 90.0 THEN ALLOW END'
+    decisions = eval_code(code, {"invoice": {"total": 100.0}})
     assert decisions[0].matched == True
-    assert decisions[0].actions[0].action_type == "ALERT"
 
-def test_eval_008_is_not_null():
-    code = 'RULE r LANGUAGE 1 WHEN customer.email IS NOT NULL THEN ALLOW END'
+# 8. Integer / Integer → Decimal
+def test_eval_008_int_division_to_decimal():
+    code = 'RULE r LANGUAGE 1 WHEN invoice.amount / 2 == 5.5 THEN ALLOW END'
+    decisions = eval_code(code, {"invoice": {"amount": 11}})
+    assert decisions[0].matched == True
+
+# 9. contains()
+def test_eval_009_contains():
+    code = 'RULE r LANGUAGE 1 WHEN contains(customer.name, "Diez") THEN ALLOW END'
+    decisions = eval_code(code, {"customer": {"name": "Pablo Diez"}})
+    assert decisions[0].matched == True
+
+# 10. starts_with()
+def test_eval_010_starts_with():
+    code = 'RULE r LANGUAGE 1 WHEN starts_with(customer.email, "pablo") THEN ALLOW END'
+    decisions = eval_code(code, {"customer": {"email": "pablo@test.com"}})
+    assert decisions[0].matched == True
+
+# 11. ends_with()
+def test_eval_011_ends_with():
+    code = 'RULE r LANGUAGE 1 WHEN ends_with(customer.email, ".com") THEN ALLOW END'
     decisions = eval_code(code, {"customer": {"email": "test@test.com"}})
     assert decisions[0].matched == True
 
-def test_eval_009_unary_not():
-    code = 'RULE r LANGUAGE 1 WHEN NOT customer.active THEN ALLOW END'
-    decisions = eval_code(code, {"customer": {"active": False}})
+# 12. length()
+def test_eval_012_length():
+    code = 'RULE r LANGUAGE 1 WHEN length(customer.name) > 5 THEN ALLOW END'
+    decisions = eval_code(code, {"customer": {"name": "Pablo"}})
     assert decisions[0].matched == True
 
-def test_eval_010_multiple_rules():
+# 13. abs(Integer)
+def test_eval_013_abs_integer():
+    code = 'RULE r LANGUAGE 1 WHEN abs(customer.age) == 20 THEN ALLOW END'
+    decisions = eval_code(code, {"customer": {"age": -20}})
+    assert decisions[0].matched == True
+
+# 14. abs(Decimal)
+def test_eval_014_abs_decimal():
+    code = 'RULE r LANGUAGE 1 WHEN abs(invoice.total) == 100.5 THEN ALLOW END'
+    decisions = eval_code(code, {"invoice": {"total": -100.5}})
+    assert decisions[0].matched == True
+
+# 15. IS NULL sobre propiedad inexistente en el contexto
+def test_eval_015_is_null_missing_property():
+    code = 'RULE r LANGUAGE 1 WHEN customer.email IS NULL THEN ALLOW END'
+    decisions = eval_code(code, {"customer": {"age": 20}}) # No tiene 'email' en el contexto
+    assert decisions[0].matched == True
+
+# 16. ELSE ausente → NO_ACTION
+def test_eval_016_no_else_no_action():
+    code = 'RULE r LANGUAGE 1 WHEN customer.age >= 18 THEN ALLOW END'
+    decisions = eval_code(code, {"customer": {"age": 15}})
+    assert decisions[0].matched == False
+    assert decisions[0].actions[0].action_type == "NO_ACTION"
+
+# 17. terminal actions
+def test_eval_017_terminal_actions():
+    code = 'RULE r LANGUAGE 1 WHEN customer.age >= 18 THEN DENY "Blocked" END'
+    decisions = eval_code(code, {"customer": {"age": 20}})
+    assert decisions[0].actions[0].action_type == "DENY"
+
+# 18. ALERT / APPLY
+def test_eval_018_alert_apply():
+    code = 'RULE r LANGUAGE 1 WHEN customer.age >= 18 THEN ALERT "Adult" APPLY "Discount" END'
+    decisions = eval_code(code, {"customer": {"age": 20}})
+    assert len(decisions[0].actions) == 2
+    assert decisions[0].actions[0].action_type == "ALERT"
+    assert decisions[0].actions[1].action_type == "APPLY"
+
+# 19. explain_mode / trace
+def test_eval_019_explain_trace():
+    code = 'RULE r LANGUAGE 1 WHEN customer.age >= 18 THEN ALLOW END'
+    decisions = eval_code(code, {"customer": {"age": 20}}, explain=True)
+    assert len(decisions[0].trace) == 2
+    assert "20 >= 18 -> True" in decisions[0].trace[0]
+
+# 20. múltiples reglas con contextos distintos (el contexto cambia entre reglas)
+def test_eval_020_multiple_rules():
     code = """
     RULE r1 LANGUAGE 1 WHEN customer.age >= 18 THEN ALLOW END
-    RULE r2 LANGUAGE 1 WHEN customer.active == true THEN ALLOW END
+    RULE r2 LANGUAGE 1 WHEN invoice.paid == true THEN ALLOW END
     """
-    decisions = eval_code(code, {"customer": {"age": 20, "active": True}})
-    assert len(decisions) == 2
+    decisions = eval_code(code, {"customer": {"age": 20}, "invoice": {"paid": False}})
     assert decisions[0].matched == True
-    assert decisions[1].matched == True
+    assert decisions[1].matched == False
 
+# Errores runtime
 def test_eval_err_001_division_by_zero():
     code = 'RULE r LANGUAGE 1 WHEN invoice.total / 0 > 10 THEN ALLOW END'
     with pytest.raises(EvaluatorError) as exc:

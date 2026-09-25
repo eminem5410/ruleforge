@@ -3,15 +3,29 @@ from ..parser.ast_nodes import RuleNode, ActionNode, BinaryOpNode, UnaryOpNode, 
 from .errors import EvaluatorError
 
 class Decision:
-    def __init__(self, rule_name, lang_version, matched, actions, trace=None):
-        self.rule_name = rule_name
-        self.lang_version = lang_version
+    """
+    Formal Decision Model. 
+    This is the structured output of a RuleForge evaluation.
+    """
+    def __init__(self, rule_id, rule_version, language_version, matched, actions, trace=None):
+        self.rule_id = rule_id
+        self.rule_version = rule_version
+        self.language_version = language_version
         self.matched = matched
         self.actions = actions
         self.trace = trace or []
-    def __repr__(self): return f"Decision(rule='{self.rule_name}', matched={self.matched}, actions={self.actions})"
+        
+    def __repr__(self): 
+        return f"Decision(rule_id='{self.rule_id}', v{self.rule_version}, lang={self.language_version}, matched={self.matched}, actions={self.actions})"
 
 class Evaluator:
+    """
+    RuleForge Evaluator.
+    
+    Contract: This component assumes the AST provided has already been 
+    validated by the SemanticAnalyzer. It does not duplicate type checks.
+    Its sole responsibility is to walk the AST and produce a Decision.
+    """
     def __init__(self, context, explain_mode=False):
         self.context = context
         self.explain_mode = explain_mode
@@ -36,7 +50,8 @@ class Evaluator:
             actions = node.else_actions if node.else_actions else [ActionNode("NO_ACTION")]
             matched = False
             
-        return Decision(node.name, node.lang_version, matched, actions, self.trace)
+        # rule_version asumo 1 por ahora hasta que implementemos metadata de reglas
+        return Decision(node.name, 1, node.lang_version, matched, actions, self.trace)
 
     def eval_node(self, node):
         if isinstance(node, LiteralNode):
@@ -49,12 +64,13 @@ class Evaluator:
             return node.value
             
         elif isinstance(node, PropertyAccessNode):
+            # Contrato: El Semantic Analyzer ya validó que la propiedad EXISTE en el Schema.
+            # Si no está en el contexto de datos, lo tratamos como None para soportar IS NULL.
             obj = self.context.get(node.obj)
             if obj is None: return None
             return obj.get(node.prop)
             
         elif isinstance(node, IdentifierNode):
-            # Fix 1: Manejar IdentifierNode sueltos contra el contexto
             return self.context.get(node.name)
             
         elif isinstance(node, NullCheckNode):
@@ -102,7 +118,6 @@ class Evaluator:
             left_val = self.eval_node(node.left)
             right_val = self.eval_node(node.right)
             
-            # Fix 2: Quitar la coerción de fechas. El estricto tipado exige que los datos ya vengan con su tipo correcto.
             result = None
             if op == "==": result = left_val == right_val
             elif op == "!=": result = left_val != right_val
