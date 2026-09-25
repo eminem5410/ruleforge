@@ -1,0 +1,6 @@
+RULE bug_rule
+WHEN
+    customer.age > "sesenta"
+THEN
+    ALLOW
+END

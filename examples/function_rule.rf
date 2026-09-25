@@ -1,0 +1,10 @@
+RULE email_validation
+WHEN
+    customer.age >= 18
+    AND contains(customer.email, "@gmail.com")
+    AND length(customer.name) > 5
+THEN
+    ALLOW
+ELSE
+    DENY "Invalid profile data"
+END

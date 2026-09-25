@@ -1,0 +1,25 @@
+RULE adult_check
+WHEN
+    customer.age >= 18
+THEN
+    ALLOW
+ELSE
+    DENY "Must be 18 or older"
+END
+
+RULE email_check
+WHEN
+    contains(customer.email, "@")
+THEN
+    ALLOW
+ELSE
+    DENY "Invalid email"
+END
+
+RULE vip_discount
+WHEN
+    customer.age >= 65
+    AND customer.debt == 0
+THEN
+    APPLY "senior_discount"
+END

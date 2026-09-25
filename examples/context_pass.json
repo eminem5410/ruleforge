@@ -1,0 +1,6 @@
+{
+    "customer": {
+        "debt": 25000,
+        "status": "active"
+    }
+}

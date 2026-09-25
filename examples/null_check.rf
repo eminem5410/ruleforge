@@ -1,0 +1,7 @@
+RULE premium_customer
+WHEN
+    customer.age >= 65
+    AND customer.email IS NOT NULL
+THEN
+    APPLY "premium_discount"
+END

@@ -1,0 +1,9 @@
+{
+    "customer": {
+        "age": "Integer",
+        "debt": "Integer",
+        "status": "String",
+        "name": "String",
+        "email": "String"
+    }
+}

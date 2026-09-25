@@ -1,0 +1,9 @@
+RULE credit_check
+WHEN
+    customer.debt <= 50000
+    AND customer.status == "active"
+THEN
+    ALLOW
+ELSE
+    DENY "Credit limit exceeded"
+END
