@@ -58,6 +58,12 @@ def test_lex_012_multiline_tracking():
     assert tokens[3].line == 2
     assert tokens[3].column == 6
 
+def test_lex_013_eof_position():
+    tokens = Lexer("RULE test\nWHEN true").tokenize()
+    assert tokens[-1].type == TokenType.EOF
+    assert tokens[-1].line == 2
+    assert tokens[-1].column == 10
+
 def test_lex_err_001_invalid_char():
     with pytest.raises(LexerError) as exc:
         Lexer("customer @ age").tokenize()
@@ -91,6 +97,18 @@ def test_lex_err_006_unknown_escape():
         Lexer('"hello \\x"').tokenize()
     assert exc.value.code == "RF1001"
     assert "Unknown escape" in exc.value.message
+
+def test_lex_err_007_number_followed_by_letter():
+    with pytest.raises(LexerError) as exc:
+        Lexer("123abc").tokenize()
+    assert exc.value.code == "RF1001"
+    assert "Invalid identifier" in exc.value.message
+
+def test_lex_err_008_date_followed_by_number():
+    with pytest.raises(LexerError) as exc:
+        Lexer("2026-09-25123").tokenize()
+    assert exc.value.code == "RF1001"
+    assert "Invalid characters attached to date" in exc.value.message
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

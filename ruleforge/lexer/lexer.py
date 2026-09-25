@@ -38,12 +38,10 @@ class Lexer:
         while self.pos < len(self.source):
             char = self.peek()
             
-            # 1. Whitespace
             if char.isspace():
                 self.advance()
                 continue
                 
-            # 2. Comments (// ...)
             if char == '/' and self.peek(1) == '/':
                 while self.peek() and self.peek() != '\n':
                     self.advance()
@@ -51,7 +49,6 @@ class Lexer:
                 
             start_line, start_col = self.line, self.column
             
-            # 3. Strings with escapes
             if char == '"':
                 self.advance()
                 val = ""
@@ -75,12 +72,13 @@ class Lexer:
                 tokens.append(Token(TokenType.STRING, val, start_line, start_col))
                 continue
                 
-            # 4. Dates & Numbers
             if char.isdigit():
                 match = DATE_REGEX.match(self.source, self.pos)
                 if match:
                     val = match.group(0)
                     for _ in val: self.advance()
+                    if self.peek() and (self.peek().isdigit() or self.peek().isalpha() or self.peek() == '_'):
+                        raise LexerError("RF1001", "Invalid characters attached to date", start_line, start_col)
                     tokens.append(Token(TokenType.DATE, val, start_line, start_col))
                     continue
                     
@@ -98,12 +96,14 @@ class Lexer:
                 
                 if self.peek() == '.' and not is_decimal:
                     raise LexerError("RF1001", "Invalid number format", start_line, start_col)
+                
+                if self.peek() and (self.peek().isalpha() or self.peek() == '_'):
+                    raise LexerError("RF1001", "Invalid identifier format (number followed by letter)", start_line, start_col)
                     
                 tt = TokenType.DECIMAL if is_decimal else TokenType.INTEGER
                 tokens.append(Token(tt, val, start_line, start_col))
                 continue
                 
-            # 5. Identifiers & Keywords
             if char.isalpha() or char == '_':
                 val = ""
                 while self.peek() and (self.peek().isalnum() or self.peek() == '_'):
@@ -113,7 +113,6 @@ class Lexer:
                 tokens.append(Token(tt, val, start_line, start_col))
                 continue
                 
-            # 6. Operators (Longest Match)
             if char == '=':
                 if self.peek(1) == '=':
                     tokens.append(Token(TokenType.EQ, '==', start_line, start_col))
