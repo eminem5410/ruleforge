@@ -9,12 +9,13 @@ from ruleforge.semantic import SemanticAnalyzer, SemanticError
 from ruleforge.evaluator import Evaluator, EvaluatorError
 
 SCHEMA = {
-    "customer": {"age": "Integer", "name": "String", "active": "Boolean", "email": "String"}
+    "customer": {"age": "Integer", "name": "String", "active": "Boolean", "email": "String"},
+    "invoice": {"total": "Decimal", "amount": "Decimal"}
 }
 
 def get_cases(folder):
     base_dir = os.path.join(os.path.dirname(__file__), 'conformance', folder)
-    rule_files = glob.glob(os.path.join(base_dir, '*.rf'))
+    rule_files = glob.glob(os.path.join(base_dir, '**', '*.rf'), recursive=True)
     cases = []
     for rule_path in rule_files:
         data_path = rule_path.replace('.rf', '.json')
@@ -34,7 +35,9 @@ def test_valid_conformance(rule_path, data_path):
     ast = Parser(tokens).parse()
     SemanticAnalyzer(SCHEMA).analyze(ast)
     
-    evaluator = Evaluator(data["context"])
+    # Usamos el contexto vacío si no se provee uno (útil para errores de runtime)
+    ctx = data.get("context", {})
+    evaluator = Evaluator(ctx)
     decisions = evaluator.eval_rules(ast)
     
     d = decisions[0]
@@ -56,6 +59,11 @@ def test_invalid_conformance(rule_path, data_path):
         tokens = Lexer(source_code).tokenize()
         ast = Parser(tokens).parse()
         SemanticAnalyzer(SCHEMA).analyze(ast)
+        
+        # Ejecutamos el evaluator en los casos inválidos para capturar errores de Runtime (RF4xxx)
+        ctx = data.get("context", {})
+        evaluator = Evaluator(ctx)
+        evaluator.eval_rules(ast)
         
     assert exc.value.code == data["expected_error_code"], f"Expected {data['expected_error_code']} but got {exc.value.code}"
 

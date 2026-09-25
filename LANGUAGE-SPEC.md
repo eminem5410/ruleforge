@@ -1,5 +1,5 @@
 # RuleForge Language Specification
-Version: 1.0.2
+Version: 1.0.3
 Status: Core Stable (Runtime Hardened)
 
 ## 1. Goals & Philosophy
@@ -9,8 +9,9 @@ The Golden Rule: A RuleForge rule must never directly perform external side effe
 ## 2. Type System & NULL Semantics
 - Strict typing. No implicit coercion.
 - Missing properties in runtime context are evaluated as NULL.
+- RuleForge does NOT use 3-valued logic (like SQL's UNKNOWN). 
+- NULL is NOT a comparable value. Any arithmetic or comparison operation (==, !=, >, <, +, -) against NULL raises RF4002 Runtime Type Error.
 - NULL can ONLY be used with `IS NULL` or `IS NOT NULL` operators.
-- Any arithmetic or comparison operation against NULL raises RF4002 Runtime Type Error.
 - Decimal type uses exact arithmetic (Python's decimal.Decimal) to prevent floating-point precision issues.
 
 ## 3. Versioning

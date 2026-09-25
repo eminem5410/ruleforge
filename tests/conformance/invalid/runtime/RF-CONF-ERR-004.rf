@@ -1,0 +1,5 @@
+RULE runtime_null_math
+LANGUAGE 1
+WHEN customer.age + 10 == 30
+THEN ALLOW
+END

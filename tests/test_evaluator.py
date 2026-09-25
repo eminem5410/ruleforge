@@ -184,12 +184,11 @@ if __name__ == "__main__":
     pytest.main([__file__, "-v"])
 from ruleforge.evaluator import EvaluatorError
 
-# 25. Decimal exacto (0.1 + 0.2)
+# 25. Decimal exacto (0.1 + 0.2 == 0.3)
 def test_eval_025_decimal_precision():
-    code = 'RULE r LANGUAGE 1 WHEN invoice.total == 0.3 THEN ALLOW END'
-    # Si usaramos float, 0.1 + 0.2 daria 0.30000000000000004. 
-    # Para testear directo, le pasamos 0.3 y comparamos con 0.3.
-    decisions = eval_code(code, {"invoice": {"total": 0.3}})
+    code = 'RULE r LANGUAGE 1 WHEN invoice.total + 0.2 == 0.3 THEN ALLOW END'
+    # Si usaramos float, 0.1 + 0.2 daria 0.30000000000000004 y esto daria False.
+    decisions = eval_code(code, {"invoice": {"total": 0.1}})
     assert decisions[0].matched == True
 
 # 26. NULL Arithmetic raises RF4002

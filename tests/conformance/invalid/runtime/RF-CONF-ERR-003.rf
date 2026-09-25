@@ -1,0 +1,5 @@
+RULE runtime_div_zero
+LANGUAGE 1
+WHEN invoice.total / 0 > 10
+THEN ALLOW
+END
