@@ -32,7 +32,7 @@ public class SemanticTests
     {
         var ex = Assert.Throws<SemanticException>(() => AnalyzeCode("RULE r LANGUAGE 1 WHEN customer.age > \"18\" THEN ALLOW END"));
         Assert.Equal("RF3001", ex.Code);
-        Assert.Contains("Cannot compare Integer with String", ex.Message);
+        Assert.Contains("requires numeric/date", ex.Message);
     }
 
     [Fact]
