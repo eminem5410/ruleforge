@@ -4,10 +4,9 @@ import json
 import tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CLI_PATH = os.path.join(ROOT, "cli.py")
 
 def run_cli(args):
-    cmd = ["python3", CLI_PATH] + args
+    cmd = ["python3", "-m", "ruleforge.cli"] + args
     return subprocess.run(cmd, capture_output=True, text=True)
 
 def test_cli_eval_json():

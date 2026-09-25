@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ruleforge"
+version = "1.2.0"
+description = "A deterministic, typed, and sandboxed domain-independent rule engine."
+authors = [{name = "Pablo Diez"}]
+requires-python = ">=3.10"
+readme = "README.md"
+
+[project.scripts]
+ruleforge = "ruleforge.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["ruleforge*"]

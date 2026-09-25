@@ -2,11 +2,11 @@ import sys
 import json
 import os
 import argparse
-from ruleforge import RuleForgeEngine
-from ruleforge.lexer import LexerError
-from ruleforge.parser import ParserError
-from ruleforge.semantic import SemanticError
-from ruleforge.evaluator import EvaluatorError
+from . import RuleForgeEngine
+from .lexer import LexerError
+from .parser import ParserError
+from .semantic import SemanticError
+from .evaluator import EvaluatorError
 
 def main():
     parser = argparse.ArgumentParser(description="RuleForge Decision Engine CLI")
