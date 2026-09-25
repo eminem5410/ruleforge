@@ -45,7 +45,7 @@ class Evaluator:
             if node.type == "DECIMAL": return float(node.value)
             if node.type == "DATE": 
                 y, m, d = map(int, node.value.split('-'))
-                return date(y, m, d) # Fix: Objeto Date real, no string
+                return date(y, m, d)
             return node.value
             
         elif isinstance(node, PropertyAccessNode):
@@ -72,47 +72,39 @@ class Evaluator:
         elif isinstance(node, BinaryOpNode):
             op = node.op
             
-            # Fix: SHORT-CIRCUIT para AND y OR
-            left_val = self.eval_node(node.left)
+            # 1. Short-circuit AND
             if op == "AND":
+                left_val = self.eval_node(node.left)
                 if not left_val:
                     if self.explain_mode: self.trace.append(f"Short-circuit AND: {left_val} AND ... -> False")
                     return False
                 right_val = self.eval_node(node.right)
-            
-            # Fix: Coercion de fechas para comparacion
-            if isinstance(left_val, date) and isinstance(right_val, str):
-                right_val = date.fromisoformat(right_val)
-            elif isinstance(right_val, date) and isinstance(left_val, str):
-                left_val = date.fromisoformat(left_val)
                 result = bool(right_val)
                 if self.explain_mode: self.trace.append(f"Evaluando: {left_val} AND {right_val} -> {result}")
                 return result
+                
+            # 2. Short-circuit OR
             elif op == "OR":
+                left_val = self.eval_node(node.left)
                 if left_val:
                     if self.explain_mode: self.trace.append(f"Short-circuit OR: {left_val} OR ... -> True")
                     return True
                 right_val = self.eval_node(node.right)
-            
-            # Fix: Coercion de fechas para comparacion
-            if isinstance(left_val, date) and isinstance(right_val, str):
-                right_val = date.fromisoformat(right_val)
-            elif isinstance(right_val, date) and isinstance(left_val, str):
-                left_val = date.fromisoformat(left_val)
                 result = True if right_val else False
                 if self.explain_mode: self.trace.append(f"Evaluando: {left_val} OR {right_val} -> {result}")
                 return result
 
-            # Evaluación normal para el resto
+            # 3. Evaluación normal para el resto de operadores
+            left_val = self.eval_node(node.left)
             right_val = self.eval_node(node.right)
             
-            # Fix: Coercion de fechas para comparacion
+            # Fix: Coerción de fechas para comparación
             if isinstance(left_val, date) and isinstance(right_val, str):
                 right_val = date.fromisoformat(right_val)
             elif isinstance(right_val, date) and isinstance(left_val, str):
                 left_val = date.fromisoformat(left_val)
+                
             result = None
-            
             if op == "==": result = left_val == right_val
             elif op == "!=": result = left_val != right_val
             elif op == ">": result = left_val > right_val
