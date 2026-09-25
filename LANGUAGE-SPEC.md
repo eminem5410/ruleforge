@@ -1,6 +1,6 @@
 # RuleForge Language Specification
-Version: 1.0.3
-Status: Core Stable (Runtime Hardened)
+Version: 1.3.0
+Status: Core Stable (Runtime Validated)
 
 ## 1. Goals & Philosophy
 RuleForge is a deterministic, typed, and sandboxed domain-independent rule language.
@@ -22,5 +22,8 @@ The Golden Rule: A RuleForge rule must never directly perform external side effe
 - RF1xxx: Lexical Errors
 - RF2xxx: Parse Errors
 - RF3xxx: Semantic/Type Errors (Static Analysis)
-- RF4xxx: Runtime Errors (e.g., Division by zero, Invalid context data, Native exceptions)
+- RF4xxx: Runtime Errors
+  - RF4001: Runtime Error (e.g., Division by zero, unexpected internal failure)
+  - RF4002: Runtime Type Error (e.g., NULL arithmetic, incompatible operations)
+  - RF4003: Invalid Runtime Context (Context data structure or types do not match Schema)
 - RF5xxx: Security / Resource Limits
