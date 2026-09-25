@@ -17,13 +17,15 @@ The API acts strictly as a transport adapter. The RuleForge Core remains complet
   "context": {
     "customer": {
       "age": 21,
-      "balance": "1500.50"
+      "balance": "1500.50",
+      "birth_date": "1990-05-20"
     }
   },
   "context_schema": {
     "customer": {
       "age": "Integer",
-      "balance": "Decimal"
+      "balance": "Decimal",
+      "birth_date": "Date"
     }
   },
   "explain": false
@@ -56,5 +58,4 @@ The API acts strictly as a transport adapter. The RuleForge Core remains complet
 ## 3. API Type Normalization
 To bridge JSON and RuleForge Core, the API normalizes incoming context data based on `context_schema`:
 - `Decimal`: Converted from JSON string/number to Python `decimal.Decimal`.
-- `Date`: Converted from JSON string to Python `datetime.date`.
-- Other types are passed through if they match the schema.
+- `Date`: Passed as ISO-8601 string. The RuleForge Core handles the conversion to `datetime.date` internally.

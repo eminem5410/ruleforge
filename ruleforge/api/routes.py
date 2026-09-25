@@ -30,13 +30,12 @@ def normalize_context(context: dict, schema: dict) -> dict:
                         continue
                         
                     try:
+                        # Solo normalizamos Decimal, ya que el Core espera el tipo nativo.
+                        # Date se pasa como string porque el Core (engine.py) ya lo convierte a date object.
                         if prop_type == "Decimal" and not isinstance(val, Decimal):
                             context[obj_name][prop_name] = Decimal(str(val))
-                        elif prop_type == "Date" and isinstance(val, str):
-                            y, m, d = map(int, val.split('-'))
-                            context[obj_name][prop_name] = date(y, m, d)
-                    except (InvalidOperation, ValueError) as e:
-                        raise EvaluatorError("RF4003", f"Invalid Runtime Context: Cannot normalize '{obj_name}.{prop_name}' to {prop_type}: {val}")
+                    except InvalidOperation:
+                        raise EvaluatorError("RF4003", f"Invalid Runtime Context: Cannot normalize '{obj_name}.{prop_name}' to Decimal: {val}")
     return context
 
 @router.post("/evaluate")

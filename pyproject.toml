@@ -15,3 +15,8 @@ ruleforge = "ruleforge.cli:main"
 
 [tool.setuptools.packages.find]
 include = ["ruleforge*"]
+
+[tool.pytest.ini_options]
+filterwarnings = [
+    "ignore::DeprecationWarning"
+]
