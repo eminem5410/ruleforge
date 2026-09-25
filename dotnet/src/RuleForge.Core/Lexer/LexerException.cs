@@ -1,0 +1,16 @@
+namespace RuleForge.Core.Lexing;
+
+public class LexerException : Exception
+{
+    public string Code { get; }
+    public int Line { get; }
+    public int Column { get; }
+
+    public LexerException(string code, string message, int line, int column) 
+        : base($"{code} Lexical Error: {message} at Line {line}, Column {column}")
+    {
+        Code = code;
+        Line = line;
+        Column = column;
+    }
+}
