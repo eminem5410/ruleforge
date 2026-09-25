@@ -89,3 +89,80 @@ def test_erp_adapter_runtime_validation_fails_on_bad_data():
     with pytest.raises(EvaluatorError) as exc:
         erp_engine.evaluate(rule, context)
     assert exc.value.code == "RF4003"
+
+# --- FHIR V2.2.0 Expansion Tests ---
+
+FHIR_SCHEMA_V2 = {
+    "patient": {"age": "Integer", "active": "Boolean"},
+    "observation": {"code": "String", "value": "Decimal"},
+    "allergy": {"code": "String", "status": "String"},
+    "medication": {"code": "String", "status": "String"},
+    "dispense": {"code": "String", "status": "String"},
+    "encounter": {"status": "String", "class": "String"}
+}
+fhir_engine_v2 = RuleForgeEngine(FHIR_SCHEMA_V2)
+
+def test_fhir_adapter_allergy_intolerance():
+    patient = {"resourceType": "Patient", "birthDate": "2000-01-01"}
+    observation = {}
+    allergy = {
+        "resourceType": "AllergyIntolerance",
+        "code": {"coding": [{"code": "A01"}]},
+        "clinicalStatus": {"coding": [{"code": "active"}]}
+    }
+    
+    context = FhirAdapter.to_context(patient, observation, reference_date=REFERENCE_DATE, allergy_resource=allergy)
+    assert context["allergy"]["code"] == "A01"
+    assert context["allergy"]["status"] == "active"
+    
+    rule = 'RULE r LANGUAGE 1 WHEN allergy.status == "active" THEN ALERT "Active Allergy" END'
+    decisions = fhir_engine_v2.evaluate(rule, context)
+    assert decisions[0].matched == True
+
+def test_fhir_adapter_medication_request():
+    patient = {"resourceType": "Patient", "birthDate": "2000-01-01"}
+    observation = {}
+    medication = {
+        "resourceType": "MedicationRequest",
+        "medicationCodeableConcept": {"coding": [{"code": "M01"}]},
+        "status": "active"
+    }
+    
+    context = FhirAdapter.to_context(patient, observation, reference_date=REFERENCE_DATE, medication_resource=medication)
+    assert context["medication"]["code"] == "M01"
+    assert context["medication"]["status"] == "active"
+
+def test_fhir_adapter_medication_dispense():
+    patient = {"resourceType": "Patient", "birthDate": "2000-01-01"}
+    observation = {}
+    dispense = {
+        "resourceType": "MedicationDispense",
+        "medicationCodeableConcept": {"coding": [{"code": "D01"}]},
+        "status": "completed"
+    }
+    
+    context = FhirAdapter.to_context(patient, observation, reference_date=REFERENCE_DATE, dispense_resource=dispense)
+    assert context["dispense"]["code"] == "D01"
+    assert context["dispense"]["status"] == "completed"
+
+def test_fhir_adapter_encounter():
+    patient = {"resourceType": "Patient", "birthDate": "2000-01-01"}
+    observation = {}
+    encounter = {
+        "resourceType": "Encounter",
+        "status": "finished",
+        "class": {"code": "AMB"}
+    }
+    
+    context = FhirAdapter.to_context(patient, observation, reference_date=REFERENCE_DATE, encounter_resource=encounter)
+    assert context["encounter"]["status"] == "finished"
+    assert context["encounter"]["class"] == "AMB"
+
+def test_fhir_adapter_missing_allergy_fields_are_null():
+    patient = {"resourceType": "Patient", "birthDate": "2000-01-01"}
+    observation = {}
+    allergy = {"resourceType": "AllergyIntolerance"} # Faltan code y status
+    
+    context = FhirAdapter.to_context(patient, observation, reference_date=REFERENCE_DATE, allergy_resource=allergy)
+    assert context["allergy"]["code"] is None
+    assert context["allergy"]["status"] is None
