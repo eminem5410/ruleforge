@@ -1,5 +1,6 @@
 using Xunit;
 using RuleForge.Core.Lexing;
+using System.Collections.Generic;
 
 namespace RuleForge.Core.Tests;
 
@@ -44,15 +45,6 @@ public class LexerTests
     }
 
     [Fact]
-    public void LEX_ERR_001_InvalidCharacter()
-    {
-        var ex = Assert.Throws<LexerException>(() => Tokenize("customer @ age"));
-        Assert.Equal("RF1001", ex.Code);
-        Assert.Contains("Unexpected character '@'", ex.Message);
-    }
-}
-
-    [Fact]
     public void LEX_005_StringThenIdentifier()
     {
         var tokens = Tokenize("\"hello\" customer");
@@ -62,3 +54,12 @@ public class LexerTests
         Assert.Equal("customer", tokens[1].Value);
         Assert.Equal(TokenType.EOF, tokens[2].Type);
     }
+
+    [Fact]
+    public void LEX_ERR_001_InvalidCharacter()
+    {
+        var ex = Assert.Throws<LexerException>(() => Tokenize("customer @ age"));
+        Assert.Equal("RF1001", ex.Code);
+        Assert.Contains("Unexpected character '@'", ex.Message);
+    }
+}
