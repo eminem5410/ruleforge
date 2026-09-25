@@ -1,0 +1,11 @@
+RULE invoice_approval
+LANGUAGE 1
+WHEN
+    invoice.total >= 100000
+    AND customer.active == true
+    AND invoice.status == "PENDING"
+THEN
+    APPLY "AUTO_APPROVE"
+ELSE
+    ALERT "Manual review required"
+END

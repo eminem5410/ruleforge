@@ -1,0 +1,8 @@
+RULE vip_access
+LANGUAGE 1
+WHEN
+    (customer.age >= 18 AND contains(customer.name, "VIP"))
+    OR customer.email IS NULL
+THEN
+    ALLOW
+END

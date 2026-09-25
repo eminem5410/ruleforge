@@ -1,7 +1,4 @@
-import sys
-import os
-import json
-import glob
+import sys, os, json, glob
 import pytest
 from ruleforge.lexer import Lexer, LexerError
 from ruleforge.parser import Parser, ParserError
@@ -10,7 +7,8 @@ from ruleforge.evaluator import Evaluator, EvaluatorError
 
 SCHEMA = {
     "customer": {"age": "Integer", "name": "String", "active": "Boolean", "email": "String"},
-    "invoice": {"total": "Decimal", "amount": "Decimal"}
+    "invoice": {"total": "Decimal", "amount": "Integer", "status": "String"},
+    "observation": {"code": "String", "value": "Decimal", "unit": "String"}
 }
 
 def get_cases(folder):
@@ -35,7 +33,6 @@ def test_valid_conformance(rule_path, data_path):
     ast = Parser(tokens).parse()
     SemanticAnalyzer(SCHEMA).analyze(ast)
     
-    # Usamos el contexto vacío si no se provee uno (útil para errores de runtime)
     ctx = data.get("context", {})
     evaluator = Evaluator(ctx)
     decisions = evaluator.eval_rules(ast)
@@ -47,7 +44,7 @@ def test_valid_conformance(rule_path, data_path):
     assert len(d.actions) == len(expected["actions"])
     for i, exp_act in enumerate(expected["actions"]):
         assert d.actions[i].action_type == exp_act["action_type"]
-        if exp_act["value"]:
+        if exp_act.get("value") is not None:
             assert d.actions[i].value == exp_act["value"]
 
 @pytest.mark.parametrize("rule_path, data_path", invalid_cases)
@@ -60,7 +57,6 @@ def test_invalid_conformance(rule_path, data_path):
         ast = Parser(tokens).parse()
         SemanticAnalyzer(SCHEMA).analyze(ast)
         
-        # Ejecutamos el evaluator en los casos inválidos para capturar errores de Runtime (RF4xxx)
         ctx = data.get("context", {})
         evaluator = Evaluator(ctx)
         evaluator.eval_rules(ast)

@@ -1,0 +1,11 @@
+{
+    "context": {
+        "observation": {"code": "8480-6", "value": 165.0}
+    },
+    "expected": {
+        "matched": true,
+        "actions": [
+            {"action_type": "ALERT", "value": "Blood pressure requires review"}
+        ]
+    }
+}

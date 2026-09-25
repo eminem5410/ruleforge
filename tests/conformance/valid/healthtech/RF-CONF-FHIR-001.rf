@@ -1,0 +1,8 @@
+RULE hypertension_alert
+LANGUAGE 1
+WHEN
+    observation.code == "8480-6"
+    AND observation.value >= 140
+THEN
+    ALERT "Blood pressure requires review"
+END

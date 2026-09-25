@@ -1,0 +1,11 @@
+{
+    "context": {
+        "customer": {"age": 20, "name": "Pablo VIP", "email": "pablo@test.com"}
+    },
+    "expected": {
+        "matched": true,
+        "actions": [
+            {"action_type": "ALLOW", "value": null}
+        ]
+    }
+}

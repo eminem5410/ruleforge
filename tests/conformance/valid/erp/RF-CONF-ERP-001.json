@@ -1,0 +1,12 @@
+{
+    "context": {
+        "customer": {"active": true},
+        "invoice": {"total": 150000.0, "status": "PENDING"}
+    },
+    "expected": {
+        "matched": true,
+        "actions": [
+            {"action_type": "APPLY", "value": "AUTO_APPROVE"}
+        ]
+    }
+}
