@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using RuleForge.Api.Authorization;
 using RuleForge.Api.Contracts;
 using RuleForge.Api.Services;
@@ -12,22 +13,20 @@ namespace RuleForge.Api.Controllers;
 
 [ApiController]
 [Route("api/v1")]
+[EnableRateLimiting("apikey")] // Aplicar rate limiting a todo el controlador
 public class EvaluationController : ControllerBase
 {
     [HttpPost("evaluate")]
     [Authorize(Policy = "rules:evaluate")]
     public IActionResult Evaluate([FromBody] EvaluateRequest request)
     {
-        // 1. Normalize Context
         var context = ContextNormalizer.Normalize(request.Context, request.ContextSchema);
         
-        // 2. Execute Pipeline
         var tokens = new Lexer(request.Source).Tokenize();
         var ast = new Parser(tokens).Parse();
         new SemanticAnalyzer(request.ContextSchema).Analyze(ast);
         var decisions = new Evaluator(context).EvaluateRules(ast);
 
-        // 3. Map to DTO
         var response = new EvaluateResponse
         {
             Decisions = decisions.Select(d => new DecisionDto

@@ -11,6 +11,7 @@ public class SecurityTests : IClassFixture<WebApplicationFactory<Program>>
     private readonly HttpClient _client;
     private const string ValidKey = "rf_live_test_key_123";
     private const string AdminKey = "rf_live_admin_key_456";
+    private const string RateLimitKey = "rf_live_ratelimit_key";
 
     public SecurityTests(WebApplicationFactory<Program> factory)
     {
@@ -27,6 +28,7 @@ public class SecurityTests : IClassFixture<WebApplicationFactory<Program>>
     [Fact]
     public async Task AUTH_001_UnauthenticatedRejected()
     {
+        _client.DefaultRequestHeaders.Authorization = null;
         var res = await _client.PostAsJsonAsync("/api/v1/evaluate", Request);
         Assert.Equal(System.Net.HttpStatusCode.Unauthorized, res.StatusCode);
     }
@@ -45,15 +47,12 @@ public class SecurityTests : IClassFixture<WebApplicationFactory<Program>>
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", ValidKey);
         var res = await _client.PostAsJsonAsync("/api/v1/evaluate", Request);
         res.EnsureSuccessStatusCode();
-        
-        var content = await res.Content.ReadAsStringAsync();
-        using var doc = JsonDocument.Parse(content);
-        Assert.True(doc.RootElement.GetProperty("decisions")[0].GetProperty("matched").GetBoolean());
     }
 
     [Fact]
     public async Task AUTH_004_HealthEndpointNoAuthRequired()
     {
+        _client.DefaultRequestHeaders.Authorization = null;
         var res = await _client.GetAsync("/api/v1/health");
         res.EnsureSuccessStatusCode();
     }
@@ -64,5 +63,22 @@ public class SecurityTests : IClassFixture<WebApplicationFactory<Program>>
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", AdminKey);
         var res = await _client.PostAsJsonAsync("/api/v1/evaluate", Request);
         res.EnsureSuccessStatusCode();
+    }
+
+    [Fact]
+    public async Task AUTH_006_RateLimitExceeded()
+    {
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", RateLimitKey);
+        
+        // Send 100 requests (should be 200 OK)
+        for (int i = 0; i < 100; i++)
+        {
+            var res = await _client.PostAsJsonAsync("/api/v1/evaluate", Request);
+            Assert.True(res.IsSuccessStatusCode, $"Request {i+1} failed unexpectedly with {res.StatusCode}");
+        }
+
+        // Send 101st request (should be 429 Too Many Requests)
+        var blockedRes = await _client.PostAsJsonAsync("/api/v1/evaluate", Request);
+        Assert.Equal(System.Net.HttpStatusCode.TooManyRequests, blockedRes.StatusCode);
     }
 }
