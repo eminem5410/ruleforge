@@ -6,11 +6,11 @@ from ruleforge.lexer import Lexer
 from ruleforge.parser import Parser
 from ruleforge.semantic import SemanticAnalyzer, SemanticError
 from ruleforge.evaluator import Evaluator, EvaluatorError
+import ruleforge.semantic as sem_mod
 
 SCHEMA = {"a": {"b": "Boolean"}}
 
 def test_sec_ast_depth_exceeded():
-    # Crear una regla con 51 niveles de profundidad: a OR a OR ... (51 veces)
     expr = " OR ".join(["a.b"] * 52)
     code = f'RULE r LANGUAGE 1 WHEN {expr} THEN ALLOW END'
     tokens = Lexer(code).tokenize()
@@ -20,17 +20,21 @@ def test_sec_ast_depth_exceeded():
     assert exc.value.code == "RF5001"
 
 def test_sec_execution_steps_exceeded():
-    # Crear una regla con >10000 nodos para forzar el límite de pasos
     expr = " OR ".join(["a.b"] * 5001)
     code = f'RULE r LANGUAGE 1 WHEN {expr} THEN ALLOW END'
     tokens = Lexer(code).tokenize()
     ast = Parser(tokens).parse()
-    SemanticAnalyzer(SCHEMA).analyze(ast) # Esto pasa porque depth es plano (1 nivel), pero muchos nodos
-    # Modificamos el límite de nodos del AST temporalmente para que pase el semántico y llegue al runtime
-    import ruleforge.semantic as sem_mod
+    
+    # Aumentamos el límite de nodos del AST temporalmente para que pase el semántico
+    original_limit = sem_mod.MAX_AST_NODES
     sem_mod.MAX_AST_NODES = 20000 
     
-    evaluator = Evaluator({"a": {"b": False}})
-    with pytest.raises(EvaluatorError) as exc:
-        evaluator.eval_rules(ast)
-    assert exc.value.code == "RF5003"
+    try:
+        SemanticAnalyzer(SCHEMA).analyze(ast)
+        evaluator = Evaluator({"a": {"b": False}})
+        with pytest.raises(EvaluatorError) as exc:
+            evaluator.eval_rules(ast)
+        assert exc.value.code == "RF5003"
+    finally:
+        # Restauramos el límite para no afectar a otros tests
+        sem_mod.MAX_AST_NODES = original_limit

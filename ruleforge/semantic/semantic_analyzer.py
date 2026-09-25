@@ -12,7 +12,7 @@ class SemanticAnalyzer:
             "length": (["String"], "Integer"),
             "starts_with": (["String", "String"], "Boolean"),
             "ends_with": (["String", "String"], "Boolean"),
-            "abs": (["Integer"], "Integer"), "abs": (["Numeric"], "Numeric")
+            "abs": (["Numeric"], "Numeric")
         }
 
     def analyze(self, ast):
@@ -76,17 +76,19 @@ class SemanticAnalyzer:
                 return "Boolean"
         elif isinstance(node, BinaryOpNode):
             l, r, op = self.check_node(node.left), self.check_node(node.right), node.op
+            valid_numeric = ["Integer", "Decimal", "Numeric"]
             if op in ["AND", "OR"]:
                 if l != "Boolean" or r != "Boolean": raise SemanticError("RF3001", f"Operator '{op}' requires Boolean")
                 return "Boolean"
             elif op in ["==", "!="]:
+                if (l in valid_numeric and r in valid_numeric): return "Boolean"
                 if l != r: raise SemanticError("RF3001", f"Cannot compare {l} with {r}")
                 return "Boolean"
             elif op in [">", "<", ">=", "<="]:
-                if l not in ["Integer", "Decimal", "Date"] or r not in ["Integer", "Decimal", "Date"]: raise SemanticError("RF3001", f"Operator '{op}' requires numeric/date")
+                if l not in valid_numeric or r not in valid_numeric: raise SemanticError("RF3001", f"Operator '{op}' requires numeric/date")
                 return "Boolean"
             elif op in ["+", "-", "*", "/"]:
-                if l not in ["Integer", "Decimal"] or r not in ["Integer", "Decimal"]: raise SemanticError("RF3001", f"Operator '{op}' requires numeric")
+                if l not in valid_numeric or r not in valid_numeric: raise SemanticError("RF3001", f"Operator '{op}' requires numeric")
                 return "Decimal" if "Decimal" in [l, r] else "Integer"
         elif isinstance(node, FunctionCallNode):
             if node.name not in self.functions: raise SemanticError("RF3003", f"Unknown function '{node.name}'")
@@ -95,6 +97,6 @@ class SemanticAnalyzer:
             for i, a in enumerate(node.args):
                 t = self.check_node(a)
                 if exp_args[i] == "Numeric":
-                    if t not in ["Integer", "Decimal"]: raise SemanticError("RF3003", f"Argument {i+1} of '{node.name}' must be Numeric")
+                    if t not in valid_numeric: raise SemanticError("RF3003", f"Argument {i+1} of '{node.name}' must be Numeric")
                 elif t != exp_args[i]: raise SemanticError("RF3003", f"Argument {i+1} of '{node.name}' must be {exp_args[i]}")
             return ret

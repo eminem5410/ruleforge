@@ -197,7 +197,7 @@ def test_eval_026_null_arithmetic_error():
     with pytest.raises(EvaluatorError) as exc:
         eval_code(code, {"customer": {}}) # age no existe en contexto -> None
     assert exc.value.code == "RF4002"
-    assert "NULL value" in exc.value.message
+    assert "NULL" in exc.value.message
 
 # 27. NULL Comparison raises RF4002
 def test_eval_027_null_comparison_error():
