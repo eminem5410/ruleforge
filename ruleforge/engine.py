@@ -1,3 +1,4 @@
+from decimal import Decimal
 from datetime import date
 from .lexer import Lexer, LexerError
 from .parser import Parser, ParserError
@@ -33,7 +34,7 @@ class RuleForgeEngine:
                         if not (isinstance(val, int) and not isinstance(val, bool)):
                             raise EvaluatorError("RF4003", f"Invalid Runtime Context: Property '{obj_name}.{prop_name}' expected Integer but got {actual_type}")
                     elif expected_type == "Decimal":
-                        if not (isinstance(val, (int, float)) and not isinstance(val, bool)):
+                        if not (isinstance(val, (int, float, Decimal)) and not isinstance(val, bool)):
                             raise EvaluatorError("RF4003", f"Invalid Runtime Context: Property '{obj_name}.{prop_name}' expected Decimal but got {actual_type}")
                     elif expected_type == "String":
                         if not isinstance(val, str):
