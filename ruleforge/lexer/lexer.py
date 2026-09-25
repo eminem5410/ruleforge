@@ -1,5 +1,6 @@
 import re
 from .tokens import TokenType, Token
+from .errors import LexerError
 
 KEYWORDS = {
     "RULE": TokenType.RULE, "LANGUAGE": TokenType.LANGUAGE, "WHEN": TokenType.WHEN,
@@ -10,7 +11,6 @@ KEYWORDS = {
     "true": TokenType.BOOLEAN, "false": TokenType.BOOLEAN
 }
 
-# Regex para Fecha (YYYY-MM-DD)
 DATE_REGEX = re.compile(r'\d{4}-\d{2}-\d{2}')
 
 class Lexer:
@@ -51,22 +51,32 @@ class Lexer:
                 
             start_line, start_col = self.line, self.column
             
-            # 3. Strings
+            # 3. Strings with escapes
             if char == '"':
                 self.advance()
                 val = ""
                 while self.peek() and self.peek() != '"':
-                    val += self.peek()
-                    self.advance()
+                    if self.peek() == '\\':
+                        self.advance()
+                        esc = self.peek()
+                        if esc == '"': val += '"'
+                        elif esc == '\\': val += '\\'
+                        elif esc == 'n': val += '\n'
+                        elif esc == 't': val += '\t'
+                        else:
+                            raise LexerError("RF1001", f"Unknown escape character '{esc}'", start_line, start_col)
+                        self.advance()
+                    else:
+                        val += self.peek()
+                        self.advance()
                 if not self.peek():
-                    raise Exception(f"RF1001 Lexical Error: Unterminated string at Line {start_line}, Column {start_col}")
-                self.advance() # Consumir comilla final
+                    raise LexerError("RF1001", "Unterminated string", start_line, start_col)
+                self.advance()
                 tokens.append(Token(TokenType.STRING, val, start_line, start_col))
                 continue
                 
-            # 4. Dates & Numbers (Longest match para fechas)
+            # 4. Dates & Numbers
             if char.isdigit():
-                # Intentar matchear Fecha primero
                 match = DATE_REGEX.match(self.source, self.pos)
                 if match:
                     val = match.group(0)
@@ -74,23 +84,20 @@ class Lexer:
                     tokens.append(Token(TokenType.DATE, val, start_line, start_col))
                     continue
                     
-                # Si no es fecha, es numero
                 val = ""
                 is_decimal = False
                 while self.peek() and (self.peek().isdigit() or self.peek() == '.'):
                     if self.peek() == '.':
                         if is_decimal:
-                            raise Exception(f"RF1001 Lexical Error: Invalid number format at Line {start_line}, Column {start_col}")
-                        # Check si el punto es seguido por un digito (para no romper customer.age)
+                            raise LexerError("RF1001", "Invalid number format", start_line, start_col)
                         if not self.peek(1) or not self.peek(1).isdigit():
                             break
                         is_decimal = True
                     val += self.peek()
                     self.advance()
                 
-                # Si terminó en un punto y no siguió como decimal (ej: 1.)
                 if self.peek() == '.' and not is_decimal:
-                    raise Exception(f"RF1001 Lexical Error: Invalid number format at Line {start_line}, Column {start_col}")
+                    raise LexerError("RF1001", "Invalid number format", start_line, start_col)
                     
                 tt = TokenType.DECIMAL if is_decimal else TokenType.INTEGER
                 tokens.append(Token(tt, val, start_line, start_col))
@@ -107,12 +114,16 @@ class Lexer:
                 continue
                 
             # 6. Operators (Longest Match)
-            if char == '=' and self.peek(1) == '=':
-                tokens.append(Token(TokenType.EQ, '==', start_line, start_col))
-                self.advance(); self.advance(); continue
-            if char == '!' and self.peek(1) == '=':
-                tokens.append(Token(TokenType.NEQ, '!=', start_line, start_col))
-                self.advance(); self.advance(); continue
+            if char == '=':
+                if self.peek(1) == '=':
+                    tokens.append(Token(TokenType.EQ, '==', start_line, start_col))
+                    self.advance(); self.advance(); continue
+                raise LexerError("RF1001", "Invalid character '='", start_line, start_col)
+            if char == '!':
+                if self.peek(1) == '=':
+                    tokens.append(Token(TokenType.NEQ, '!=', start_line, start_col))
+                    self.advance(); self.advance(); continue
+                raise LexerError("RF1001", "Invalid character '!'", start_line, start_col)
             if char == '>' and self.peek(1) == '=':
                 tokens.append(Token(TokenType.GTE, '>=', start_line, start_col))
                 self.advance(); self.advance(); continue
@@ -120,20 +131,17 @@ class Lexer:
                 tokens.append(Token(TokenType.LTE, '<=', start_line, start_col))
                 self.advance(); self.advance(); continue
                 
-            # Single Char Operators
             single_ops = {'>': TokenType.GT, '<': TokenType.LT, '+': TokenType.PLUS, '-': TokenType.MINUS, '*': TokenType.MULTIPLY, '/': TokenType.DIVIDE}
             if char in single_ops:
                 tokens.append(Token(single_ops[char], char, start_line, start_col))
                 self.advance(); continue
                 
-            # 7. Symbols
             symbols = {'(': TokenType.LPAREN, ')': TokenType.RPAREN, '.': TokenType.DOT, ',': TokenType.COMMA}
             if char in symbols:
                 tokens.append(Token(symbols[char], char, start_line, start_col))
                 self.advance(); continue
                 
-            # 8. Invalid Character
-            raise Exception(f"RF1001 Lexical Error: Invalid character '{char}' at Line {start_line}, Column {start_col}")
+            raise LexerError("RF1001", f"Invalid character '{char}'", start_line, start_col)
             
         tokens.append(Token(TokenType.EOF, None, self.line, self.column))
         return tokens
