@@ -11,7 +11,6 @@ transport = httpx.ASGITransport(app=app)
 @pytest.fixture(scope="module")
 async def unauth_client():
     # Cliente SIN el bypass de auth (para probar 401)
-    from fastapi.testclient import TestClient
     # Usamos httpx async nativo
     async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as c:
         yield c
@@ -19,7 +18,6 @@ async def unauth_client():
 @pytest.fixture(scope="module")
 async def auth_client():
     # Cliente CON el bypass de auth (para probar que la lógica de negocio funcione si tenés permisos)
-    from fastapi.testclient import TestClient
     app.dependency_overrides[get_api_key_test] = get_api_key_test # Bypass
     async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as c:
         yield c
