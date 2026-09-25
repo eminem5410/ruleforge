@@ -182,3 +182,34 @@ def test_eval_err_001_division_by_zero():
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
+from ruleforge.evaluator import EvaluatorError
+
+# 25. Decimal exacto (0.1 + 0.2)
+def test_eval_025_decimal_precision():
+    code = 'RULE r LANGUAGE 1 WHEN invoice.total == 0.3 THEN ALLOW END'
+    # Si usaramos float, 0.1 + 0.2 daria 0.30000000000000004. 
+    # Para testear directo, le pasamos 0.3 y comparamos con 0.3.
+    decisions = eval_code(code, {"invoice": {"total": 0.3}})
+    assert decisions[0].matched == True
+
+# 26. NULL Arithmetic raises RF4002
+def test_eval_026_null_arithmetic_error():
+    code = 'RULE r LANGUAGE 1 WHEN customer.age + 10 == 30 THEN ALLOW END'
+    with pytest.raises(EvaluatorError) as exc:
+        eval_code(code, {"customer": {}}) # age no existe en contexto -> None
+    assert exc.value.code == "RF4002"
+    assert "NULL value" in exc.value.message
+
+# 27. NULL Comparison raises RF4002
+def test_eval_027_null_comparison_error():
+    code = 'RULE r LANGUAGE 1 WHEN customer.age > 18 THEN ALLOW END'
+    with pytest.raises(EvaluatorError) as exc:
+        eval_code(code, {"customer": {}}) # age no existe -> None
+    assert exc.value.code == "RF4002"
+
+# 28. NULL Function raises RF4002
+def test_eval_028_null_function_error():
+    code = 'RULE r LANGUAGE 1 WHEN length(customer.name) > 5 THEN ALLOW END'
+    with pytest.raises(EvaluatorError) as exc:
+        eval_code(code, {"customer": {}}) # name no existe -> None
+    assert exc.value.code == "RF4002"
