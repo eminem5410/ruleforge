@@ -5,8 +5,13 @@ namespace RuleForge.Api.Contracts;
 
 public class EvaluateRequest
 {
+    [JsonPropertyName("source")]
     public string Source { get; set; } = string.Empty;
+    
+    [JsonPropertyName("context_schema")]
     public Dictionary<string, Dictionary<string, string>> ContextSchema { get; set; } = new();
+    
+    [JsonPropertyName("context")]
     public Dictionary<string, object?> Context { get; set; } = new();
 }
 
