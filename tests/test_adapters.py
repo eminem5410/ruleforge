@@ -166,3 +166,68 @@ def test_fhir_adapter_missing_allergy_fields_are_null():
     context = FhirAdapter.to_context(patient, observation, reference_date=REFERENCE_DATE, allergy_resource=allergy)
     assert context["allergy"]["code"] is None
     assert context["allergy"]["status"] is None
+
+# --- ERP V2.2.0 Expansion Tests ---
+
+ERP_SCHEMA_V2 = {
+    "customer": {"active": "Boolean", "credit_score": "Integer"},
+    "invoice": {"total": "Decimal", "status": "String"},
+    "product": {"price": "Decimal", "category": "String"},
+    "sale": {"total": "Decimal", "status": "String"},
+    "payment": {"amount": "Decimal", "method": "String"},
+    "stock": {"quantity": "Integer", "warehouse": "String"}
+}
+erp_engine_v2 = RuleForgeEngine(ERP_SCHEMA_V2)
+
+def test_erp_adapter_product():
+    customer = {"active": True}
+    invoice = {"total": 100.0, "status": "PAID"}
+    product = {"price": "45000.10", "category": "ELECTRONICS"}
+    
+    context = ErpAdapter.to_context(customer, invoice, product_entity=product)
+    assert context["product"]["price"] == Decimal("45000.10")
+    assert context["product"]["category"] == "ELECTRONICS"
+
+def test_erp_adapter_sale_integration():
+    customer = {"active": True}
+    invoice = {"total": 100.0, "status": "PAID"}
+    sale = {"total": 150000.50, "status": "COMPLETED"}
+    
+    context = ErpAdapter.to_context(customer, invoice, sale_entity=sale)
+    assert context["sale"]["total"] == Decimal("150000.50")
+    
+    rule = 'RULE high_value_sale LANGUAGE 1 WHEN sale.total > 100000.00 AND sale.status == "COMPLETED" THEN APPLY "REQUIRE_REVIEW" END'
+    decisions = erp_engine_v2.evaluate(rule, context)
+    assert decisions[0].matched == True
+    assert decisions[0].actions[0].value == "REQUIRE_REVIEW"
+
+def test_erp_adapter_payment():
+    customer = {"active": True}
+    invoice = {"total": 100.0, "status": "PAID"}
+    payment = {"amount": 150000.50, "method": "TRANSFER"}
+    
+    context = ErpAdapter.to_context(customer, invoice, payment_entity=payment)
+    assert context["payment"]["amount"] == Decimal("150000.50")
+    assert context["payment"]["method"] == "TRANSFER"
+
+def test_erp_adapter_stock():
+    customer = {"active": True}
+    invoice = {"total": 100.0, "status": "PAID"}
+    stock = {"quantity": 12, "warehouse": "WH-A"}
+    
+    context = ErpAdapter.to_context(customer, invoice, stock_entity=stock)
+    assert context["stock"]["quantity"] == 12
+    assert context["stock"]["warehouse"] == "WH-A"
+
+def test_erp_adapter_missing_data_is_null():
+    customer = {} # Missing active
+    invoice = {}  # Missing total
+    product = {}  # Missing price
+    
+    context = ErpAdapter.to_context(customer, invoice, product_entity=product, sale_entity={}, payment_entity={}, stock_entity={})
+    assert context["customer"]["active"] is None
+    assert context["invoice"]["total"] is None
+    assert context["product"]["price"] is None
+    assert context["sale"]["total"] is None
+    assert context["payment"]["amount"] is None
+    assert context["stock"]["quantity"] is None
