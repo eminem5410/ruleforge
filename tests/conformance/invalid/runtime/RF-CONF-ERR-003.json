@@ -1,3 +1,4 @@
 {
+    "context": {"invoice": {"total": 100.0}},
     "expected_error_code": "RF4001"
 }
