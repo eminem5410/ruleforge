@@ -1,0 +1,10 @@
+{
+    "context": {"customer": {"age": 70, "email": "pablo@test.com"}},
+    "expected": {
+        "matched": true,
+        "actions": [
+            {"action_type": "APPLY", "value": "senior_discount"},
+            {"action_type": "ALERT", "value": "Welcome premium"}
+        ]
+    }
+}

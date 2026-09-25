@@ -1,0 +1,7 @@
+// Valid Rule: Basic Adult Check
+RULE adult_check
+LANGUAGE 1
+WHEN customer.age >= 18
+THEN ALLOW
+ELSE DENY "Must be 18 or older"
+END

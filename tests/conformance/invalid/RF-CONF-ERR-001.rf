@@ -1,0 +1,5 @@
+RULE invalid_type
+LANGUAGE 1
+WHEN customer.age > "65"
+THEN ALLOW
+END

@@ -1,0 +1,4 @@
+RULE missing_end
+LANGUAGE 1
+WHEN true
+THEN ALLOW

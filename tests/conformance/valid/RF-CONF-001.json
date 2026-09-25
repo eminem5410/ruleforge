@@ -1,0 +1,7 @@
+{
+    "context": {"customer": {"age": 21}},
+    "expected": {
+        "matched": true,
+        "actions": [{"action_type": "ALLOW", "value": null}]
+    }
+}

@@ -1,0 +1,5 @@
+RULE premium_discount
+LANGUAGE 1
+WHEN customer.age >= 65 AND customer.email IS NOT NULL
+THEN APPLY "senior_discount" ALERT "Welcome premium"
+END
