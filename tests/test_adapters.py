@@ -231,3 +231,39 @@ def test_erp_adapter_missing_data_is_null():
     assert context["sale"]["total"] is None
     assert context["payment"]["amount"] is None
     assert context["stock"]["quantity"] is None
+
+# --- V2.2.2 Adapter Output Hardening Tests ---
+
+def test_fhir_adapter_omitted_resources_are_null():
+    patient = {"resourceType": "Patient", "birthDate": "2000-01-01"}
+    observation = {}
+    
+    # No pasamos allergy, medication, dispense ni encounter
+    context = FhirAdapter.to_context(patient, observation, reference_date=REFERENCE_DATE)
+    
+    # Las claves deben existir, pero con valores None
+    assert context["allergy"]["code"] is None
+    assert context["medication"]["status"] is None
+    assert context["dispense"]["code"] is None
+    assert context["encounter"]["class"] is None
+    
+    # Probamos que RuleForge puede evaluar esto sin problemas
+    rule = 'RULE r LANGUAGE 1 WHEN allergy.code IS NULL AND encounter.status IS NULL THEN ALLOW END'
+    decisions = fhir_engine_v2.evaluate(rule, context)
+    assert decisions[0].matched == True
+
+def test_erp_adapter_omitted_entities_are_null():
+    customer = {"active": True, "credit_score": 750}
+    invoice = {"total": 100.0, "status": "PAID"}
+    
+    # No pasamos product, sale, payment ni stock
+    context = ErpAdapter.to_context(customer, invoice)
+    
+    assert context["product"]["price"] is None
+    assert context["sale"]["status"] is None
+    assert context["payment"]["method"] is None
+    assert context["stock"]["quantity"] is None
+    
+    rule = 'RULE r LANGUAGE 1 WHEN product.price IS NULL AND stock.quantity IS NULL THEN ALLOW END'
+    decisions = erp_engine_v2.evaluate(rule, context)
+    assert decisions[0].matched == True

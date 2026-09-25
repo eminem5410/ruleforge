@@ -13,13 +13,11 @@ class ErpAdapter:
     ) -> dict:
         
         def _get_decimal(data: dict, key: str):
-            """Helper para extraer y convertir a Decimal de forma segura."""
             val = data.get(key)
             if val is not None:
                 return Decimal(str(val))
             return None
 
-        # 1 y 2: Customer e Invoice (Siempre requeridos)
         context = {
             "customer": {
                 "active": customer_entity.get("active"),
@@ -28,31 +26,32 @@ class ErpAdapter:
             "invoice": {
                 "total": _get_decimal(invoice_entity, "total"),
                 "status": invoice_entity.get("status")
-            }
+            },
+            # Inicializamos todos con None por defecto (Hardening)
+            "product": {"price": None, "category": None},
+            "sale": {"total": None, "status": None},
+            "payment": {"amount": None, "method": None},
+            "stock": {"quantity": None, "warehouse": None}
         }
         
-        # 3. Product (Opcional)
         if product_entity is not None:
             context["product"] = {
                 "price": _get_decimal(product_entity, "price"),
                 "category": product_entity.get("category")
             }
             
-        # 4. Sale (Opcional)
         if sale_entity is not None:
             context["sale"] = {
                 "total": _get_decimal(sale_entity, "total"),
                 "status": sale_entity.get("status")
             }
             
-        # 5. Payment (Opcional)
         if payment_entity is not None:
             context["payment"] = {
                 "amount": _get_decimal(payment_entity, "amount"),
                 "method": payment_entity.get("method")
             }
             
-        # 6. Stock (Opcional)
         if stock_entity is not None:
             context["stock"] = {
                 "quantity": stock_entity.get("quantity"),
