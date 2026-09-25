@@ -28,7 +28,8 @@ public class Program
     {
         Console.WriteLine("=========================================");
         Console.WriteLine(" RuleForge .NET 8 Benchmark ");
-        Console.WriteLine(" Environment: Local Dev Machine ");
+        Console.WriteLine($" CPU Cores: {Environment.ProcessorCount}");
+        Console.WriteLine($" OS: {Environment.OSVersion}");
         Console.WriteLine("=========================================\n");
 
         Console.WriteLine("Warming up...");
@@ -38,7 +39,6 @@ public class Program
         RunBenchmark("Simple Rule (1 condition)", RuleSimple, 1000);
         RunBenchmark("Complex Rule (5 conditions)", RuleComplex, 1000);
 
-        // Benchmark de múltiples reglas en un solo source
         var multiRules = string.Join("\n", Enumerable.Range(0, 100).Select(i => RuleSimple.Replace("RULE r", $"RULE r{i}")));
         RunBenchmark("100 Rules in 1 Source File", multiRules, 100);
     }
@@ -60,12 +60,14 @@ public class Program
         times.Sort();
         double mean = times.Average();
         double p95 = times[(int)(times.Count * 0.95)];
+        double p99 = times[(int)(times.Count * 0.99)];
         int evalPerSec = (int)(1000 / mean);
 
         Console.WriteLine($"--- {name} ---");
         Console.WriteLine($"  Evaluations: {iterations}");
         Console.WriteLine($"  Mean Latency: {mean:F4} ms");
         Console.WriteLine($"  P95 Latency:  {p95:F4} ms");
+        Console.WriteLine($"  P99 Latency:  {p99:F4} ms");
         Console.WriteLine($"  Throughput:   {evalPerSec:N0} eval/sec");
         Console.WriteLine();
     }
