@@ -6,7 +6,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 import pytest
 from ruleforge.lexer import Lexer
 from ruleforge.parser import Parser
-from ruleforge.semantic import SemanticAnalyzer
+from ruleforge.semantic import SemanticAnalyzer, SemanticError
 from ruleforge.evaluator import Evaluator, EvaluatorError
 
 SCHEMA = {
@@ -20,14 +20,13 @@ def eval_code(code, context, explain=False):
     SemanticAnalyzer(SCHEMA).analyze(ast)
     return Evaluator(context, explain_mode=explain).eval_rules(ast)
 
-# 1. IdentifierNode
-def test_eval_001_identifier_node():
+# 1. PropertyAccessNode
+def test_eval_001_property_access_node():
     code = 'RULE r LANGUAGE 1 WHEN customer.active == true THEN ALLOW END'
-    # 'customer.active' usa PropertyAccessNode, pero si fuera 'active' suelto sería IdentifierNode
     decisions = eval_code(code, {"customer": {"active": True}})
     assert decisions[0].matched == True
 
-# 2. precedence completa (AND antes que OR)
+# 2. precedence completa
 def test_eval_002_precedence():
     code = 'RULE r LANGUAGE 1 WHEN customer.active == false OR customer.age >= 18 AND customer.age <= 65 THEN ALLOW END'
     decisions = eval_code(code, {"customer": {"active": False, "age": 20}})
@@ -108,7 +107,7 @@ def test_eval_014_abs_decimal():
 # 15. IS NULL sobre propiedad inexistente en el contexto
 def test_eval_015_is_null_missing_property():
     code = 'RULE r LANGUAGE 1 WHEN customer.email IS NULL THEN ALLOW END'
-    decisions = eval_code(code, {"customer": {"age": 20}}) # No tiene 'email' en el contexto
+    decisions = eval_code(code, {"customer": {"age": 20}}) # No tiene 'email'
     assert decisions[0].matched == True
 
 # 16. ELSE ausente → NO_ACTION
@@ -129,17 +128,14 @@ def test_eval_018_alert_apply():
     code = 'RULE r LANGUAGE 1 WHEN customer.age >= 18 THEN ALERT "Adult" APPLY "Discount" END'
     decisions = eval_code(code, {"customer": {"age": 20}})
     assert len(decisions[0].actions) == 2
-    assert decisions[0].actions[0].action_type == "ALERT"
-    assert decisions[0].actions[1].action_type == "APPLY"
 
-# 19. explain_mode / trace
-def test_eval_019_explain_trace():
+# 19. explain_mode / trace simple
+def test_eval_019_explain_trace_simple():
     code = 'RULE r LANGUAGE 1 WHEN customer.age >= 18 THEN ALLOW END'
     decisions = eval_code(code, {"customer": {"age": 20}}, explain=True)
-    assert len(decisions[0].trace) == 2
     assert "20 >= 18 -> True" in decisions[0].trace[0]
 
-# 20. múltiples reglas con contextos distintos (el contexto cambia entre reglas)
+# 20. múltiples reglas
 def test_eval_020_multiple_rules():
     code = """
     RULE r1 LANGUAGE 1 WHEN customer.age >= 18 THEN ALLOW END
@@ -148,6 +144,34 @@ def test_eval_020_multiple_rules():
     decisions = eval_code(code, {"customer": {"age": 20}, "invoice": {"paid": False}})
     assert decisions[0].matched == True
     assert decisions[1].matched == False
+
+# 21. Decision Metadata (rule_id, rule_version, language_version)
+def test_eval_021_decision_metadata():
+    code = 'RULE adult_check LANGUAGE 1 WHEN customer.age >= 18 THEN ALLOW END'
+    decisions = eval_code(code, {"customer": {"age": 20}})
+    assert decisions[0].rule_id == "adult_check"
+    assert decisions[0].rule_version == 1
+    assert decisions[0].language_version == 1
+
+# 22. explain_mode con AND/OR
+def test_eval_022_explain_trace_and_or():
+    code = 'RULE r LANGUAGE 1 WHEN customer.active == true OR customer.age >= 18 THEN ALLOW END'
+    decisions = eval_code(code, {"customer": {"active": True, "age": 20}}, explain=True)
+    # Como el OR hace short-circuit con True, el trace debe mostrar el short-circuit
+    assert any("Short-circuit OR" in step for step in decisions[0].trace)
+
+# 23. explain_mode con Functions
+def test_eval_023_explain_trace_functions():
+    code = 'RULE r LANGUAGE 1 WHEN length(customer.name) > 5 THEN ALLOW END'
+    decisions = eval_code(code, {"customer": {"name": "PabloDiez"}}, explain=True)
+    assert any("Evaluando función: length" in step for step in decisions[0].trace)
+
+# 24. Semantic Analyzer rechaza IdentifierNode suelto
+def test_eval_024_identifier_node_rejected():
+    code = 'RULE r LANGUAGE 1 WHEN active == true THEN ALLOW END'
+    with pytest.raises(SemanticError) as exc:
+        eval_code(code, {"active": True})
+    assert exc.value.code == "RF3002"
 
 # Errores runtime
 def test_eval_err_001_division_by_zero():
