@@ -3,6 +3,12 @@ from datetime import date
 from ..parser.ast_nodes import RuleNode, ActionNode, BinaryOpNode, UnaryOpNode, NullCheckNode, LiteralNode, IdentifierNode, PropertyAccessNode, FunctionCallNode
 from .errors import EvaluatorError
 
+# Función para normalizar floats de JSON a Decimal para tener precisión exacta
+def normalize_value(val):
+    if isinstance(val, float):
+        return Decimal(str(val))
+    return val
+
 class Decision:
     def __init__(self, rule_id, rule_version, language_version, matched, actions, trace=None):
         self.rule_id = rule_id
@@ -64,10 +70,10 @@ class Evaluator:
         elif isinstance(node, PropertyAccessNode):
             obj = self.context.get(node.obj)
             if obj is None: return None
-            return obj.get(node.prop)
+            return normalize_value(obj.get(node.prop))
             
         elif isinstance(node, IdentifierNode):
-            return self.context.get(node.name)
+            return normalize_value(self.context.get(node.name))
             
         elif isinstance(node, NullCheckNode):
             val = self.eval_node(node.left)
