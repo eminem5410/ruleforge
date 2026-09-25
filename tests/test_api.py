@@ -8,9 +8,9 @@ from ruleforge import app
 transport = httpx.ASGITransport(app=app)
 
 @pytest.fixture(scope="module")
-def client():
+async def client():
     # Usamos el cliente asíncrono nativo de httpx, que es lo que Starlette/FastAPI recomienda
-    with httpx.AsyncClient(transport=transport, base_url="http://testserver") as c:
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as c:
         yield c
 
 SCHEMA = {"customer": {"age": "Integer", "active": "Boolean"}}
