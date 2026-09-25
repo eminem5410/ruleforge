@@ -10,10 +10,12 @@ namespace RuleForge.Api.Middleware;
 public class ExceptionMiddleware
 {
     private readonly RequestDelegate _next;
+    private readonly ILogger<ExceptionMiddleware> _logger;
 
-    public ExceptionMiddleware(RequestDelegate next)
+    public ExceptionMiddleware(RequestDelegate next, ILogger<ExceptionMiddleware> logger)
     {
         _next = next;
+        _logger = logger;
     }
 
     public async Task Invoke(HttpContext context)
@@ -24,6 +26,9 @@ public class ExceptionMiddleware
         }
         catch (Exception ex)
         {
+            // Log the real exception so we can see it in tests/logs
+            _logger.LogError(ex, "Unhandled exception in RuleForge API");
+            
             context.Response.StatusCode = 400;
             context.Response.ContentType = "application/json";
             

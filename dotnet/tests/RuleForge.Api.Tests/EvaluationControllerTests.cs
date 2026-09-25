@@ -1,3 +1,4 @@
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -8,23 +9,25 @@ namespace RuleForge.Api.Tests;
 public class EvaluationControllerTests : IClassFixture<WebApplicationFactory<Program>>
 {
     private readonly HttpClient _client;
+    private const string ValidKey = "rf_live_test_key_123";
 
     public EvaluationControllerTests(WebApplicationFactory<Program> factory)
     {
         _client = factory.CreateClient();
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", ValidKey);
     }
+
+    private static readonly object Request = new
+    {
+        source = "RULE r LANGUAGE 1 WHEN customer.age >= 18 THEN ALLOW END",
+        context_schema = new { customer = new { age = "Integer" } },
+        context = new { customer = new { age = 21 } }
+    };
 
     [Fact]
     public async Task API_001_EvaluateBasicRule()
     {
-        var request = new
-        {
-            Source = "RULE r LANGUAGE 1 WHEN customer.age >= 18 THEN ALLOW END",
-            ContextSchema = new { customer = new { age = "Integer" } },
-            Context = new { customer = new { age = 21 } }
-        };
-
-        var response = await _client.PostAsJsonAsync("/api/v1/evaluate", request);
+        var response = await _client.PostAsJsonAsync("/api/v1/evaluate", Request);
         response.EnsureSuccessStatusCode();
 
         var content = await response.Content.ReadAsStringAsync();
@@ -37,14 +40,14 @@ public class EvaluationControllerTests : IClassFixture<WebApplicationFactory<Pro
     [Fact]
     public async Task API_002_EvaluateDeny()
     {
-        var request = new
+        var denyRequest = new
         {
-            Source = "RULE r LANGUAGE 1 WHEN customer.age >= 18 THEN ALLOW ELSE DENY \"Too young\" END",
-            ContextSchema = new { customer = new { age = "Integer" } },
-            Context = new { customer = new { age = 16 } }
+            source = "RULE r LANGUAGE 1 WHEN customer.age >= 18 THEN ALLOW ELSE DENY \"Too young\" END",
+            context_schema = new { customer = new { age = "Integer" } },
+            context = new { customer = new { age = 16 } }
         };
 
-        var response = await _client.PostAsJsonAsync("/api/v1/evaluate", request);
+        var response = await _client.PostAsJsonAsync("/api/v1/evaluate", denyRequest);
         response.EnsureSuccessStatusCode();
         
         var content = await response.Content.ReadAsStringAsync();
@@ -57,14 +60,14 @@ public class EvaluationControllerTests : IClassFixture<WebApplicationFactory<Pro
     [Fact]
     public async Task API_003_SemanticError()
     {
-        var request = new
+        var errorRequest = new
         {
-            Source = "RULE r LANGUAGE 1 WHEN customer.age > \"18\" THEN ALLOW END",
-            ContextSchema = new { customer = new { age = "Integer" } },
-            Context = new { customer = new { age = 21 } }
+            source = "RULE r LANGUAGE 1 WHEN customer.age > \"18\" THEN ALLOW END",
+            context_schema = new { customer = new { age = "Integer" } },
+            context = new { customer = new { age = 21 } }
         };
 
-        var response = await _client.PostAsJsonAsync("/api/v1/evaluate", request);
+        var response = await _client.PostAsJsonAsync("/api/v1/evaluate", errorRequest);
         
         Assert.Equal(System.Net.HttpStatusCode.BadRequest, response.StatusCode);
         var content = await response.Content.ReadAsStringAsync();
@@ -77,14 +80,14 @@ public class EvaluationControllerTests : IClassFixture<WebApplicationFactory<Pro
     [Fact]
     public async Task API_004_DecimalPrecision()
     {
-        var request = new
+        var decimalRequest = new
         {
-            Source = "RULE r LANGUAGE 1 WHEN invoice.total + 0.2 == 0.3 THEN ALLOW END",
-            ContextSchema = new { invoice = new { total = "Decimal" } },
-            Context = new { invoice = new { total = 0.1m } }
+            source = "RULE r LANGUAGE 1 WHEN invoice.total + 0.2 == 0.3 THEN ALLOW END",
+            context_schema = new { invoice = new { total = "Decimal" } },
+            context = new { invoice = new { total = 0.1m } }
         };
 
-        var response = await _client.PostAsJsonAsync("/api/v1/evaluate", request);
+        var response = await _client.PostAsJsonAsync("/api/v1/evaluate", decimalRequest);
         response.EnsureSuccessStatusCode();
         
         var content = await response.Content.ReadAsStringAsync();
