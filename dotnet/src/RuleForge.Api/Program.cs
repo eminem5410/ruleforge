@@ -38,7 +38,7 @@ builder.Services.AddRateLimiter(options =>
         
         if (context.Lease.TryGetMetadata("RETRY_AFTER", out var retryAfter))
         {
-            context.HttpContext.Response.Headers["Retry-After"] = ((int)retryAfter.TotalSeconds).ToString();
+            context.HttpContext.Response.Headers["Retry-After"] = ((int)((TimeSpan)retryAfter).TotalSeconds).ToString();
         }
         
         await context.HttpContext.Response.WriteAsync("{\"status\":\"error\",\"error_code\":\"RATE_LIMIT_EXCEEDED\"}");
