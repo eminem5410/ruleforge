@@ -1,3 +1,4 @@
+using System.Globalization;
 using RuleForge.Core.Syntax;
 using RuleForge.Core.Semantic;
 using RuleForge.Core.Lexing;
@@ -49,9 +50,9 @@ public class Evaluator
             return lit.Type switch
             {
                 TokenType.BOOLEAN => new RuleValue(RuleValueType.Boolean, lit.Value?.ToString() == "true"),
-                TokenType.INTEGER => new RuleValue(RuleValueType.Integer, int.Parse(lit.Value?.ToString()!)),
-                TokenType.DECIMAL => new RuleValue(RuleValueType.Decimal, decimal.Parse(lit.Value?.ToString()!)),
-                TokenType.DATE => new RuleValue(RuleValueType.Date, DateOnly.Parse(lit.Value?.ToString()!)),
+                TokenType.INTEGER => new RuleValue(RuleValueType.Integer, int.Parse(lit.Value?.ToString()!, CultureInfo.InvariantCulture)),
+                TokenType.DECIMAL => new RuleValue(RuleValueType.Decimal, decimal.Parse(lit.Value?.ToString()!, CultureInfo.InvariantCulture)),
+                TokenType.DATE => new RuleValue(RuleValueType.Date, DateOnly.Parse(lit.Value?.ToString()!, CultureInfo.InvariantCulture)),
                 _ => new RuleValue(RuleValueType.String, lit.Value)
             };
         }
@@ -116,8 +117,8 @@ public class Evaluator
                 case "-": return new RuleValue(leftVal.Type, Subtract(leftVal, rightVal));
                 case "*": return new RuleValue(leftVal.Type, Multiply(leftVal, rightVal));
                 case "/":
-                    if ((decimal)rightVal.Value! == 0) throw new EvaluatorException("RF4001", "Division by zero");
-                    return new RuleValue(RuleValueType.Decimal, (decimal)leftVal.Value! / (decimal)rightVal.Value!);
+                    if (Convert.ToDecimal(rightVal.Value, CultureInfo.InvariantCulture) == 0) throw new EvaluatorException("RF4001", "Division by zero");
+                    return new RuleValue(RuleValueType.Decimal, Convert.ToDecimal(leftVal.Value, CultureInfo.InvariantCulture) / Convert.ToDecimal(rightVal.Value, CultureInfo.InvariantCulture));
             }
         }
         
@@ -128,12 +129,12 @@ public class Evaluator
     {
         if (l.Type == RuleValueType.String && r.Type == RuleValueType.String) return string.Compare((string)l.Value!, (string)r.Value!, StringComparison.Ordinal);
         if (l.Type == RuleValueType.Date && r.Type == RuleValueType.Date) return ((DateOnly)l.Value!).CompareTo((DateOnly)r.Value!);
-        return Convert.ToDecimal(l.Value).CompareTo(Convert.ToDecimal(r.Value));
+        return Convert.ToDecimal(l.Value, CultureInfo.InvariantCulture).CompareTo(Convert.ToDecimal(r.Value, CultureInfo.InvariantCulture));
     }
 
-    private object Add(RuleValue l, RuleValue r) => l.Type == RuleValueType.String ? (string)l.Value! + (string)r.Value! : Convert.ToDecimal(l.Value) + Convert.ToDecimal(r.Value);
-    private object Subtract(RuleValue l, RuleValue r) => Convert.ToDecimal(l.Value) - Convert.ToDecimal(r.Value);
-    private object Multiply(RuleValue l, RuleValue r) => Convert.ToDecimal(l.Value) * Convert.ToDecimal(r.Value);
+    private object Add(RuleValue l, RuleValue r) => l.Type == RuleValueType.String ? (string)l.Value! + (string)r.Value! : Convert.ToDecimal(l.Value, CultureInfo.InvariantCulture) + Convert.ToDecimal(r.Value, CultureInfo.InvariantCulture);
+    private object Subtract(RuleValue l, RuleValue r) => Convert.ToDecimal(l.Value, CultureInfo.InvariantCulture) - Convert.ToDecimal(r.Value, CultureInfo.InvariantCulture);
+    private object Multiply(RuleValue l, RuleValue r) => Convert.ToDecimal(l.Value, CultureInfo.InvariantCulture) * Convert.ToDecimal(r.Value, CultureInfo.InvariantCulture);
 
     private RuleValue ToRuleValue(object? val)
     {
@@ -143,6 +144,7 @@ public class Evaluator
         if (val is bool b) return new RuleValue(RuleValueType.Boolean, b);
         if (val is string s) return new RuleValue(RuleValueType.String, s);
         if (val is DateOnly dt) return new RuleValue(RuleValueType.Date, dt);
+        if (val is double db) return new RuleValue(RuleValueType.Decimal, Convert.ToDecimal(db, CultureInfo.InvariantCulture));
         return new RuleValue(RuleValueType.String, val.ToString());
     }
 }

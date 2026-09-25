@@ -35,9 +35,9 @@ public class EvaluatorTests
     [Fact]
     public void EVAL_002_ShortCircuitAnd()
     {
-        var ctx = new Dictionary<string, object?> { { "customer", new Dictionary<string, object?> { { "active", true } } } };
+        var ctx = new Dictionary<string, object?> { { "customer", new Dictionary<string, object?> { { "active", false } } } };
         var decisions = EvalCode("RULE r LANGUAGE 1 WHEN customer.active == true AND 1/0 == 1 THEN ALLOW END", ctx);
-        Assert.True(decisions[0].Matched); // Does not throw DivByZero
+        Assert.False(decisions[0].Matched); // Does not throw DivByZero
     }
 
     [Fact]
