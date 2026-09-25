@@ -1,16 +1,15 @@
-from ..parser.ast_nodes import RuleNode, ActionNode, BinaryOpNode, NullCheckNode, LiteralNode, PropertyAccessNode, FunctionCallNode
+from ..parser.ast_nodes import RuleNode, ActionNode, BinaryOpNode, UnaryOpNode, NullCheckNode, LiteralNode, IdentifierNode, PropertyAccessNode, FunctionCallNode
 from .errors import SemanticError
 
 class SemanticAnalyzer:
     def __init__(self, context_schema):
         self.schema = context_schema
-        # Function Registry
         self.functions = {
             "contains": (["String", "String"], "Boolean"),
             "length": (["String"], "Integer"),
             "starts_with": (["String", "String"], "Boolean"),
             "ends_with": (["String", "String"], "Boolean"),
-            "abs": (["Integer"], "Integer") # Simplificado para V1
+            "abs": (["Integer"], "Integer")
         }
 
     def analyze(self, ast):
@@ -19,11 +18,8 @@ class SemanticAnalyzer:
         return True
 
     def check_rule(self, node):
-        # 1. Validar Acciones (No multiple terminal decisions)
         self.check_actions(node.then_actions)
         self.check_actions(node.else_actions)
-        
-        # 2. Validar condición WHEN
         expr_type = self.check_node(node.when_expr)
         if expr_type != "Boolean":
             raise SemanticError("RF3002", f"WHEN condition must evaluate to Boolean, got {expr_type}")
@@ -38,6 +34,10 @@ class SemanticAnalyzer:
             mapping = {"INTEGER": "Integer", "DECIMAL": "Decimal", "STRING": "String", "BOOLEAN": "Boolean", "DATE": "Date"}
             return mapping.get(node.type, "Unknown")
             
+        elif isinstance(node, IdentifierNode):
+            # En V1, un identificador suelto no pertenece al schema, debe fallar semánticamente
+            raise SemanticError("RF3002", f"Unknown context property '{node.name}'")
+            
         elif isinstance(node, PropertyAccessNode):
             obj_schema = self.schema.get(node.obj)
             if not obj_schema:
@@ -51,35 +51,32 @@ class SemanticAnalyzer:
             self.check_node(node.left)
             return "Boolean"
             
+        elif isinstance(node, UnaryOpNode):
+            if node.op == "NOT":
+                operand_type = self.check_node(node.operand)
+                if operand_type != "Boolean":
+                    raise SemanticError("RF3001", f"Operator 'NOT' requires Boolean, got {operand_type}")
+                return "Boolean"
+                
         elif isinstance(node, BinaryOpNode):
             left_type = self.check_node(node.left)
             right_type = self.check_node(node.right)
             op = node.op
             
-            if op == "NOT":
-                if left_type != "Boolean":
-                    raise SemanticError("RF3001", f"Operator 'NOT' requires Boolean, got {left_type}")
-                return "Boolean"
-                
             if op in ["AND", "OR"]:
                 if left_type != "Boolean" or right_type != "Boolean":
                     raise SemanticError("RF3001", f"Operator '{op}' requires Boolean operands, got {left_type} and {right_type}")
                 return "Boolean"
-                
             elif op in ["==", "!="]:
                 if left_type != right_type:
                     raise SemanticError("RF3001", f"Cannot compare {left_type} with {right_type} using '{op}'")
                 return "Boolean"
-                
             elif op in [">", "<", ">=", "<="]:
-                valid = ["Integer", "Decimal", "Date"]
-                if left_type not in valid or right_type not in valid:
+                if left_type not in ["Integer", "Decimal", "Date"] or right_type not in ["Integer", "Decimal", "Date"]:
                     raise SemanticError("RF3001", f"Operator '{op}' requires numeric/date operands, got {left_type} and {right_type}")
                 return "Boolean"
-                
             elif op in ["+", "-", "*", "/"]:
-                valid = ["Integer", "Decimal"]
-                if left_type not in valid or right_type not in valid:
+                if left_type not in ["Integer", "Decimal"] or right_type not in ["Integer", "Decimal"]:
                     raise SemanticError("RF3001", f"Operator '{op}' requires numeric operands, got {left_type} and {right_type}")
                 return "Decimal" if "Decimal" in [left_type, right_type] else "Integer"
             else:
@@ -96,6 +93,5 @@ class SemanticAnalyzer:
                 if arg_type != expected_args[i]:
                     raise SemanticError("RF3003", f"Argument {i+1} of '{node.name}' must be {expected_args[i]}, got {arg_type}")
             return return_type
-            
         else:
             raise SemanticError("RF3003", f"Unknown AST node {type(node)}")

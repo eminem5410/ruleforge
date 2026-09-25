@@ -20,6 +20,12 @@ class BinaryOpNode:
         self.right = right
     def __repr__(self): return f"BinOp({self.left} {self.op} {self.right})"
 
+class UnaryOpNode:
+    def __init__(self, op, operand):
+        self.op = op
+        self.operand = operand
+    def __repr__(self): return f"UnaryOp({self.op} {self.operand})"
+
 class NullCheckNode:
     def __init__(self, left, is_not):
         self.left = left
@@ -31,6 +37,11 @@ class LiteralNode:
         self.value = value
         self.type = type
     def __repr__(self): return f"Lit({self.value})"
+
+class IdentifierNode:
+    def __init__(self, name):
+        self.name = name
+    def __repr__(self): return f"Ident({self.name})"
 
 class PropertyAccessNode:
     def __init__(self, obj, prop):
