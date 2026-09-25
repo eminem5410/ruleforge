@@ -1,6 +1,6 @@
 {
     "customer": {
-        "debt": 80000,
-        "status": "active"
+        "age": 16,
+        "email": null
     }
 }

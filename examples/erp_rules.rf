@@ -1,0 +1,15 @@
+// Regla 1: Mayor de edad
+RULE adult_check
+LANGUAGE 1
+WHEN customer.age >= 18
+THEN ALLOW
+ELSE DENY "Must be 18 or older"
+END
+
+// Regla 2: Email requerido
+RULE email_check
+LANGUAGE 1
+WHEN customer.email IS NOT NULL
+THEN ALLOW
+ELSE ALERT "Email is missing"
+END

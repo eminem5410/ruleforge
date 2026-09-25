@@ -1,7 +1,7 @@
 import sys
 import json
 import os
-from ruleforge import RuleForgeEngine
+from ruleforge import RuleForgeEngine, LexerError, ParserError, SemanticError, EvaluatorError
 
 def run_eval(rule_path, data_path, schema_path, explain=False):
     for p in [rule_path, data_path, schema_path]:
@@ -18,20 +18,26 @@ def run_eval(rule_path, data_path, schema_path, explain=False):
         print(f"\n📊 Evaluando {len(decisions)} regla(s) contra el contexto...")
         for d in decisions:
             if explain:
-                print(f"\n--- TRACE '{d.rule_name}' ---")
+                print(f"\n--- TRACE '{d.rule_id}' ---")
                 for step in d.trace: print(f"  ➜ {step}")
+                    
             print(f"\n--- DECISIÓN ---")
-            print(f"Regla      : {d.rule_name}")
+            print(f"Regla      : {d.rule_id}")
             print(f"Match      : {d.matched}")
-            print(f"Acción     : {d.action_type}")
-            if d.action_value and d.action_value != 'None': print(f"Mensaje    : {d.action_value}")
+            for act in d.actions:
+                print(f"Acción     : {act.action_type}", end="")
+                if act.value and act.value != 'None': print(f" (Mensaje: {act.value})")
+                else: print("")
             print("----------------")
-    except Exception as e:
+    except (LexerError, ParserError, SemanticError, EvaluatorError) as e:
         print(f"\n🛑 {e}\n")
+    except Exception as e:
+        print(f"\n❌ Error inesperado: {e}\n")
 
 if __name__ == "__main__":
     if len(sys.argv) == 5 and sys.argv[1] == 'eval': run_eval(sys.argv[2], sys.argv[3], sys.argv[4], explain=False)
     elif len(sys.argv) == 5 and sys.argv[1] == 'explain': run_eval(sys.argv[2], sys.argv[3], sys.argv[4], explain=True)
     else:
-        print("Uso:\n  python3 cli.py eval <regla.rf> <datos.json> <schema.json>")
+        print("Uso:")
+        print("  python3 cli.py eval <regla.rf> <datos.json> <schema.json>")
         print("  python3 cli.py explain <regla.rf> <datos.json> <schema.json>")

@@ -1,9 +1,3 @@
 {
-    "customer": {
-        "age": "Integer",
-        "debt": "Integer",
-        "status": "String",
-        "name": "String",
-        "email": "String"
-    }
+    "customer": {"age": "Integer", "active": "Boolean", "email": "String"}
 }
