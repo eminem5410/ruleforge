@@ -23,5 +23,5 @@ include = ["ruleforge*"]
 
 [tool.pytest.ini_options]
 filterwarnings = [
-    "ignore::DeprecationWarning:starlette.*"
+    "ignore::DeprecationWarning:starlette.testclient"
 ]
