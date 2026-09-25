@@ -133,7 +133,12 @@ def test_eval_018_alert_apply():
 def test_eval_019_explain_trace_simple():
     code = 'RULE r LANGUAGE 1 WHEN customer.age >= 18 THEN ALLOW END'
     decisions = eval_code(code, {"customer": {"age": 20}}, explain=True)
-    assert "20 >= 18 -> True" in decisions[0].trace[0]
+    trace = decisions[0].trace[0]
+    assert trace["type"] == "comparison"
+    assert trace["operator"] == ">="
+    assert trace["left"]["path"] == "customer.age"
+    assert trace["left"]["value"] == 20
+    assert trace["result"] == True
 
 # 20. múltiples reglas
 def test_eval_020_multiple_rules():
@@ -157,14 +162,20 @@ def test_eval_021_decision_metadata():
 def test_eval_022_explain_trace_and_or():
     code = 'RULE r LANGUAGE 1 WHEN customer.active == true OR customer.age >= 18 THEN ALLOW END'
     decisions = eval_code(code, {"customer": {"active": True, "age": 20}}, explain=True)
-    # Como el OR hace short-circuit con True, el trace debe mostrar el short-circuit
-    assert any("Short-circuit OR" in step for step in decisions[0].trace)
+    trace = decisions[0].trace[0]
+    assert trace["type"] == "short_circuit"
+    assert trace["operator"] == "OR"
+    assert trace["left"]["result"] == True
 
 # 23. explain_mode con Functions
 def test_eval_023_explain_trace_functions():
     code = 'RULE r LANGUAGE 1 WHEN length(customer.name) > 5 THEN ALLOW END'
     decisions = eval_code(code, {"customer": {"name": "PabloDiez"}}, explain=True)
-    assert any("Evaluando función: length" in step for step in decisions[0].trace)
+    trace = decisions[0].trace[0]
+    assert trace["type"] == "comparison"
+    assert trace["left"]["type"] == "function"
+    assert trace["left"]["name"] == "length"
+    assert trace["left"]["result"] == 9
 
 # 24. Semantic Analyzer rechaza IdentifierNode suelto
 def test_eval_024_identifier_node_rejected():

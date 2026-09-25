@@ -2,11 +2,19 @@ import sys
 import json
 import os
 import argparse
+from decimal import Decimal
+from datetime import date
 from . import RuleForgeEngine
 from .lexer import LexerError
 from .parser import ParserError
 from .semantic import SemanticError
 from .evaluator import EvaluatorError
+
+class RuleForgeEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, Decimal): return str(obj)
+        if isinstance(obj, date): return obj.isoformat()
+        return super().default(obj)
 
 def main():
     parser = argparse.ArgumentParser(description="RuleForge Decision Engine CLI")
@@ -45,13 +53,14 @@ def main():
         
         if args.json_output:
             output = {"decisions": [d.to_dict() for d in decisions]}
-            print(json.dumps(output, indent=2))
+            print(json.dumps(output, indent=2, cls=RuleForgeEncoder))
         else:
             print(f"\n📊 Evaluando {len(decisions)} regla(s) contra el contexto...")
             for d in decisions:
                 if args.command == "explain":
                     print(f"\n--- TRACE '{d.rule_id}' ---")
-                    for step in d.trace: print(f"  ➜ {step}")
+                    print(json.dumps(d.trace, indent=2, cls=RuleForgeEncoder))
+                    
                 print(f"\n--- DECISIÓN ---")
                 print(f"Regla      : {d.rule_id}")
                 print(f"Match      : {d.matched}")
@@ -64,13 +73,13 @@ def main():
         
     except (LexerError, ParserError, SemanticError, EvaluatorError) as e:
         if args.json_output:
-            print(json.dumps({"error": {"code": e.code, "message": str(e)}}, indent=2))
+            print(json.dumps({"error": {"code": e.code, "message": str(e)}}, indent=2, cls=RuleForgeEncoder))
         else:
             print(f"\n🛑 {e}\n")
         sys.exit(1)
     except Exception as e:
         if args.json_output:
-            print(json.dumps({"error": {"code": "INTERNAL", "message": str(e)}}, indent=2))
+            print(json.dumps({"error": {"code": "INTERNAL", "message": str(e)}}, indent=2, cls=RuleForgeEncoder))
         else:
             print(f"\n❌ Error inesperado: {e}\n")
         sys.exit(2)

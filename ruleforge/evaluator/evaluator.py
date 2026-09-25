@@ -18,21 +18,25 @@ class Decision:
 
 class Evaluator:
     def __init__(self, context, explain_mode=False):
-        self.context, self.explain_mode, self.trace = context, explain_mode, []
+        self.context, self.explain_mode = context, explain_mode
+        self.trace = []
         self.step_count = 0
 
     def eval_rules(self, ast_list):
         return [self.eval_rule(rule) for rule in ast_list]
 
     def eval_rule(self, node: RuleNode):
-        self.trace, self.step_count = [], 0
+        self.step_count = 0
+        self.trace = []
         try:
-            condition_result = self.eval_node(node.when_expr)
+            condition_result, root_trace = self.eval_node(node.when_expr)
         except EvaluatorError: raise
         except Exception as e:
             raise EvaluatorError("RF4001", f"Unexpected runtime error: {e}")
             
-        if self.explain_mode: self.trace.append(f"CONDICIÓN FINAL EVALUADA COMO: {condition_result}")
+        if self.explain_mode: 
+            self.trace = [root_trace]
+            
         actions = node.then_actions if condition_result else (node.else_actions if node.else_actions else [ActionNode("NO_ACTION")])
         return Decision(node.name, 1, node.lang_version, condition_result, actions, self.trace)
 
@@ -45,75 +49,119 @@ class Evaluator:
             raise EvaluatorError("RF5003", f"Security Limit: Execution exceeded {MAX_EXECUTION_STEPS} steps")
 
         if isinstance(node, LiteralNode):
-            if node.type == "BOOLEAN": return node.value == "true"
-            if node.type == "INTEGER": return int(node.value)
-            if node.type == "DECIMAL": return Decimal(node.value)
-            if node.type == "DATE": y, m, d = map(int, node.value.split('-')); return date(y, m, d)
-            return node.value
+            val = None
+            if node.type == "BOOLEAN": val = node.value == "true"
+            elif node.type == "INTEGER": val = int(node.value)
+            elif node.type == "DECIMAL": val = Decimal(node.value)
+            elif node.type == "DATE": y, m, d = map(int, node.value.split('-')); val = date(y, m, d)
+            else: val = node.value
+            
+            if self.explain_mode:
+                data_type = {"INTEGER": "Integer", "DECIMAL": "Decimal", "STRING": "String", "BOOLEAN": "Boolean", "DATE": "Date"}.get(node.type, "Unknown")
+                return val, {"type": "literal", "value": val, "data_type": data_type}
+            return val, None
+            
         elif isinstance(node, PropertyAccessNode):
             obj = self.context.get(node.obj)
-            return normalize_value(obj.get(node.prop)) if obj else None
-        elif isinstance(node, IdentifierNode): return normalize_value(self.context.get(node.name))
+            val = normalize_value(obj.get(node.prop)) if obj else None
+            if self.explain_mode:
+                return val, {"type": "property", "path": f"{node.obj}.{node.prop}", "value": val}
+            return val, None
+            
+        elif isinstance(node, IdentifierNode):
+            val = normalize_value(self.context.get(node.name))
+            if self.explain_mode:
+                return val, {"type": "property", "path": node.name, "value": val}
+            return val, None
+            
         elif isinstance(node, NullCheckNode):
-            val = self.eval_node(node.left)
+            val, left_trace = self.eval_node(node.left)
             result = val is not None if node.is_not else val is None
-            if self.explain_mode: self.trace.append(f"Evaluando: {val} IS {'NOT ' if node.is_not else ''}NULL -> {result}")
-            return result
+            op_str = "IS NOT NULL" if node.is_not else "IS NULL"
+            if self.explain_mode:
+                return result, {"type": "null_check", "operator": op_str, "value": left_trace, "result": result}
+            return result, None
+            
         elif isinstance(node, UnaryOpNode):
-            val = self.eval_node(node.operand)
+            val, operand_trace = self.eval_node(node.operand)
             if node.op == "NOT":
                 self.check_null(val, "NOT")
                 result = not val
-                if self.explain_mode: self.trace.append(f"Evaluando: NOT {val} -> {result}")
-                return result
+                if self.explain_mode:
+                    return result, {"type": "unary", "operator": "NOT", "operand": operand_trace, "result": result}
+                return result, None
+                
         elif isinstance(node, BinaryOpNode):
             op = node.op
             if op == "AND":
-                l = self.eval_node(node.left)
-                if not l:
-                    if self.explain_mode: self.trace.append(f"Short-circuit AND: {l} AND ... -> False")
-                    return False
-                r = self.eval_node(node.right)
-                if self.explain_mode: self.trace.append(f"Evaluando: {l} AND {r} -> {bool(r)}")
-                return bool(r)
+                left_val, left_trace = self.eval_node(node.left)
+                if not left_val:
+                    if self.explain_mode:
+                        return False, {"type": "short_circuit", "operator": "AND", "left": left_trace, "result": False}
+                    return False, None
+                right_val, right_trace = self.eval_node(node.right)
+                result = bool(right_val)
+                if self.explain_mode:
+                    return result, {"type": "logical", "operator": "AND", "left": left_trace, "right": right_trace, "result": result}
+                return result, None
+                
             elif op == "OR":
-                l = self.eval_node(node.left)
-                if l:
-                    if self.explain_mode: self.trace.append(f"Short-circuit OR: {l} OR ... -> True")
-                    return True
-                r = self.eval_node(node.right)
-                if self.explain_mode: self.trace.append(f"Evaluando: {l} OR {r} -> {bool(r)}")
-                return bool(r)
+                left_val, left_trace = self.eval_node(node.left)
+                if left_val:
+                    if self.explain_mode:
+                        return True, {"type": "short_circuit", "operator": "OR", "left": left_trace, "result": True}
+                    return True, None
+                right_val, right_trace = self.eval_node(node.right)
+                result = True if right_val else False
+                if self.explain_mode:
+                    return result, {"type": "logical", "operator": "OR", "left": left_trace, "right": right_trace, "result": result}
+                return result, None
 
-            l, r = self.eval_node(node.left), self.eval_node(node.right)
-            self.check_null(l, op); self.check_null(r, op)
+            left_val, left_trace = self.eval_node(node.left)
+            right_val, right_trace = self.eval_node(node.right)
+            self.check_null(left_val, op); self.check_null(right_val, op)
             try:
-                if op == "==": res = l == r
-                elif op == "!=": res = l != r
-                elif op == ">": res = l > r
-                elif op == "<": res = l < r
-                elif op == ">=": res = l >= r
-                elif op == "<=": res = l <= r
-                elif op == "+": res = l + r
-                elif op == "-": res = l - r
-                elif op == "*": res = l * r
+                if op == "==": res = left_val == right_val
+                elif op == "!=": res = left_val != right_val
+                elif op == ">": res = left_val > right_val
+                elif op == "<": res = left_val < right_val
+                elif op == ">=": res = left_val >= right_val
+                elif op == "<=": res = left_val <= right_val
+                elif op == "+": res = left_val + right_val
+                elif op == "-": res = left_val - right_val
+                elif op == "*": res = left_val * right_val
                 elif op == "/":
-                    if r == 0: raise EvaluatorError("RF4001", "Division by zero")
-                    res = l / r
+                    if right_val == 0: raise EvaluatorError("RF4001", "Division by zero")
+                    res = left_val / right_val
             except TypeError as e: raise EvaluatorError("RF4002", f"Runtime Type Error: {e}")
             except InvalidOperation as e: raise EvaluatorError("RF4002", f"Decimal Runtime Error: {e}")
-            if self.explain_mode: self.trace.append(f"Evaluando: {l} {op} {r} -> {res}")
-            return res
+            
+            if self.explain_mode:
+                if op in ["==", "!=", ">", "<", ">=", "<="]:
+                    return res, {"type": "comparison", "operator": op, "left": left_trace, "right": right_trace, "result": res}
+                else:
+                    return res, {"type": "arithmetic", "operator": op, "left": left_trace, "right": right_trace, "result": res}
+            return res, None
+            
         elif isinstance(node, FunctionCallNode):
-            args = [self.eval_node(a) for a in node.args]
+            arg_vals = []
+            arg_traces = []
+            for a in node.args:
+                v, t = self.eval_node(a)
+                arg_vals.append(v)
+                arg_traces.append(t)
+                
             try:
-                if node.name == "contains": self.check_null(args[0], "contains"); res = args[1] in args[0]
-                elif node.name == "length": self.check_null(args[0], "length"); res = len(args[0])
-                elif node.name == "starts_with": self.check_null(args[0], "starts_with"); res = args[0].startswith(args[1])
-                elif node.name == "ends_with": self.check_null(args[0], "ends_with"); res = args[0].endswith(args[1])
-                elif node.name == "abs": self.check_null(args[0], "abs"); res = abs(args[0])
+                if node.name == "contains": self.check_null(arg_vals[0], "contains"); res = arg_vals[1] in arg_vals[0]
+                elif node.name == "length": self.check_null(arg_vals[0], "length"); res = len(arg_vals[0])
+                elif node.name == "starts_with": self.check_null(arg_vals[0], "starts_with"); res = arg_vals[0].startswith(arg_vals[1])
+                elif node.name == "ends_with": self.check_null(arg_vals[0], "ends_with"); res = arg_vals[0].endswith(arg_vals[1])
+                elif node.name == "abs": self.check_null(arg_vals[0], "abs"); res = abs(arg_vals[0])
                 else: raise EvaluatorError("RF4001", f"Unknown function {node.name}")
             except TypeError as e: raise EvaluatorError("RF4002", f"Runtime Type Error in '{node.name}': {e}")
-            if self.explain_mode: self.trace.append(f"Evaluando función: {node.name}({args}) -> {res}")
-            return res
+            
+            if self.explain_mode:
+                return res, {"type": "function", "name": node.name, "arguments": arg_traces, "result": res}
+            return res, None
+            
         raise EvaluatorError("RF4001", f"Unknown AST node {type(node)}")
