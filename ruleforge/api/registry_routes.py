@@ -1,5 +1,5 @@
 import os
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Security
 from pydantic import BaseModel
 from typing import Dict, Any, Annotated
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
@@ -13,10 +13,14 @@ from ..lexer import LexerError
 from ..parser import ParserError
 from ..semantic import SemanticError
 from ..evaluator import EvaluatorError
+from ..auth.dependencies import require_scope
+from ..auth.models import ApiKey
 import json
 from decimal import Decimal
 from datetime import date
 import copy
+import hashlib
+import uuid
 
 router = APIRouter()
 
@@ -26,8 +30,12 @@ if DATABASE_URL:
     engine = create_async_engine(DATABASE_URL, echo=False)
     SessionLocal = async_sessionmaker(engine, expire_on_commit=False)
     _repo_instance = PostgresRuleRepository(SessionLocal)
+    from ..auth.repository import PostgresApiKeyRepository
+    _api_key_repo = PostgresApiKeyRepository(SessionLocal)
 else:
     _repo_instance = InMemoryRuleRepository()
+    from ..auth.repository import InMemoryApiKeyRepository
+    _api_key_repo = InMemoryApiKeyRepository()
 
 async def get_repository() -> RuleRepository:
     return _repo_instance
@@ -53,7 +61,11 @@ class EvaluateRegisteredRuleRequest(BaseModel):
     context_schema: Dict[str, Dict[str, str]]
     explain: bool = False
 
-@router.post("/rules", status_code=201)
+class CreateApiKeyRequest(BaseModel):
+    name: str
+    scopes: list[str]
+
+@router.post("/rules", status_code=201, dependencies=[Depends(require_scope("rules:write"))])
 async def create_rule(request: CreateRuleRequest, repo: Annotated[RuleRepository, Depends(get_repository)]):
     try:
         rule = await repo.save_rule(request.rule_id, request.source, request.language_version)
@@ -61,7 +73,7 @@ async def create_rule(request: CreateRuleRequest, repo: Annotated[RuleRepository
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-@router.get("/rules/{rule_id}")
+@router.get("/rules/{rule_id}", dependencies=[Depends(require_scope("rules:read"))])
 async def get_rule(rule_id: str, repo: Annotated[RuleRepository, Depends(get_repository)]):
     try:
         rule = await repo.get_rule(rule_id)
@@ -69,7 +81,7 @@ async def get_rule(rule_id: str, repo: Annotated[RuleRepository, Depends(get_rep
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
-@router.post("/rules/{rule_id}/versions/{version}/activate")
+@router.post("/rules/{rule_id}/versions/{version}/activate", dependencies=[Depends(require_scope("rules:activate"))])
 async def activate_rule(rule_id: str, version: int, repo: Annotated[RuleRepository, Depends(get_repository)]):
     try:
         rule = await repo.activate_rule(rule_id, version)
@@ -77,7 +89,7 @@ async def activate_rule(rule_id: str, version: int, repo: Annotated[RuleReposito
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
-@router.delete("/rules/{rule_id}")
+@router.delete("/rules/{rule_id}", dependencies=[Depends(require_scope("rules:admin"))])
 async def archive_rule(rule_id: str, repo: Annotated[RuleRepository, Depends(get_repository)]):
     try:
         await repo.archive_rule(rule_id)
@@ -85,7 +97,7 @@ async def archive_rule(rule_id: str, repo: Annotated[RuleRepository, Depends(get
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
-@router.post("/rules/{rule_id}/evaluate")
+@router.post("/rules/{rule_id}/evaluate", dependencies=[Depends(require_scope("rules:evaluate"))])
 async def evaluate_registered_rule(rule_id: str, request: EvaluateRegisteredRuleRequest, repo: Annotated[RuleRepository, Depends(get_repository)]):
     try:
         rule = await repo.get_rule(rule_id)
@@ -105,5 +117,15 @@ async def evaluate_registered_rule(rule_id: str, request: EvaluateRegisteredRule
         raise HTTPException(status_code=404, detail=str(e))
     except (LexerError, ParserError, SemanticError, EvaluatorError) as e:
         return {"error": {"code": e.code, "message": str(e)}}
-    except Exception as e:
+    except Exception:
         return {"error": {"code": "INTERNAL", "message": "Internal server error"}}
+
+# --- API Key Management Endpoint (Admin only) ---
+@router.post("/api-keys", dependencies=[Depends(require_scope("rules:admin"))])
+async def create_api_key(request: CreateApiKeyRequest):
+    import secrets
+    plaintext = "rf_live_" + secrets.token_urlsafe(32)
+    key_hash = hashlib.sha256(plaintext.encode()).hexdigest()
+    
+    api_key = await _api_key_repo.create(key_hash=key_hash, name=request.name, scopes=request.scopes)
+    return {"id": api_key.id, "name": api_key.name, "scopes": api_key.scopes, "plaintext_key": plaintext}
