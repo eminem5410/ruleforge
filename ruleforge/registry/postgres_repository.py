@@ -12,7 +12,6 @@ class PostgresRuleRepository:
 
     async def save_rule(self, rule_id: str, source: str, language_version: int) -> Rule:
         async with self.session_factory() as session:
-            # Buscar max version
             stmt = select(func.max(RuleModel.version)).where(RuleModel.rule_id == rule_id)
             res = await session.execute(stmt)
             max_version = res.scalar() or 0
@@ -43,11 +42,10 @@ class PostgresRuleRepository:
             if version is not None:
                 stmt = select(RuleModel).where(RuleModel.rule_id == rule_id, RuleModel.version == version)
             else:
-                # Buscar la ACTIVE
                 stmt = select(RuleModel).where(RuleModel.rule_id == rule_id, RuleModel.status == "ACTIVE")
                 res = await session.execute(stmt)
                 model = res.scalar_one_or_none()
-                if not model: # Si no hay ACTIVE, buscar la última
+                if not model:
                     stmt = select(RuleModel).where(RuleModel.rule_id == rule_id).order_by(RuleModel.version.desc()).limit(1)
                     res = await session.execute(stmt)
                     model = res.scalar_one_or_none()
@@ -72,11 +70,12 @@ class PostgresRuleRepository:
 
     async def archive_rule(self, rule_id: str) -> None:
         async with self.session_factory() as session:
-            stmt = select(RuleModel).where(RuleModel.rule_id == rule_id, RuleModel.status == "ACTIVE")
+            # Buscar la última versión para archivarla
+            stmt = select(RuleModel).where(RuleModel.rule_id == rule_id).order_by(RuleModel.version.desc()).limit(1)
             res = await session.execute(stmt)
             model = res.scalar_one_or_none()
             if not model:
-                raise ValueError(f"No ACTIVE rule found for '{rule_id}'")
+                raise ValueError(f"Rule '{rule_id}' not found")
             model.status = "ARCHIVED"
             model.updated_at = datetime.now()
             await session.commit()

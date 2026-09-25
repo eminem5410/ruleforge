@@ -47,18 +47,9 @@ async def test_pg_versioning_and_immutable_history(repo):
     assert "DENY" in fetched_v2.source
 
 @pytest.mark.asyncio
-async def test_pg_archive_active_rule(repo):
+async def test_pg_archive_latest_rule(repo):
     rule = await repo.save_rule("r1", 'RULE r1 LANGUAGE 1 WHEN true THEN ALLOW END', 1)
-    # Simular activación para poder archivarla
-    async with repo.session_factory() as session:
-        from ruleforge.persistence.models import RuleModel
-        from sqlalchemy import select
-        stmt = select(RuleModel).where(RuleModel.rule_id == "r1")
-        res = await session.execute(stmt)
-        model = res.scalar_one()
-        model.status = "ACTIVE"
-        await session.commit()
-        
     await repo.archive_rule("r1")
+    
     archived = await repo.get_rule("r1", version=1)
     assert archived.status == "ARCHIVED"

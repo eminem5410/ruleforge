@@ -28,7 +28,6 @@ class InMemoryRuleRepository:
                 raise ValueError(f"Rule '{rule_id}' version {version} not found")
             return versions[version]
             
-        # Devolver la ACTIVE, si no hay, la última
         active_rules = [r for r in versions.values() if r.status == "ACTIVE"]
         if active_rules:
             return active_rules[0]
@@ -48,7 +47,6 @@ class InMemoryRuleRepository:
             raise ValueError(f"Rule '{rule_id}' not found")
         
         versions = self._store[rule_id]
-        active_rules = [r for r in versions.values() if r.status == "ACTIVE"]
-        if active_rules:
-            active_rules[0].status = "ARCHIVED"
-            active_rules[0].updated_at = datetime.now()
+        latest_version = max(versions.keys())
+        versions[latest_version].status = "ARCHIVED"
+        versions[latest_version].updated_at = datetime.now()
