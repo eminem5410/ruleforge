@@ -10,13 +10,20 @@ class Decision:
         self.matched = matched
         self.actions = actions
         self.trace = trace or []
-    def __repr__(self): return f"Decision(rule_id='{self.rule_id}', v{self.rule_version}, lang={self.language_version}, matched={self.matched})"
+    def __repr__(self): return f"Decision(rule_id='{self.rule_id}', matched={self.matched})"
+    def to_dict(self):
+        return {
+            "rule_id": self.rule_id,
+            "rule_version": self.rule_version,
+            "language_version": self.language_version,
+            "matched": self.matched,
+            "actions": [a.to_dict() for a in self.actions],
+            "trace": self.trace
+        }
 
 class Evaluator:
     def __init__(self, context, explain_mode=False):
-        self.context = context
-        self.explain_mode = explain_mode
-        self.trace = []
+        self.context = context; self.explain_mode = explain_mode; self.trace = []
 
     def eval_rules(self, ast_list):
         return [self.eval_rule(rule) for rule in ast_list]
@@ -25,14 +32,10 @@ class Evaluator:
         self.trace = []
         condition_result = self.eval_node(node.when_expr)
         if self.explain_mode: self.trace.append(f"CONDICIÓN FINAL EVALUADA COMO: {condition_result}")
-
         if condition_result:
-            actions = node.then_actions
-            matched = True
+            actions = node.then_actions; matched = True
         else:
-            actions = node.else_actions if node.else_actions else [ActionNode("NO_ACTION")]
-            matched = False
-            
+            actions = node.else_actions if node.else_actions else [ActionNode("NO_ACTION")]; matched = False
         return Decision(node.name, 1, node.lang_version, matched, actions, self.trace)
 
     def eval_node(self, node):
@@ -41,39 +44,26 @@ class Evaluator:
             if node.type == "INTEGER": return int(node.value)
             if node.type == "DECIMAL": return float(node.value)
             if node.type == "DATE": 
-                y, m, d = map(int, node.value.split('-'))
-                return date(y, m, d)
+                y, m, d = map(int, node.value.split('-')); return date(y, m, d)
             return node.value
-            
         elif isinstance(node, PropertyAccessNode):
             obj = self.context.get(node.obj)
             if obj is None: return None
-            # Contrato V1: Una propiedad ausente en el contexto de datos se evalúa como None.
-            # Esto permite que IS NULL funcione correctamente incluso si el JSON no trajo la clave.
             return obj.get(node.prop)
-            
-        elif isinstance(node, IdentifierNode):
-            return self.context.get(node.name)
-            
+        elif isinstance(node, IdentifierNode): return self.context.get(node.name)
         elif isinstance(node, NullCheckNode):
             val = self.eval_node(node.left)
-            if node.is_not:
-                result = val is not None; op_str = "IS NOT NULL"
-            else:
-                result = val is None; op_str = "IS NULL"
-            if self.explain_mode: self.trace.append(f"Evaluando: {val} {op_str} -> {result}")
+            result = val is not None if node.is_not else val is None
+            if self.explain_mode: self.trace.append(f"Evaluando: {val} IS {'NOT ' if node.is_not else ''}NULL -> {result}")
             return result
-            
         elif isinstance(node, UnaryOpNode):
             val = self.eval_node(node.operand)
             if node.op == "NOT":
                 result = not val
                 if self.explain_mode: self.trace.append(f"Evaluando: NOT {val} -> {result}")
                 return result
-                
         elif isinstance(node, BinaryOpNode):
             op = node.op
-            
             if op == "AND":
                 left_val = self.eval_node(node.left)
                 if not left_val:
@@ -83,7 +73,6 @@ class Evaluator:
                 result = bool(right_val)
                 if self.explain_mode: self.trace.append(f"Evaluando: {left_val} AND {right_val} -> {result}")
                 return result
-                
             elif op == "OR":
                 left_val = self.eval_node(node.left)
                 if left_val:
@@ -96,7 +85,6 @@ class Evaluator:
 
             left_val = self.eval_node(node.left)
             right_val = self.eval_node(node.right)
-            
             result = None
             if op == "==": result = left_val == right_val
             elif op == "!=": result = left_val != right_val
@@ -110,10 +98,8 @@ class Evaluator:
             elif op == "/": 
                 if right_val == 0: raise EvaluatorError("RF4001", "Division by zero")
                 result = left_val / right_val
-                
             if self.explain_mode: self.trace.append(f"Evaluando: {left_val} {op} {right_val} -> {result}")
             return result
-            
         elif isinstance(node, FunctionCallNode):
             args = [self.eval_node(arg) for arg in node.args]
             if node.name == "contains": result = args[1] in args[0]
@@ -122,9 +108,7 @@ class Evaluator:
             elif node.name == "ends_with": result = args[0].endswith(args[1])
             elif node.name == "abs": result = abs(args[0])
             else: raise EvaluatorError("RF4001", f"Unknown function {node.name}")
-            
             if self.explain_mode: self.trace.append(f"Evaluando función: {node.name}({args}) -> {result}")
             return result
-            
         else:
             raise EvaluatorError("RF4001", f"Unknown AST node {type(node)}")
