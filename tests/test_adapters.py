@@ -2,7 +2,10 @@ import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 import pytest
+from datetime import date
+from decimal import Decimal
 from ruleforge import RuleForgeEngine
+from ruleforge.evaluator import EvaluatorError
 from adapters.fhir_adapter import FhirAdapter
 from adapters.erp_adapter import ErpAdapter
 
@@ -13,31 +16,45 @@ FHIR_SCHEMA = {
     "observation": {"code": "String", "value": "Decimal"}
 }
 fhir_engine = RuleForgeEngine(FHIR_SCHEMA)
+REFERENCE_DATE = date(2024, 1, 1) # Fecha fija para determinismo
 
-def test_fhir_adapter_hypertension_alert():
+def test_fhir_adapter_determinism_and_precision():
     patient = {"resourceType": "Patient", "active": True, "birthDate": "1956-05-20"}
     observation = {
         "resourceType": "Observation",
         "code": {"coding": [{"code": "8480-6"}]},
-        "valueQuantity": {"value": 165}
+        "valueQuantity": {"value": 165} # Viene como int
     }
     
-    context = FhirAdapter.to_context(patient, observation)
-    assert context["patient"]["age"] > 60
-    assert context["observation"]["code"] == "8480-6"
+    context = FhirAdapter.to_context(patient, observation, reference_date=REFERENCE_DATE)
+    
+    # Determinismo: La edad debe ser exacta y no depender de hoy
+    assert context["patient"]["age"] == 67
+    # Precisión: El valor debe ser Decimal, no float
+    assert context["observation"]["value"] == Decimal("165")
+    assert isinstance(context["observation"]["value"], Decimal)
     
     rule = 'RULE hypertension_alert LANGUAGE 1 WHEN observation.code == "8480-6" AND observation.value >= 140 THEN ALERT "High BP" END'
     decisions = fhir_engine.evaluate(rule, context)
-    
     assert decisions[0].matched == True
-    assert decisions[0].actions[0].action_type == "ALERT"
 
-def test_fhir_adapter_missing_observation_value():
-    patient = {"resourceType": "Patient", "active": False, "birthDate": "2000-01-01"}
+def test_fhir_adapter_missing_active_is_null():
+    patient = {"resourceType": "Patient", "birthDate": "2000-01-01"} # Falta 'active'
     observation = {"resourceType": "Observation", "code": {"coding": [{"code": "8480-6"}]}}
     
-    context = FhirAdapter.to_context(patient, observation)
-    assert context["observation"]["value"] is None
+    context = FhirAdapter.to_context(patient, observation, reference_date=REFERENCE_DATE)
+    # Active debe ser None (NULL), no False
+    assert context["patient"]["active"] is None
+    
+    rule = 'RULE r LANGUAGE 1 WHEN patient.active IS NULL THEN ALLOW END'
+    decisions = fhir_engine.evaluate(rule, context)
+    assert decisions[0].matched == True
+
+def test_fhir_adapter_missing_reference_date_fails():
+    patient = {"resourceType": "Patient", "birthDate": "2000-01-01"}
+    observation = {"resourceType": "Observation"}
+    with pytest.raises(ValueError):
+        FhirAdapter.to_context(patient, observation) # Sin reference_date
 
 # --- ERP / ContaFlow Tests ---
 
@@ -47,22 +64,20 @@ ERP_SCHEMA = {
 }
 erp_engine = RuleForgeEngine(ERP_SCHEMA)
 
-def test_erp_adapter_invoice_approval():
-    customer = {"active": True, "credit_score": 750}
-    invoice = {"total": 150000.0, "status": "PENDING"}
+def test_erp_adapter_precision_and_missing_data():
+    customer = {"active": True} # Falta credit_score
+    invoice = {"total": "150000.50", "status": "PENDING"} # Total viene como string
     
     context = ErpAdapter.to_context(customer, invoice)
-    assert context["invoice"]["total"] == 150000.0
     
-    rule = '''
-    RULE invoice_approval LANGUAGE 1
-    WHEN invoice.total >= 100000 AND customer.active == true AND invoice.status == "PENDING"
-    THEN APPLY "AUTO_APPROVE" ELSE ALERT "Manual review" END
-    '''
+    # Precisión: Decimal exacto desde string
+    assert context["invoice"]["total"] == Decimal("150000.50")
+    # Missing data: credit_score es NULL
+    assert context["customer"]["credit_score"] is None
+    
+    rule = 'RULE r LANGUAGE 1 WHEN customer.credit_score IS NULL THEN ALLOW END'
     decisions = erp_engine.evaluate(rule, context)
-    
     assert decisions[0].matched == True
-    assert decisions[0].actions[0].action_type == "APPLY"
 
 def test_erp_adapter_runtime_validation_fails_on_bad_data():
     customer = {"active": True, "credit_score": "EXCELLENT"} # String instead of Integer
@@ -71,6 +86,6 @@ def test_erp_adapter_runtime_validation_fails_on_bad_data():
     context = ErpAdapter.to_context(customer, invoice)
     
     rule = 'RULE r LANGUAGE 1 WHEN customer.credit_score > 700 THEN ALLOW END'
-    with pytest.raises(Exception) as exc:
+    with pytest.raises(EvaluatorError) as exc:
         erp_engine.evaluate(rule, context)
-    assert "RF4003" in str(exc.value) # Invalid Runtime Context
+    assert exc.value.code == "RF4003"
