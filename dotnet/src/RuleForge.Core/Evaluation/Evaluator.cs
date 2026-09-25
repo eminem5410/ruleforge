@@ -1,5 +1,6 @@
 using RuleForge.Core.Syntax;
 using RuleForge.Core.Semantic;
+using RuleForge.Core.Lexing;
 
 namespace RuleForge.Core.Evaluation;
 
@@ -48,9 +49,9 @@ public class Evaluator
             return lit.Type switch
             {
                 TokenType.BOOLEAN => new RuleValue(RuleValueType.Boolean, lit.Value?.ToString() == "true"),
-                TokenType.INTEGER => new RuleValue(RuleValueType.Integer, int.Parse(lit.Value?.ToString()!))
-                TokenType.DECIMAL => new RuleValue(RuleValueType.Decimal, decimal.Parse(lit.Value?.ToString()!))
-                TokenType.DATE => new RuleValue(RuleValueType.Date, DateOnly.Parse(lit.Value?.ToString()!))
+                TokenType.INTEGER => new RuleValue(RuleValueType.Integer, int.Parse(lit.Value?.ToString()!)),
+                TokenType.DECIMAL => new RuleValue(RuleValueType.Decimal, decimal.Parse(lit.Value?.ToString()!)),
+                TokenType.DATE => new RuleValue(RuleValueType.Date, DateOnly.Parse(lit.Value?.ToString()!)),
                 _ => new RuleValue(RuleValueType.String, lit.Value)
             };
         }
