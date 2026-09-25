@@ -15,7 +15,12 @@ dependencies = [
     "uvicorn",
     "sqlalchemy[asyncio]",
     "asyncpg",
-    "aiosqlite"
+    "aiosqlite",
+    "prometheus-client",
+    "opentelemetry-api",
+    "opentelemetry-sdk",
+    "opentelemetry-exporter-otlp",
+    "opentelemetry-instrumentation-fastapi"
 ]
 
 [project.optional-dependencies]

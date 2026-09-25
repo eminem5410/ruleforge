@@ -1,11 +1,11 @@
 import json
 import copy
 import logging
+import time
 from datetime import date
 from decimal import Decimal, InvalidOperation
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
-from importlib.metadata import version as pkg_version
 
 from .. import RuleForgeEngine
 from ..lexer import LexerError
@@ -13,10 +13,11 @@ from ..parser import ParserError
 from ..semantic import SemanticError
 from ..evaluator import EvaluatorError
 from ..auth.dependencies import require_scope
+from ..api.observability import EVALUATIONS, EVALUATION_DURATION
 from .models import EvaluateRequest
 
 router = APIRouter()
-logger = logging.getLogger("ruleforge")
+logger = logging.getLogger("ruleforge.api")
 
 class RuleForgeEncoder(json.JSONEncoder):
     def default(self, obj):
@@ -40,17 +41,30 @@ def normalize_context(context: dict, schema: dict) -> dict:
 
 @router.post("/evaluate", dependencies=[Depends(require_scope("rules:evaluate"))])
 def evaluate_rule(request: EvaluateRequest):
+    start_time = time.time()
     try:
         ctx_copy = copy.deepcopy(request.context)
         normalized_context = normalize_context(ctx_copy, request.context_schema)
         engine = RuleForgeEngine(request.context_schema)
         decisions = engine.evaluate(request.rules, normalized_context, explain=request.explain)
         output = {"decisions": [d.to_dict() for d in decisions]}
+        
+        duration = time.time() - start_time
+        EVALUATIONS.labels(success="true").inc()
+        EVALUATION_DURATION.observe(duration)
+        logger.info("Rule evaluated", extra={"extra_data": {"event": "rule_evaluation", "duration_ms": round(duration * 1000, 2), "success": True}})
+        
         return JSONResponse(content=json.loads(json.dumps(output, cls=RuleForgeEncoder)))
     except (LexerError, ParserError, SemanticError, EvaluatorError) as e:
+        duration = time.time() - start_time
+        EVALUATIONS.labels(success="false").inc()
+        EVALUATION_DURATION.observe(duration)
         error_output = {"error": {"code": e.code, "message": str(e)}}
         return JSONResponse(status_code=400, content=error_output)
     except Exception as e:
+        duration = time.time() - start_time
+        EVALUATIONS.labels(success="false").inc()
+        EVALUATION_DURATION.observe(duration)
         logger.exception("Internal server error during evaluation")
         error_output = {"error": {"code": "INTERNAL", "message": "Internal server error"}}
         return JSONResponse(status_code=500, content=error_output)

@@ -1,4 +1,5 @@
 import os
+import time
 from fastapi import APIRouter, HTTPException, Depends, Security
 from pydantic import BaseModel
 from typing import Dict, Any, Annotated
@@ -15,14 +16,17 @@ from ..semantic import SemanticError
 from ..evaluator import EvaluatorError
 from ..auth.dependencies import require_scope
 from ..auth.models import ApiKey
+from ..api.observability import EVALUATIONS, EVALUATION_DURATION
 import json
 from decimal import Decimal
 from datetime import date
 import copy
 import hashlib
 import uuid
+import logging
 
 router = APIRouter()
+logger = logging.getLogger("ruleforge.api")
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
@@ -99,6 +103,8 @@ async def archive_rule(rule_id: str, repo: Annotated[RuleRepository, Depends(get
 
 @router.post("/rules/{rule_id}/evaluate", dependencies=[Depends(require_scope("rules:evaluate"))])
 async def evaluate_registered_rule(rule_id: str, request: EvaluateRegisteredRuleRequest, repo: Annotated[RuleRepository, Depends(get_repository)]):
+    start_time = time.time()
+    success = False
     try:
         rule = await repo.get_rule(rule_id)
         ctx_copy = copy.deepcopy(request.context)
@@ -112,15 +118,26 @@ async def evaluate_registered_rule(rule_id: str, request: EvaluateRegisteredRule
         engine = RuleForgeEngine(request.context_schema)
         decisions = engine.evaluate(rule.source, ctx_copy, explain=request.explain)
         output = {"decisions": [d.to_dict() for d in decisions]}
+        
+        duration = time.time() - start_time
+        EVALUATIONS.labels(success="true").inc()
+        EVALUATION_DURATION.observe(duration)
+        logger.info("Rule evaluated", extra={"extra_data": {"event": "rule_evaluation", "rule_id": rule_id, "duration_ms": round(duration * 1000, 2), "success": True}})
+        
         return json.loads(json.dumps(output, cls=RuleForgeEncoder))
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except (LexerError, ParserError, SemanticError, EvaluatorError) as e:
+        duration = time.time() - start_time
+        EVALUATIONS.labels(success="false").inc()
+        EVALUATION_DURATION.observe(duration)
         return {"error": {"code": e.code, "message": str(e)}}
     except Exception:
+        duration = time.time() - start_time
+        EVALUATIONS.labels(success="false").inc()
+        EVALUATION_DURATION.observe(duration)
         return {"error": {"code": "INTERNAL", "message": "Internal server error"}}
 
-# --- API Key Management Endpoint (Admin only) ---
 @router.post("/api-keys", dependencies=[Depends(require_scope("rules:admin"))])
 async def create_api_key(request: CreateApiKeyRequest):
     import secrets
