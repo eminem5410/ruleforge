@@ -15,6 +15,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tools", "tools", "{B58A1AA4
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RuleForge.Conformance", "tools\RuleForge.Conformance\RuleForge.Conformance.csproj", "{BC83D557-12D6-4B45-ACCD-0C6F72CC986C}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RuleForge.Benchmarks", "tools\RuleForge.Benchmarks\RuleForge.Benchmarks.csproj", "{250A3664-0AD0-4D10-9A0B-EDF313BEEE09}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -36,10 +38,15 @@ Global
 		{BC83D557-12D6-4B45-ACCD-0C6F72CC986C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{BC83D557-12D6-4B45-ACCD-0C6F72CC986C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{BC83D557-12D6-4B45-ACCD-0C6F72CC986C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{250A3664-0AD0-4D10-9A0B-EDF313BEEE09}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{250A3664-0AD0-4D10-9A0B-EDF313BEEE09}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{250A3664-0AD0-4D10-9A0B-EDF313BEEE09}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{250A3664-0AD0-4D10-9A0B-EDF313BEEE09}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{BEFA886B-464B-47C7-B9CC-7C5F95E43B0C} = {DE36556C-BA3C-48DA-9369-394E3B8AD1F1}
 		{7D504FC4-0C82-4584-B97A-677FA426516A} = {9438D449-6CC2-4553-8F9E-38312D68D36C}
 		{BC83D557-12D6-4B45-ACCD-0C6F72CC986C} = {B58A1AA4-A35B-4F0C-9A66-6120D7B86192}
+		{250A3664-0AD0-4D10-9A0B-EDF313BEEE09} = {B58A1AA4-A35B-4F0C-9A66-6120D7B86192}
 	EndGlobalSection
 EndGlobal
