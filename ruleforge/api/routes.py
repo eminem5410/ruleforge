@@ -1,8 +1,8 @@
 import json
+from datetime import date
+from decimal import Decimal, InvalidOperation
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
-from decimal import Decimal
-from datetime import date
 
 from .. import RuleForgeEngine
 from ..lexer import LexerError
@@ -19,14 +19,38 @@ class RuleForgeEncoder(json.JSONEncoder):
         if isinstance(obj, date): return obj.isoformat()
         return super().default(obj)
 
+def normalize_context(context: dict, schema: dict) -> dict:
+    """Normalizes JSON types to Python Core types based on the schema."""
+    for obj_name, props in schema.items():
+        if obj_name in context and isinstance(context[obj_name], dict):
+            for prop_name, prop_type in props.items():
+                if prop_name in context[obj_name]:
+                    val = context[obj_name][prop_name]
+                    if val is None:
+                        continue
+                        
+                    try:
+                        if prop_type == "Decimal" and not isinstance(val, Decimal):
+                            context[obj_name][prop_name] = Decimal(str(val))
+                        elif prop_type == "Date" and isinstance(val, str):
+                            y, m, d = map(int, val.split('-'))
+                            context[obj_name][prop_name] = date(y, m, d)
+                    except (InvalidOperation, ValueError) as e:
+                        raise EvaluatorError("RF4003", f"Invalid Runtime Context: Cannot normalize '{obj_name}.{prop_name}' to {prop_type}: {val}")
+    return context
+
 @router.post("/evaluate")
 def evaluate_rule(request: EvaluateRequest):
     try:
-        engine = RuleForgeEngine(request.context_schema)
-        decisions = engine.evaluate(request.rules, request.context, explain=request.explain)
+        # 1. Normalize HTTP JSON types to Core Python Types
+        normalized_context = normalize_context(request.context, request.context_schema)
         
+        # 2. Evaluate
+        engine = RuleForgeEngine(request.context_schema)
+        decisions = engine.evaluate(request.rules, normalized_context, explain=request.explain)
+        
+        # 3. Serialize back to JSON
         output = {"decisions": [d.to_dict() for d in decisions]}
-        # Usamos nuestro encoder custom para garantirizar precisión Decimal y Date en el JSON final
         return JSONResponse(content=json.loads(json.dumps(output, cls=RuleForgeEncoder)))
         
     except (LexerError, ParserError, SemanticError, EvaluatorError) as e:

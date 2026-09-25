@@ -1,4 +1,4 @@
-# RuleForge REST API Specification (V3.0.0)
+# RuleForge REST API Specification (V3.0.2)
 
 This document defines the contract for the RuleForge HTTP API.
 The API acts strictly as a transport adapter. The RuleForge Core remains completely HTTP-agnostic.
@@ -11,27 +11,31 @@ The API acts strictly as a transport adapter. The RuleForge Core remains complet
 ## 2. Endpoint: Evaluate Rule
 `POST /v1/evaluate`
 
-Evaluates a given rule source against a provided context.
-
 ### Request Body
 {
   "rules": "RULE adult_check LANGUAGE 1 WHEN customer.age >= 18 THEN ALLOW END",
   "context": {
     "customer": {
-      "age": 21
+      "age": 21,
+      "balance": "1500.50"
+    }
+  },
+  "context_schema": {
+    "customer": {
+      "age": "Integer",
+      "balance": "Decimal"
     }
   },
   "explain": false
 }
 
-- `rules` (string, required): The RuleForge source code. Can contain multiple rules.
+- `rules` (string, required): The RuleForge source code.
 - `context` (object, required): The domain-agnostic data context.
+- `context_schema` (object, required): The type schema for the context. The API uses this to normalize JSON types (e.g., string to Decimal) before passing to the Core.
 - `explain` (boolean, optional, default: false): If true, returns the structured trace tree.
 
 ### Responses
-
-#### 200 OK (Successful Evaluation)
-Returns a list of decisions.
+#### 200 OK
 {
   "decisions": [
     {
@@ -39,37 +43,18 @@ Returns a list of decisions.
       "rule_version": 1,
       "language_version": 1,
       "matched": true,
-      "actions": [
-        {
-          "type": "ALLOW",
-          "value": null
-        }
-      ],
+      "actions": [{"type": "ALLOW", "value": null}],
       "trace": []
     }
   ]
 }
 
-#### 400 Bad Request (Rule or Context Error)
-Returned when the rule or context fails validation or evaluation (RF1xxx, RF2xxx, RF3xxx, RF4xxx, RF5xxx).
-{
-  "error": {
-    "code": "RF3001",
-    "message": "Semantic Error: Cannot compare Integer with String"
-  }
-}
-
-#### 422 Unprocessable Entity
-Returned when the JSON payload is structurally invalid (e.g., missing "rules" or "context" keys).
-
+#### 400 Bad Request (RF ExErrors)
+#### 422 Unprocessable Entity (Missing fields)
 #### 500 Internal Server Error
-Returned for unexpected system failures.
 
-## 3. Serialization Rules
-To ensure exact precision and determinism across HTTP boundaries:
-- `Integer`: JSON number (e.g., 20)
-- `Decimal`: JSON string (e.g., "150000.50")
-- `Boolean`: JSON boolean (e.g., true)
-- `String`: JSON string
-- `Date`: JSON string (ISO 8601, e.g., "1990-05-20")
-- `NULL`: JSON null
+## 3. API Type Normalization
+To bridge JSON and RuleForge Core, the API normalizes incoming context data based on `context_schema`:
+- `Decimal`: Converted from JSON string/number to Python `decimal.Decimal`.
+- `Date`: Converted from JSON string to Python `datetime.date`.
+- Other types are passed through if they match the schema.
