@@ -9,6 +9,11 @@ description = "A deterministic, typed, and sandboxed domain-independent rule eng
 authors = [{name = "Pablo Diez"}]
 requires-python = ">=3.10"
 readme = "README.md"
+dependencies = [
+    "fastapi",
+    "pydantic",
+    "uvicorn"
+]
 
 [project.scripts]
 ruleforge = "ruleforge.cli:main"
@@ -16,8 +21,7 @@ ruleforge = "ruleforge.cli:main"
 [tool.setuptools.packages.find]
 include = ["ruleforge*"]
 
-
 [tool.pytest.ini_options]
 filterwarnings = [
-    "ignore:Using 'httpx' with 'starlette.testclient' is deprecated:DeprecationWarning"
+    "ignore::DeprecationWarning:starlette.*"
 ]
