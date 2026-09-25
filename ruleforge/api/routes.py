@@ -1,8 +1,11 @@
 import json
+import copy
+import logging
 from datetime import date
 from decimal import Decimal, InvalidOperation
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
+from importlib.metadata import version as pkg_version
 
 from .. import RuleForgeEngine
 from ..lexer import LexerError
@@ -12,6 +15,7 @@ from ..evaluator import EvaluatorError
 from .models import EvaluateRequest
 
 router = APIRouter()
+logger = logging.getLogger("ruleforge")
 
 class RuleForgeEncoder(json.JSONEncoder):
     def default(self, obj):
@@ -30,25 +34,26 @@ def normalize_context(context: dict, schema: dict) -> dict:
                         continue
                         
                     try:
-                        # Solo normalizamos Decimal, ya que el Core espera el tipo nativo.
-                        # Date se pasa como string porque el Core (engine.py) ya lo convierte a date object.
                         if prop_type == "Decimal" and not isinstance(val, Decimal):
                             context[obj_name][prop_name] = Decimal(str(val))
-                    except InvalidOperation:
+                    except (InvalidOperation, ValueError):
                         raise EvaluatorError("RF4003", f"Invalid Runtime Context: Cannot normalize '{obj_name}.{prop_name}' to Decimal: {val}")
     return context
 
 @router.post("/evaluate")
 def evaluate_rule(request: EvaluateRequest):
     try:
-        # 1. Normalize HTTP JSON types to Core Python Types
-        normalized_context = normalize_context(request.context, request.context_schema)
+        # 1. Immutabilidad: Hacemos un deep copy para no mutar el request original
+        ctx_copy = copy.deepcopy(request.context)
         
-        # 2. Evaluate
+        # 2. Normalize HTTP JSON types to Core Python Types
+        normalized_context = normalize_context(ctx_copy, request.context_schema)
+        
+        # 3. Evaluate
         engine = RuleForgeEngine(request.context_schema)
         decisions = engine.evaluate(request.rules, normalized_context, explain=request.explain)
         
-        # 3. Serialize back to JSON
+        # 4. Serialize back to JSON
         output = {"decisions": [d.to_dict() for d in decisions]}
         return JSONResponse(content=json.loads(json.dumps(output, cls=RuleForgeEncoder)))
         
@@ -56,5 +61,7 @@ def evaluate_rule(request: EvaluateRequest):
         error_output = {"error": {"code": e.code, "message": str(e)}}
         return JSONResponse(status_code=400, content=error_output)
     except Exception as e:
-        error_output = {"error": {"code": "INTERNAL", "message": str(e)}}
+        # 5. Error Sanitization: Logeamos el error real, pero devolvemos mensaje genérico
+        logger.exception("Internal server error during evaluation")
+        error_output = {"error": {"code": "INTERNAL", "message": "Internal server error"}}
         return JSONResponse(status_code=500, content=error_output)
