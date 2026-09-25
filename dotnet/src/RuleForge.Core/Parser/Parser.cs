@@ -205,6 +205,24 @@ public class Parser
         {
             var name = t.Value;
             Advance();
+            
+            if (CurrentToken.Type == TokenType.LPAREN)
+            {
+                Advance();
+                var args = new List<Expression>();
+                if (CurrentToken.Type != TokenType.RPAREN)
+                {
+                    args.Add(Expression());
+                    while (CurrentToken.Type == TokenType.COMMA)
+                    {
+                        Advance();
+                        args.Add(Expression());
+                    }
+                }
+                Expect(TokenType.RPAREN);
+                return new FunctionCallExpression(name, args);
+            }
+            
             if (CurrentToken.Type == TokenType.DOT)
             {
                 Advance();

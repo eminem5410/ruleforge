@@ -83,6 +83,22 @@ public class Evaluator
             }
         }
         
+        if (expr is FunctionCallExpression fc)
+        {
+            var args = fc.Arguments.Select(EvaluateNode).ToList();
+            CheckNull(args[0], fc.Name); // Simplified null check for first arg
+            
+            return fc.Name switch
+            {
+                "contains" => new RuleValue(RuleValueType.Boolean, ((string)args[0].Value!).Contains((string)args[1].Value!)),
+                "length" => new RuleValue(RuleValueType.Integer, ((string)args[0].Value!).Length),
+                "starts_with" => new RuleValue(RuleValueType.Boolean, ((string)args[0].Value!).StartsWith((string)args[1].Value!)),
+                "ends_with" => new RuleValue(RuleValueType.Boolean, ((string)args[0].Value!).EndsWith((string)args[1].Value!)),
+                "abs" => new RuleValue(args[0].Type, Math.Abs(Convert.ToDecimal(args[0].Value, CultureInfo.InvariantCulture))),
+                _ => throw new EvaluatorException("RF4001", $"Unknown function {fc.Name}")
+            };
+        }
+
         if (expr is BinaryExpression bin)
         {
             if (bin.Operator == "AND")

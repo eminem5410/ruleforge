@@ -1,9 +1,8 @@
-using RuleForge.Core.Lexing;
 namespace RuleForge.Core.Syntax;
 
 public abstract record Expression;
 
-public sealed record LiteralExpression(object Value, TokenType Type) : Expression;
+public sealed record LiteralExpression(object Value, RuleForge.Core.Lexing.TokenType Type) : Expression;
 
 public sealed record PropertyExpression(string ObjectName, string PropertyName) : Expression;
 
@@ -12,6 +11,8 @@ public sealed record BinaryExpression(Expression Left, string Operator, Expressi
 public sealed record UnaryExpression(string Operator, Expression Operand) : Expression;
 
 public sealed record NullCheckExpression(Expression Left, bool IsNot) : Expression;
+
+public sealed record FunctionCallExpression(string Name, List<Expression> Arguments) : Expression;
 
 public sealed record ActionNode(string ActionType, string? Value = null);
 

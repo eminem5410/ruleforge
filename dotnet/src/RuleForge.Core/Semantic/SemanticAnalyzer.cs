@@ -6,6 +6,14 @@ namespace RuleForge.Core.Semantic;
 public class SemanticAnalyzer
 {
     private readonly Dictionary<string, Dictionary<string, string>> _schema;
+    private readonly Dictionary<string, (string[] Args, string Ret)> _functions = new()
+    {
+        { "contains", (new[] { "String", "String" }, "Boolean") },
+        { "length", (new[] { "String" }, "Integer") },
+        { "starts_with", (new[] { "String", "String" }, "Boolean") },
+        { "ends_with", (new[] { "String", "String" }, "Boolean") },
+        { "abs", (new[] { "Numeric" }, "Numeric") }
+    };
 
     public SemanticAnalyzer(Dictionary<string, Dictionary<string, string>> schema)
     {
@@ -47,6 +55,10 @@ public class SemanticAnalyzer
         else if (expr is NullCheckExpression nc)
         {
             CheckAstLimits(nc.Left, currentDepth + 1, ref maxDepth, ref count);
+        }
+        else if (expr is FunctionCallExpression fc)
+        {
+            foreach (var arg in fc.Arguments) CheckAstLimits(arg, currentDepth + 1, ref maxDepth, ref count);
         }
     }
 
@@ -91,6 +103,22 @@ public class SemanticAnalyzer
                     throw new SemanticException("RF3001", "Operator 'NOT' requires Boolean");
                 return "Boolean";
             }
+        }
+        if (expr is FunctionCallExpression fc)
+        {
+            if (!_functions.TryGetValue(fc.Name, out var sig))
+                throw new SemanticException("RF3003", $"Unknown function '{fc.Name}'");
+            if (fc.Arguments.Count != sig.Args.Length)
+                throw new SemanticException("RF3003", $"Function '{fc.Name}' expects {sig.Args.Length} arguments");
+            for (int i = 0; i < fc.Arguments.Count; i++)
+            {
+                var argType = CheckNode(fc.Arguments[i]);
+                if (sig.Args[i] == "Numeric" && argType != "Integer" && argType != "Decimal")
+                    throw new SemanticException("RF3003", $"Argument {i+1} of '{fc.Name}' must be Numeric");
+                else if (argType != sig.Args[i])
+                    throw new SemanticException("RF3003", $"Argument {i+1} of '{fc.Name}' must be {sig.Args[i]}");
+            }
+            return sig.Ret == "Numeric" ? "Integer" : sig.Ret;
         }
         if (expr is BinaryExpression bin)
         {
