@@ -29,6 +29,21 @@ builder.Services.AddSingleton<IAuthorizationHandler, ScopeHandler>();
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = 429;
+    
+    // Intercept rejection to add Retry-After header
+    options.OnRejected = async (context, cancellationToken) =>
+    {
+        context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+        context.HttpContext.Response.ContentType = "application/json";
+        
+        if (context.Lease.TryGetMetadata("RETRY_AFTER", out var retryAfter))
+        {
+            context.HttpContext.Response.Headers["Retry-After"] = ((int)retryAfter.TotalSeconds).ToString();
+        }
+        
+        await context.HttpContext.Response.WriteAsync("{\"status\":\"error\",\"error_code\":\"RATE_LIMIT_EXCEEDED\"}");
+    };
+    
     options.AddPolicy("apikey", httpContext =>
     {
         var apiKey = httpContext.User.FindFirst("api_key_id")?.Value ?? "anonymous";
