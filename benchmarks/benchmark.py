@@ -7,7 +7,6 @@ SCHEMA = {
 }
 engine = RuleForgeEngine(SCHEMA)
 
-# Reglas de prueba
 RULE_SIMPLE = 'RULE r LANGUAGE 1 WHEN customer.age >= 18 THEN ALLOW END'
 RULE_COMPLEX = 'RULE r LANGUAGE 1 WHEN customer.age >= 18 AND customer.active == true OR contains(customer.name, "Pablo") AND customer.email IS NOT NULL THEN ALLOW END'
 
@@ -19,7 +18,7 @@ def run_benchmark(name, rule, n, context=CONTEXT):
         start = time.perf_counter()
         engine.evaluate(rule, context)
         end = time.perf_counter()
-        times.append((end - start) * 1000) # Convertir a milisegundos
+        times.append((end - start) * 1000)
     
     mean_ms = statistics.mean(times)
     p95_ms = sorted(times)[int(len(times) * 0.95)] if len(times) >= 20 else max(times)
@@ -45,6 +44,6 @@ if __name__ == "__main__":
     run_benchmark("Simple Rule (1 condition)", RULE_SIMPLE, 1000)
     run_benchmark("Complex Rule (5 conditions)", RULE_COMPLEX, 1000)
     
-    # Benchmark de múltiples reglas en un solo archivo
-    multi_rule_source = "\n".join([RULE_SIMPLE.replace("r", f"r{i}") for i in range(100)])
+    # Benchmark de 100 reglas en un solo archivo
+    multi_rule_source = "\n".join([f'RULE r{i} LANGUAGE 1 WHEN customer.age >= 18 THEN ALLOW END' for i in range(100)])
     run_benchmark("100 Rules in 1 Source File", multi_rule_source, 100)

@@ -20,33 +20,33 @@ def test_runtime_valid_context():
     assert decisions[0].matched == True
 
 def test_runtime_invalid_type_string_for_int():
-    ctx = {"customer": {"age": "twenty"}} # String instead of Integer
+    ctx = {"customer": {"age": "twenty"}}
     with pytest.raises(EvaluatorError) as exc:
         engine.evaluate(RULE, ctx)
     assert exc.value.code == "RF4003"
     assert "expected Integer but got str" in exc.value.message
 
 def test_runtime_invalid_type_bool_for_int():
-    ctx = {"customer": {"age": True}} # Bool instead of Integer
+    ctx = {"customer": {"age": True}}
     with pytest.raises(EvaluatorError) as exc:
         engine.evaluate(RULE, ctx)
     assert exc.value.code == "RF4003"
 
 def test_runtime_invalid_structure_list_instead_of_dict():
-    ctx = {"customer": ["age", 20]} # List instead of Dict
+    ctx = {"customer": ["age", 20]}
     with pytest.raises(EvaluatorError) as exc:
         engine.evaluate(RULE, ctx)
     assert exc.value.code == "RF4003"
     assert "Expected object for 'customer' but got list" in exc.value.message
 
 def test_runtime_context_not_dict():
-    ctx = [{"customer": {"age": 20}}] # Root is list instead of dict
+    ctx = [{"customer": {"age": 20}}]
     with pytest.raises(EvaluatorError) as exc:
         engine.evaluate(RULE, ctx)
     assert exc.value.code == "RF4003"
     assert "Expected a JSON object, but got list" in exc.value.message
 
-# Tests adicionales sugeridos por arquitecto (Decimal, Date, Boolean, Missing)
+# Tests adicionales (Decimal, Date, Boolean, Missing)
 
 SCHEMA_FULL = {
     "customer": {"age": "Integer", "balance": "Decimal", "active": "Boolean", "birth_date": "Date"}
@@ -60,7 +60,7 @@ def test_runtime_valid_decimal():
     assert decisions[0].matched == True
 
 def test_runtime_invalid_decimal_with_string():
-    ctx = {"customer": {"balance": "150.75"}} # String instead of Decimal
+    ctx = {"customer": {"balance": "150.75"}}
     rule = 'RULE r LANGUAGE 1 WHEN customer.balance > 100.0 THEN ALLOW END'
     with pytest.raises(EvaluatorError) as exc:
         engine_full.evaluate(rule, ctx)
@@ -74,7 +74,7 @@ def test_runtime_valid_date():
     assert decisions[0].matched == True
 
 def test_runtime_invalid_date_with_int():
-    ctx = {"customer": {"birth_date": 12345}} # Int instead of ISO Date String
+    ctx = {"customer": {"birth_date": 12345}}
     rule = 'RULE r LANGUAGE 1 WHEN customer.birth_date > 1990-01-01 THEN ALLOW END'
     with pytest.raises(EvaluatorError) as exc:
         engine_full.evaluate(rule, ctx)
@@ -88,15 +88,17 @@ def test_runtime_valid_boolean():
     assert decisions[0].matched == True
 
 def test_runtime_missing_property_allowed_as_null():
-    # Propiedad 'active' falta en el contexto -> tratada como NULL -> IS NULL da True
+    # Propiedad 'balance' falta en el contexto -> tratada como NULL -> IS NULL da True
     ctx = {"customer": {"age": 20}} 
-    rule = 'RULE r LANGUAGE 1 WHEN customer.active IS NULL THEN ALLOW END'
+    rule = 'RULE r LANGUAGE 1 WHEN customer.balance IS NULL THEN ALLOW END'
     decisions = engine_full.evaluate(rule, ctx)
     assert decisions[0].matched == True
 
 def test_runtime_missing_object_allowed_as_null():
-    # Objeto 'invoice' falta completamente en el contexto -> tratado como NULL
-    ctx = {"customer": {"age": 20}}
+    # Objeto 'invoice' no está en SCHEMA_FULL, pero 'customer.email' tampoco, 
+    # así que probamos con una propiedad que sí está en el schema pero falta en el ctx.
+    # Mejor: usamos el SCHEMA original que tiene 'invoice'.
     rule = 'RULE r LANGUAGE 1 WHEN invoice.total IS NULL THEN ALLOW END'
-    decisions = engine_full.evaluate(rule, ctx)
+    ctx = {"customer": {"age": 20}}
+    decisions = engine.evaluate(rule, ctx)
     assert decisions[0].matched == True
