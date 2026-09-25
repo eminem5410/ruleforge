@@ -1,11 +1,10 @@
 from typing import List, Optional
 from datetime import datetime
 from .models import Rule
-import copy
 
 class InMemoryRuleRepository:
     def __init__(self):
-        self._store = {}  # {rule_id: {version: Rule}}
+        self._store = {}
 
     async def save_rule(self, rule_id: str, source: str, language_version: int) -> Rule:
         if rule_id not in self._store:
@@ -15,15 +14,7 @@ class InMemoryRuleRepository:
         new_version = max(versions.keys()) + 1 if versions else 1
         
         now = datetime.now()
-        rule = Rule(
-            rule_id=rule_id,
-            version=new_version,
-            language_version=language_version,
-            source=source,
-            status="DRAFT",
-            created_at=now,
-            updated_at=now
-        )
+        rule = Rule(rule_id=rule_id, version=new_version, language_version=language_version, source=source, status="DRAFT", created_at=now, updated_at=now)
         versions[new_version] = rule
         return rule
 
@@ -37,8 +28,11 @@ class InMemoryRuleRepository:
                 raise ValueError(f"Rule '{rule_id}' version {version} not found")
             return versions[version]
             
-        latest_version = max(versions.keys())
-        return versions[latest_version]
+        # Devolver la ACTIVE, si no hay, la última
+        active_rules = [r for r in versions.values() if r.status == "ACTIVE"]
+        if active_rules:
+            return active_rules[0]
+        return versions[max(versions.keys())]
 
     async def list_rules(self, status: Optional[str] = None) -> List[Rule]:
         all_rules = []
@@ -54,6 +48,7 @@ class InMemoryRuleRepository:
             raise ValueError(f"Rule '{rule_id}' not found")
         
         versions = self._store[rule_id]
-        latest_version = max(versions.keys())
-        versions[latest_version].status = "ARCHIVED"
-        versions[latest_version].updated_at = datetime.now()
+        active_rules = [r for r in versions.values() if r.status == "ACTIVE"]
+        if active_rules:
+            active_rules[0].status = "ARCHIVED"
+            active_rules[0].updated_at = datetime.now()
