@@ -33,7 +33,8 @@ public class ApiKeyAuthenticationHandler : AuthenticationHandler<AuthenticationS
             return Task.FromResult(AuthenticateResult.Fail("Invalid API Key"));
 
         var claims = scopes.Select(s => new Claim("scope", s)).ToList();
-        claims.Add(new Claim("api_key_id", token.Substring(0, 10) + "..."));
+        // Fix: Use full token as api_key_id to ensure unique rate limit buckets
+        claims.Add(new Claim("api_key_id", token));
         
         var identity = new ClaimsIdentity(claims, Scheme.Name);
         var principal = new ClaimsPrincipal(identity);
