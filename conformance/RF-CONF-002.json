@@ -1,0 +1,11 @@
+{
+  "id": "RF-CONF-002",
+  "name": "Basic Adult Check (DENY)",
+  "source": "RULE adult_check LANGUAGE 1 WHEN customer.age >= 18 THEN ALLOW ELSE DENY \"Too young\" END",
+  "context_schema": {"customer": {"age": 16}},
+  "context": {"customer": {"age": 16}},
+  "expected": {
+    "status": "ok",
+    "decisions": [{"rule_id": "adult_check", "matched": false, "actions": [{"type": "DENY", "value": "Too young"}]}]
+  }
+}

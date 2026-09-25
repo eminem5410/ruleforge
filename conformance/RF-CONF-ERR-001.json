@@ -1,0 +1,11 @@
+{
+  "id": "RF-CONF-ERR-001",
+  "name": "Semantic Type Error (Integer vs String)",
+  "source": "RULE invalid_type LANGUAGE 1 WHEN customer.age > \"65\" THEN ALLOW END",
+  "context_schema": {"customer": {"age": "Integer"}},
+  "context": {"customer": {"age": 70}},
+  "expected": {
+    "status": "error",
+    "error_code": "RF3001"
+  }
+}

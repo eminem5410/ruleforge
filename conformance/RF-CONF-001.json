@@ -1,0 +1,11 @@
+{
+  "id": "RF-CONF-001",
+  "name": "Basic Adult Check (ALLOW)",
+  "source": "RULE adult_check LANGUAGE 1 WHEN customer.age >= 18 THEN ALLOW END",
+  "context_schema": {"customer": {"age": "Integer"}},
+  "context": {"customer": {"age": 21}},
+  "expected": {
+    "status": "ok",
+    "decisions": [{"rule_id": "adult_check", "matched": true, "actions": [{"type": "ALLOW", "value": null}]}]
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "id": "RF-CONF-003",
+  "name": "Exact Decimal Math (0.1 + 0.2 == 0.3)",
+  "source": "RULE exact_decimal_math LANGUAGE 1 WHEN invoice.amount + 0.2 == 0.3 THEN ALLOW END",
+  "context_schema": {"invoice": {"amount": "Decimal"}},
+  "context": {"invoice": {"amount": 0.1}},
+  "expected": {
+    "status": "ok",
+    "decisions": [{"rule_id": "exact_decimal_math", "matched": true, "actions": [{"type": "ALLOW", "value": null}]}]
+  }
+}
