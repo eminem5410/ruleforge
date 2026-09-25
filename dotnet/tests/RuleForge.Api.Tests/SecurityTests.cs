@@ -66,7 +66,7 @@ public class SecurityTests : IClassFixture<WebApplicationFactory<Program>>
     }
 
     [Fact]
-    public async Task AUTH_006_RateLimitExceeded()
+    public async Task AUTH_006_RateLimitExceededAndRetryAfter()
     {
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", RateLimitKey);
         
@@ -80,5 +80,28 @@ public class SecurityTests : IClassFixture<WebApplicationFactory<Program>>
         // Send 101st request (should be 429 Too Many Requests)
         var blockedRes = await _client.PostAsJsonAsync("/api/v1/evaluate", Request);
         Assert.Equal(System.Net.HttpStatusCode.TooManyRequests, blockedRes.StatusCode);
+        
+        // Verify Retry-After header is present
+        Assert.True(blockedRes.Headers.Contains("Retry-After"), "429 response must include Retry-After header");
+    }
+
+    [Fact]
+    public async Task AUTH_007_IsolatedBuckets()
+    {
+        // 1. Exhaust the rate limit for RateLimitKey
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", RateLimitKey);
+        for (int i = 0; i < 100; i++)
+        {
+            await _client.PostAsJsonAsync("/api/v1/evaluate", Request);
+        }
+        
+        // 101st request for RateLimitKey should be 429
+        var blockedRes = await _client.PostAsJsonAsync("/api/v1/evaluate", Request);
+        Assert.Equal(System.Net.HttpStatusCode.TooManyRequests, blockedRes.StatusCode);
+
+        // 2. AdminKey should still have its full quota available
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", AdminKey);
+        var adminRes = await _client.PostAsJsonAsync("/api/v1/evaluate", Request);
+        Assert.True(adminRes.IsSuccessStatusCode, "AdminKey was blocked due to RateLimitKey's rate limit!");
     }
 }
