@@ -29,7 +29,7 @@ Expected Trace:
     "right": {
       "type": "comparison", "operator": "==",
       "left": {"type": "property", "path": "customer.active", "value": true},
-      "right": {"type": "literal", "value": "true", "data_type": "Boolean"},
+      "right": {"type": "literal", "value": true, "data_type": "Boolean"},
       "result": true
     },
     "result": true
@@ -46,7 +46,7 @@ Expected Trace:
     "left": {
       "type": "comparison", "operator": "==",
       "left": {"type": "property", "path": "customer.active", "value": false},
-      "right": {"type": "literal", "value": "false", "data_type": "Boolean"},
+      "right": {"type": "literal", "value": false, "data_type": "Boolean"},
       "result": true
     },
     "result": false
