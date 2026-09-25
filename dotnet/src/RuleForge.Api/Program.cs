@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.RateLimiting;
 using RuleForge.Api.Authorization;
@@ -10,7 +11,11 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Auth: Register Scope Policies
+// 1. Auth: Register the custom ApiKey Authentication Handler
+builder.Services.AddAuthentication("ApiKey")
+    .AddScheme<AuthenticationSchemeOptions, ApiKeyAuthenticationHandler>("ApiKey", null);
+
+// 2. Auth: Register Scope Policies
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("rules:evaluate", policy => policy.Requirements.Add(new ScopeRequirement("rules:evaluate")));
@@ -20,13 +25,13 @@ builder.Services.AddAuthorization(options =>
 });
 builder.Services.AddSingleton<IAuthorizationHandler, ScopeHandler>();
 
-// Rate Limiting: 100 req/min per API key
+// 3. Rate Limiting: 100 req/min per API key
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = 429;
     options.AddPolicy("apikey", httpContext =>
     {
-        var apiKey = httpContext.User.FindFirst("api_key")?.Value ?? "anonymous";
+        var apiKey = httpContext.User.FindFirst("api_key_id")?.Value ?? "anonymous";
         return RateLimitPartition.GetFixedWindowLimiter(apiKey, _ => new FixedWindowRateLimiterOptions
         {
             PermitLimit = 100,
@@ -38,8 +43,11 @@ builder.Services.AddRateLimiter(options =>
 var app = builder.Build();
 
 app.UseMiddleware<ExceptionMiddleware>();
-app.UseMiddleware<ApiKeyMiddleware>();
+
+// IMPORTANT: Order matters. UseAuthentication must come before UseAuthorization
+app.UseAuthentication();
 app.UseRateLimiter();
+app.UseAuthorization();
 
 app.UseSwagger();
 app.UseSwaggerUI();
