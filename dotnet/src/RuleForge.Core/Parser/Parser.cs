@@ -1,7 +1,7 @@
 using RuleForge.Core.Lexing;
 using RuleForge.Core.Syntax;
 
-namespace RuleForge.Core.Parser;
+namespace RuleForge.Core.Parsing;
 
 public class Parser
 {

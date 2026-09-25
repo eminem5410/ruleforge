@@ -1,6 +1,6 @@
 using Xunit;
 using RuleForge.Core.Lexing;
-using RuleForge.Core.Parser;
+using RuleForge.Core.Parsing;
 using RuleForge.Core.Semantic;
 using System.Collections.Generic;
 

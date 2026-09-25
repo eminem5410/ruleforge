@@ -1,4 +1,4 @@
-namespace RuleForge.Core.Parser;
+namespace RuleForge.Core.Parsing;
 
 public class ParserException : Exception
 {
