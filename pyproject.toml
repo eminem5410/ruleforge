@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ruleforge"
-version = "3.1.1"
+version = "3.2.0"
 description = "A deterministic, typed, and sandboxed domain-independent rule engine."
 authors = [{name = "Pablo Diez"}]
 requires-python = ">=3.10"
