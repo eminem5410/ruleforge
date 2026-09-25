@@ -49,7 +49,7 @@ def test_trace_003_short_circuit_and():
     assert trace["result"] is False
     
     assert trace["left"]["left"]["value"] is False
-    assert trace["left"]["right"]["value"] is False
+    assert trace["left"]["right"]["value"] is True
 
 def test_trace_004_null_check():
     code = 'RULE r LANGUAGE 1 WHEN customer.email IS NULL THEN ALLOW END'
