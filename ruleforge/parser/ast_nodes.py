@@ -46,3 +46,8 @@ class FunctionCallNode:
     def __init__(self, name, args):
         self.name = name; self.args = args
     def __repr__(self): return f"FuncCall({self.name}, args={self.args})"
+
+class ArrayLiteralNode:
+    def __init__(self, elements):
+        self.elements = elements
+    def __repr__(self): return f"ArrayLit({self.elements})"

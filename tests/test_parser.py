@@ -60,3 +60,30 @@ def test_parse_err_002_invalid_action_mix():
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
+
+def test_parse_007_array_literal():
+    code = 'RULE r LANGUAGE 2 WHEN LENGTH([1, 2, 3]) == 3 THEN ALLOW END'
+    ast = parse_code(code)
+    assert isinstance(ast[0].when_expr, BinaryOpNode)
+    func_call = ast[0].when_expr.left
+    assert isinstance(func_call, FunctionCallNode)
+    assert func_call.name == "LENGTH"
+    assert isinstance(func_call.args[0], ArrayLiteralNode)
+    assert len(func_call.args[0].elements) == 3
+
+def test_parse_008_array_indexing():
+    code = 'RULE r LANGUAGE 2 WHEN customer.tags[0] == "admin" THEN ALLOW END'
+    ast = parse_code(code)
+    when = ast[0].when_expr
+    assert isinstance(when, BinaryOpNode)
+    # Indexing is wrapped in a FunctionCallNode __INDEX__
+    assert isinstance(when.left, FunctionCallNode)
+    assert when.left.name == "__INDEX__"
+    assert isinstance(when.left.args[0], PropertyAccessNode)
+    assert when.left.args[1].value == "0"
+
+def test_parse_err_003_heterogeneous_array():
+    code = 'RULE r LANGUAGE 2 WHEN LENGTH([1, "hello"]) == 2 THEN ALLOW END'
+    # The parser should parse this fine, the semantic analyzer will reject it later
+    ast = parse_code(code)
+    assert isinstance(ast[0].when_expr, BinaryOpNode)
