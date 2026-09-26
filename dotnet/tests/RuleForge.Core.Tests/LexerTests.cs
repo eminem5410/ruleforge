@@ -63,3 +63,25 @@ public class LexerTests
         Assert.Contains("Unexpected character '@'", ex.Message);
     }
 }
+
+    [Fact]
+    public void LEX_006_ArrayBrackets()
+    {
+        var tokens = Tokenize("[]");
+        Assert.Equal(TokenType.LBRACKET, tokens[0].Type);
+        Assert.Equal(TokenType.RBRACKET, tokens[1].Type);
+        Assert.Equal(TokenType.EOF, tokens[2].Type);
+    }
+
+    [Fact]
+    public void LEX_007_ArrayLiterals()
+    {
+        var tokens = Tokenize("[1, 2, 3]");
+        Assert.Equal(TokenType.LBRACKET, tokens[0].Type);
+        Assert.Equal(TokenType.INTEGER, tokens[1].Type);
+        Assert.Equal(TokenType.COMMA, tokens[2].Type);
+        Assert.Equal(TokenType.INTEGER, tokens[3].Type);
+        Assert.Equal(TokenType.COMMA, tokens[4].Type);
+        Assert.Equal(TokenType.INTEGER, tokens[5].Type);
+        Assert.Equal(TokenType.RBRACKET, tokens[6].Type);
+    }
