@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ruleforge"
-version = "5.0.0"
+version = "7.0.1"
 description = "A deterministic, typed, and sandboxed domain-independent rule engine."
 authors = [{name = "Pablo Diez"}]
 requires-python = ">=3.10"
@@ -15,7 +15,6 @@ dependencies = [
     "uvicorn",
     "sqlalchemy[asyncio]",
     "asyncpg",
-    "aiosqlite",
     "prometheus-client",
     "opentelemetry-api",
     "opentelemetry-sdk",
@@ -24,7 +23,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-test = ["pytest", "pytest-asyncio", "httpx"]
+test = ["pytest", "pytest-asyncio", "httpx", "aiosqlite"]
 
 [project.scripts]
 ruleforge = "ruleforge.cli:main"
