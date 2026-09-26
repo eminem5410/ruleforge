@@ -244,7 +244,7 @@ public class Parser
                 Advance();
                 var propToken = CurrentToken;
                 Expect(TokenType.IDENTIFIER);
-                var propNode = new PropertyExpression(name, propToken.Value);
+                Expression propNode = new PropertyExpression(name, propToken.Value);
                 
                 // Array Indexing: customer.tags[0] - V7 strictly requires Integer literals
                 while (CurrentToken.Type == TokenType.LBRACKET)
