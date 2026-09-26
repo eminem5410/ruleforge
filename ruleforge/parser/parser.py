@@ -152,8 +152,27 @@ class Parser:
                 self.advance()
                 prop_token = self.current_token
                 self.expect(TokenType.IDENTIFIER)
-                return PropertyAccessNode(name, prop_token.value)
+                node = PropertyAccessNode(name, prop_token.value)
+                while self.current_token.type == TokenType.LBRACKET:
+                    self.advance()
+                    index_token = self.current_token
+                    self.expect(TokenType.INTEGER)
+                    self.expect(TokenType.RBRACKET)
+                    node = FunctionCallNode("__INDEX__", [node, LiteralNode(index_token.value, "INTEGER")])
+                return node
             return IdentifierNode(name) 
         elif token.type == TokenType.EOF:
             raise ParserError("RF2003", "Unexpected EOF, expected expression", token.line, token.column)
+        elif token.type == TokenType.LBRACKET:
+            self.advance()
+            elements = []
+            if self.current_token.type != TokenType.RBRACKET:
+                elements.append(self.expression())
+                while self.current_token.type == TokenType.COMMA:
+                    self.advance()
+                    elements.append(self.expression())
+            self.expect(TokenType.RBRACKET)
+            from .ast_nodes import ArrayLiteralNode
+            return ArrayLiteralNode(elements)
+
         raise ParserError("RF2004", f"Invalid expression, unexpected token {token.type}", token.line, token.column)
