@@ -165,13 +165,13 @@ class Evaluator:
             return res, None
             
         elif isinstance(node, ArrayLiteralNode):
-            arr = [self.eval_node(el) for el in node.elements]
-            if self.explain_mode: self.trace.append(f"Evaluando ArrayLiteral de {len(arr)} elementos")
-            return arr
+            arr = [self.eval_node(el)[0] for el in node.elements]
+            if self.explain_mode: return arr, {"type": "array_literal", "value": arr}
+            return arr, None
             
         elif isinstance(node, ArrayIndexNode):
-            arr_val = self.eval_node(node.array)
-            idx_val = self.eval_node(node.index)
+            arr_val, arr_trace = self.eval_node(node.array)
+            idx_val, idx_trace = self.eval_node(node.index)
             self.check_null(arr_val, "INDEXING")
             self.check_null(idx_val, "INDEX")
             if not isinstance(arr_val, list):
@@ -179,7 +179,7 @@ class Evaluator:
             if idx_val < 0 or idx_val >= len(arr_val):
                 raise EvaluatorError("RF4002", f"Array index out of bounds: {idx_val} (length: {len(arr_val)})")
             result = arr_val[idx_val]
-            if self.explain_mode: self.trace.append(f"Evaluando: {arr_val}[{idx_val}] -> {result}")
-            return result
+            if self.explain_mode: return result, {"type": "array_index", "array": arr_trace, "index": idx_trace, "result": result}
+            return result, None
 
         raise EvaluatorError("RF4001", f"Unknown AST node {type(node)}")
