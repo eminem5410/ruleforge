@@ -10,7 +10,7 @@ public class SemanticTests
 {
     private readonly Dictionary<string, Dictionary<string, string>> _schema = new()
     {
-        { "customer", new Dictionary<string, string> { { "age", "Integer" }, { "name", "String" }, { "active", "Boolean" } } }
+        { "customer", new Dictionary<string, string> { { "age", "Integer" }, { "name", "String" }, { "active", "Boolean" }, { "tags", "Array<String>" } } }
     };
 
     private void AnalyzeCode(string source)
@@ -32,7 +32,7 @@ public class SemanticTests
     {
         var ex = Assert.Throws<SemanticException>(() => AnalyzeCode("RULE r LANGUAGE 1 WHEN customer.age > \"18\" THEN ALLOW END"));
         Assert.Equal("RF3001", ex.Code);
-        Assert.Contains("requires numeric/date", ex.Message);
+        Assert.Contains("Cannot compare Integer with String", ex.Message);
     }
 
     [Fact]
@@ -58,7 +58,8 @@ public class SemanticTests
         Assert.Equal("RF3002", ex.Code);
         Assert.Contains("WHEN condition must evaluate to Boolean", ex.Message);
     }
-}
+
+    // --- V7 Array Tests ---
 
     [Fact]
     public void SEM_007_ArrayLiteralAndLength()
@@ -88,3 +89,4 @@ public class SemanticTests
         Assert.Equal("RF3003", ex.Code);
         Assert.Contains("Heterogeneous array literal", ex.Message);
     }
+}
