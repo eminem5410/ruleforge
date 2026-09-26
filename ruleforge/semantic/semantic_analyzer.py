@@ -89,6 +89,9 @@ class SemanticAnalyzer:
                 if left_type != "Boolean" or right_type != "Boolean": raise SemanticError("RF3001", f"Operator '{op}' requires Boolean operands")
                 return "Boolean"
             elif op in ["==", "!="]:
+                # Allow comparison between Integer and Decimal (Numeric types)
+                if left_type in valid_numerics and right_type in valid_numerics:
+                    return "Boolean"
                 if left_type != right_type: raise SemanticError("RF3001", f"Cannot compare {left_type} with {right_type}")
                 return "Boolean"
             elif op in [">", "<", ">=", "<="]:
