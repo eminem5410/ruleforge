@@ -168,7 +168,7 @@ public class SemanticAnalyzer
         }
         if (expr is FunctionCallExpression fc)
         {
-            if (fc.Name == "length")
+            if (fc.Name.ToLower() == "length")
             {
                 if (fc.Arguments.Count != 1) throw new SemanticException("RF3003", "Function 'length' expects 1 argument");
                 var argType = CheckNode(fc.Arguments[0]);
@@ -176,7 +176,7 @@ public class SemanticAnalyzer
                     throw new SemanticException("RF3003", $"Function 'length' expects a String or Array, got {argType}");
                 return "Integer";
             }
-            if (fc.Name == "contains")
+            if (fc.Name.ToLower() == "contains")
             {
                 if (fc.Arguments.Count != 2) throw new SemanticException("RF3003", "Function 'contains' expects 2 arguments");
                 var arg1Type = CheckNode(fc.Arguments[0]);
@@ -198,14 +198,14 @@ public class SemanticAnalyzer
                 }
                 return "Boolean";
             }
-            if (fc.Name == "starts_with" || fc.Name == "ends_with")
+            if (fc.Name.ToLower() == "starts_with" || fc.Name.ToLower() == "ends_with")
             {
                 if (fc.Arguments.Count != 2) throw new SemanticException("RF3003", $"Function '{fc.Name}' expects 2 arguments");
                 if (CheckNode(fc.Arguments[0]) != "String" || CheckNode(fc.Arguments[1]) != "String")
                     throw new SemanticException("RF3003", $"Function '{fc.Name}' requires String arguments");
                 return "Boolean";
             }
-            if (fc.Name == "abs")
+            if (fc.Name.ToLower() == "abs")
             {
                 if (fc.Arguments.Count != 1) throw new SemanticException("RF3003", "Function 'abs' expects 1 argument");
                 var t = CheckNode(fc.Arguments[0]);
