@@ -2,6 +2,7 @@ using Xunit;
 using RuleForge.Core.Lexing;
 using RuleForge.Core.Parsing;
 using RuleForge.Core.Syntax;
+using System.Collections.Generic;
 
 namespace RuleForge.Core.Tests;
 
@@ -60,12 +61,22 @@ public class ParserTests
     }
 
     [Fact]
+    public void PARSE_006_FunctionCall()
+    {
+        var ast = ParseCode("RULE r LANGUAGE 1 WHEN contains(customer.name, \"Pablo\") THEN ALLOW END");
+        Assert.IsType<FunctionCallExpression>(ast[0].WhenExpr);
+        Assert.Equal("contains", ((FunctionCallExpression)ast[0].WhenExpr).Name);
+        Assert.Equal(2, ((FunctionCallExpression)ast[0].WhenExpr).Arguments.Count);
+    }
+
+    [Fact]
     public void PARSE_ERR_001_MissingEnd()
     {
         var ex = Assert.Throws<ParserException>(() => ParseCode("RULE r LANGUAGE 1 WHEN true THEN ALLOW"));
         Assert.Equal("RF2002", ex.Code);
     }
-}
+
+    // --- V7 Array Tests ---
 
     [Fact]
     public void PARSE_007_ArrayLiteral()
@@ -100,3 +111,4 @@ public class ParserTests
         var ast = ParseCode("RULE r LANGUAGE 2 WHEN LENGTH([1, \"hello\"]) == 2 THEN ALLOW END");
         Assert.IsType<BinaryExpression>(ast[0].WhenExpr);
     }
+}

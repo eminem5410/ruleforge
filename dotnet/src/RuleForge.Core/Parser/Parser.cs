@@ -195,6 +195,22 @@ public class Parser
             Expect(TokenType.RPAREN);
             return expr;
         }
+        if (t.Type == TokenType.LBRACKET)
+        {
+            Advance();
+            var elements = new List<Expression>();
+            if (CurrentToken.Type != TokenType.RBRACKET)
+            {
+                elements.Add(Expression());
+                while (CurrentToken.Type == TokenType.COMMA)
+                {
+                    Advance();
+                    elements.Add(Expression());
+                }
+            }
+            Expect(TokenType.RBRACKET);
+            return new ArrayLiteralExpression(elements);
+        }
         if (t.Type == TokenType.INTEGER || t.Type == TokenType.DECIMAL || 
             t.Type == TokenType.STRING || t.Type == TokenType.BOOLEAN || t.Type == TokenType.DATE)
         {
@@ -228,9 +244,24 @@ public class Parser
                 Advance();
                 var propToken = CurrentToken;
                 Expect(TokenType.IDENTIFIER);
-                return new PropertyExpression(name, propToken.Value);
+                var propNode = new PropertyExpression(name, propToken.Value);
+                
+                // Array Indexing: customer.tags[0] - V7 strictly requires Integer literals
+                while (CurrentToken.Type == TokenType.LBRACKET)
+                {
+                    Advance();
+                    if (CurrentToken.Type != TokenType.INTEGER)
+                    {
+                        throw new ParserException("RF2004", "V7 array index must be an integer literal", CurrentToken.Line, CurrentToken.Column);
+                    }
+                    var indexToken = CurrentToken;
+                    Expect(TokenType.INTEGER);
+                    Expect(TokenType.RBRACKET);
+                    propNode = new ArrayIndexExpression(propNode, new LiteralExpression(indexToken.Value, indexToken.Type));
+                }
+                return propNode;
             }
-            return new LiteralExpression(name, t.Type);
+            return new LiteralExpression(name, t.Type); 
         }
         throw new ParserException("RF2004", $"Invalid expression, unexpected token {t.Type}", t.Line, t.Column);
     }
