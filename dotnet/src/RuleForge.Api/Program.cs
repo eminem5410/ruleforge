@@ -60,7 +60,7 @@ builder.Services.AddAuthorization(options =>
 });
 builder.Services.AddSingleton<IAuthorizationHandler, ScopeHandler>();
 
-// 3. Rate Limiting: 100 req/min per identity (Extracted from raw header for reliability)
+// 3. Rate Limiting: 100 req/min per identity (sub or api_key_id)
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = 429;
@@ -80,18 +80,10 @@ builder.Services.AddRateLimiter(options =>
     
     options.AddPolicy("apikey", httpContext =>
     {
-        // Extract identity directly from the header to avoid race conditions with Auth Middleware
-        var authHeader = httpContext.Request.Headers.Authorization.ToString();
-        string identity = "anonymous";
-        
-        if (authHeader.StartsWith("ApiKey ", StringComparison.OrdinalIgnoreCase))
-        {
-            identity = authHeader.Substring("ApiKey ".Length).Trim();
-        }
-        else if (authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
-        {
-            identity = authHeader; // Use the token itself as the bucket key for JWT
-        }
+        // At this point in the pipeline, HttpContext.User is fully populated by UseAuthentication
+        var identity = httpContext.User.FindFirst("api_key_id")?.Value 
+                     ?? httpContext.User.FindFirst("sub")?.Value 
+                     ?? "anonymous";
                      
         return RateLimitPartition.GetFixedWindowLimiter(identity, _ => new FixedWindowRateLimiterOptions
         {
@@ -105,6 +97,7 @@ var app = builder.Build();
 
 app.UseMiddleware<ExceptionMiddleware>();
 
+// IMPORTANT: UseAuthentication must run BEFORE RateLimiter so HttpContext.User is populated
 app.UseAuthentication();
 app.UseRateLimiter();
 app.UseAuthorization();

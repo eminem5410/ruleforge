@@ -28,11 +28,11 @@ public class JwtSecurityTests : IClassFixture<WebApplicationFactory<Program>>
         context = new { customer = new { age = 21 } }
     };
 
-    private string GenerateJwt(DateTime? expires = null, string? issuer = null, string? audience = null, string? signingKey = null, string scopes = "rules:evaluate")
+    private string GenerateJwt(DateTime? expires = null, string? issuer = null, string? audience = null, string? signingKey = null, string scopes = "rules:evaluate", string sub = "test-user-123")
     {
         var claims = new List<Claim>
         {
-            new("sub", "test-user-123"),
+            new("sub", sub),
             new("scope", scopes)
         };
 
@@ -55,7 +55,6 @@ public class JwtSecurityTests : IClassFixture<WebApplicationFactory<Program>>
     {
         var token = GenerateJwt();
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-        
         var res = await _client.PostAsJsonAsync("/api/v1/evaluate", RequestPayload);
         res.EnsureSuccessStatusCode();
     }
@@ -65,7 +64,6 @@ public class JwtSecurityTests : IClassFixture<WebApplicationFactory<Program>>
     {
         var token = GenerateJwt(expires: DateTime.UtcNow.AddMinutes(-5));
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-        
         var res = await _client.PostAsJsonAsync("/api/v1/evaluate", RequestPayload);
         Assert.Equal(System.Net.HttpStatusCode.Unauthorized, res.StatusCode);
     }
@@ -75,7 +73,6 @@ public class JwtSecurityTests : IClassFixture<WebApplicationFactory<Program>>
     {
         var token = GenerateJwt(issuer: "wrong-issuer");
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-        
         var res = await _client.PostAsJsonAsync("/api/v1/evaluate", RequestPayload);
         Assert.Equal(System.Net.HttpStatusCode.Unauthorized, res.StatusCode);
     }
@@ -85,7 +82,6 @@ public class JwtSecurityTests : IClassFixture<WebApplicationFactory<Program>>
     {
         var token = GenerateJwt(audience: "wrong-audience");
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-        
         var res = await _client.PostAsJsonAsync("/api/v1/evaluate", RequestPayload);
         Assert.Equal(System.Net.HttpStatusCode.Unauthorized, res.StatusCode);
     }
@@ -95,7 +91,6 @@ public class JwtSecurityTests : IClassFixture<WebApplicationFactory<Program>>
     {
         var token = GenerateJwt(scopes: "rules:read");
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-        
         var res = await _client.PostAsJsonAsync("/api/v1/evaluate", RequestPayload);
         Assert.Equal(System.Net.HttpStatusCode.Forbidden, res.StatusCode);
     }
@@ -105,8 +100,31 @@ public class JwtSecurityTests : IClassFixture<WebApplicationFactory<Program>>
     {
         var token = GenerateJwt(signingKey: "WrongKeyThatIsAlsoLongEnoughForHmacSha256AlgorithmToWork");
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-        
         var res = await _client.PostAsJsonAsync("/api/v1/evaluate", RequestPayload);
         Assert.Equal(System.Net.HttpStatusCode.Unauthorized, res.StatusCode);
+    }
+
+    [Fact]
+    public async Task JWT_007_SharedBucketsBySub()
+    {
+        var token1 = GenerateJwt(sub: "rl-shared-jwt-user");
+        var token2 = GenerateJwt(sub: "rl-shared-jwt-user"); // Same sub, different token instance
+        
+        // Exhaust limit with token1
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token1);
+        for (int i = 0; i < 100; i++)
+        {
+            var res = await _client.PostAsJsonAsync("/api/v1/evaluate", RequestPayload);
+            Assert.True(res.IsSuccessStatusCode);
+        }
+
+        // Token1 should be blocked now
+        var blockedRes1 = await _client.PostAsJsonAsync("/api/v1/evaluate", RequestPayload);
+        Assert.Equal(System.Net.HttpStatusCode.TooManyRequests, blockedRes1.StatusCode);
+
+        // Token2 (same sub) should ALSO be blocked because it shares the bucket
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token2);
+        var blockedRes2 = await _client.PostAsJsonAsync("/api/v1/evaluate", RequestPayload);
+        Assert.Equal(System.Net.HttpStatusCode.TooManyRequests, blockedRes2.StatusCode);
     }
 }
