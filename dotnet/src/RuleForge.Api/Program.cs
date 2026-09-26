@@ -30,15 +30,14 @@ builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = 429;
     
-    // Intercept rejection to add Retry-After header
     options.OnRejected = async (context, cancellationToken) =>
     {
         context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
         context.HttpContext.Response.ContentType = "application/json";
         
-        if (context.Lease.TryGetMetadata("RETRY_AFTER", out var retryAfter))
+        if (context.Lease.TryGetMetadata("RETRY_AFTER", out var retryAfter) && retryAfter is TimeSpan timeSpan)
         {
-            context.HttpContext.Response.Headers["Retry-After"] = ((int)((TimeSpan)retryAfter).TotalSeconds).ToString();
+            context.HttpContext.Response.Headers["Retry-After"] = ((int)Math.Ceiling(timeSpan.TotalSeconds)).ToString();
         }
         
         await context.HttpContext.Response.WriteAsync("{\"status\":\"error\",\"error_code\":\"RATE_LIMIT_EXCEEDED\"}");
@@ -59,7 +58,6 @@ var app = builder.Build();
 
 app.UseMiddleware<ExceptionMiddleware>();
 
-// IMPORTANT: Order matters. UseAuthentication must come before UseAuthorization
 app.UseAuthentication();
 app.UseRateLimiter();
 app.UseAuthorization();
