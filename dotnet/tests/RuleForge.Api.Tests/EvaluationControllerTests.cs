@@ -14,7 +14,7 @@ public class EvaluationControllerTests : IClassFixture<WebApplicationFactory<Pro
     public EvaluationControllerTests(WebApplicationFactory<Program> factory)
     {
         _client = factory.CreateClient();
-        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", ValidKey);
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("ApiKey", ValidKey);
     }
 
     private static readonly object Request = new

@@ -29,7 +29,6 @@ builder.Services.AddAuthentication()
             ValidIssuer = jwtConfig["Issuer"],
             ValidAudience = jwtConfig["Audience"],
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtConfig["SigningKey"]!)),
-            // Map "scope" claim properly
             NameClaimType = "sub",
             RoleClaimType = "scope"
         };
@@ -61,7 +60,7 @@ builder.Services.AddAuthorization(options =>
 });
 builder.Services.AddSingleton<IAuthorizationHandler, ScopeHandler>();
 
-// 3. Rate Limiting: 100 req/min per identity (API Key or JWT sub)
+// 3. Rate Limiting: 100 req/min per identity (Extracted from raw header for reliability)
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = 429;
@@ -81,10 +80,18 @@ builder.Services.AddRateLimiter(options =>
     
     options.AddPolicy("apikey", httpContext =>
     {
-        // Use api_key_id for ApiKey, or sub for JWT. Fallback to anonymous.
-        var identity = httpContext.User.FindFirst("api_key_id")?.Value 
-                     ?? httpContext.User.FindFirst("sub")?.Value 
-                     ?? "anonymous";
+        // Extract identity directly from the header to avoid race conditions with Auth Middleware
+        var authHeader = httpContext.Request.Headers.Authorization.ToString();
+        string identity = "anonymous";
+        
+        if (authHeader.StartsWith("ApiKey ", StringComparison.OrdinalIgnoreCase))
+        {
+            identity = authHeader.Substring("ApiKey ".Length).Trim();
+        }
+        else if (authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+        {
+            identity = authHeader; // Use the token itself as the bucket key for JWT
+        }
                      
         return RateLimitPartition.GetFixedWindowLimiter(identity, _ => new FixedWindowRateLimiterOptions
         {
