@@ -1,3 +1,4 @@
+using System.IdentityModel.Tokens.Jwt;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -60,7 +61,7 @@ builder.Services.AddAuthorization(options =>
 });
 builder.Services.AddSingleton<IAuthorizationHandler, ScopeHandler>();
 
-// 3. Rate Limiting: 100 req/min per identity (sub or api_key_id)
+// 3. Rate Limiting: 100 req/min per identity (Extracted from raw header)
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = 429;
@@ -80,10 +81,31 @@ builder.Services.AddRateLimiter(options =>
     
     options.AddPolicy("apikey", httpContext =>
     {
-        // At this point in the pipeline, HttpContext.User is fully populated by UseAuthentication
-        var identity = httpContext.User.FindFirst("api_key_id")?.Value 
-                     ?? httpContext.User.FindFirst("sub")?.Value 
-                     ?? "anonymous";
+        var authHeader = httpContext.Request.Headers.Authorization.ToString();
+        string identity = "anonymous";
+        
+        if (authHeader.StartsWith("ApiKey ", StringComparison.OrdinalIgnoreCase))
+        {
+            identity = authHeader.Substring("ApiKey ".Length).Trim();
+        }
+        else if (authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+        {
+            var token = authHeader.Substring("Bearer ".Length).Trim();
+            try
+            {
+                // Parse JWT payload to extract 'sub' without validating signature (Auth middleware will validate it next)
+                var jwt = new JwtSecurityTokenHandler().ReadJwtToken(token);
+                var subClaim = jwt.Claims.FirstOrDefault(c => c.Type == "sub");
+                if (subClaim != null && !string.IsNullOrEmpty(subClaim.Value))
+                {
+                    identity = subClaim.Value;
+                }
+            }
+            catch
+            {
+                // Token is malformed, Auth middleware will reject it. Use anonymous bucket.
+            }
+        }
                      
         return RateLimitPartition.GetFixedWindowLimiter(identity, _ => new FixedWindowRateLimiterOptions
         {
@@ -97,7 +119,6 @@ var app = builder.Build();
 
 app.UseMiddleware<ExceptionMiddleware>();
 
-// IMPORTANT: UseAuthentication must run BEFORE RateLimiter so HttpContext.User is populated
 app.UseAuthentication();
 app.UseRateLimiter();
 app.UseAuthorization();
