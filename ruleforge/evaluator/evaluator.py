@@ -1,6 +1,6 @@
 from decimal import Decimal, InvalidOperation
 from datetime import date
-from ..parser.ast_nodes import RuleNode, ActionNode, BinaryOpNode, UnaryOpNode, NullCheckNode, LiteralNode, IdentifierNode, PropertyAccessNode, FunctionCallNode
+from ..parser.ast_nodes import RuleNode, ActionNode, BinaryOpNode, UnaryOpNode, NullCheckNode, LiteralNode, IdentifierNode, PropertyAccessNode, FunctionCallNode, ArrayLiteralNode, ArrayIndexNode
 from .errors import EvaluatorError
 
 MAX_EXECUTION_STEPS = 10000
@@ -164,4 +164,22 @@ class Evaluator:
                 return res, {"type": "function", "name": node.name, "arguments": arg_traces, "result": res}
             return res, None
             
+        elif isinstance(node, ArrayLiteralNode):
+            arr = [self.eval_node(el) for el in node.elements]
+            if self.explain_mode: self.trace.append(f"Evaluando ArrayLiteral de {len(arr)} elementos")
+            return arr
+            
+        elif isinstance(node, ArrayIndexNode):
+            arr_val = self.eval_node(node.array)
+            idx_val = self.eval_node(node.index)
+            self.check_null(arr_val, "INDEXING")
+            self.check_null(idx_val, "INDEX")
+            if not isinstance(arr_val, list):
+                raise EvaluatorError("RF4002", f"Cannot index non-array type {type(arr_val).__name__}")
+            if idx_val < 0 or idx_val >= len(arr_val):
+                raise EvaluatorError("RF4002", f"Array index out of bounds: {idx_val} (length: {len(arr_val)})")
+            result = arr_val[idx_val]
+            if self.explain_mode: self.trace.append(f"Evaluando: {arr_val}[{idx_val}] -> {result}")
+            return result
+
         raise EvaluatorError("RF4001", f"Unknown AST node {type(node)}")

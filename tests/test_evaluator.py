@@ -223,3 +223,39 @@ def test_eval_028_null_function_error():
     with pytest.raises(EvaluatorError) as exc:
         eval_code(code, {"customer": {}}) # name no existe -> None
     assert exc.value.code == "RF4002"
+
+@pytest.mark.asyncio
+async def test_eval_029_array_literal_and_length():
+    code = 'RULE r LANGUAGE 2 WHEN LENGTH([1, 2, 3]) == 3 THEN ALLOW END'
+    decisions = await eval_code(code, {})
+    assert decisions[0].matched == True
+
+@pytest.mark.asyncio
+async def test_eval_030_array_indexing():
+    code = 'RULE r LANGUAGE 2 WHEN customer.tags[0] == \"admin\" THEN ALLOW END'
+    ctx = {"customer": {"tags": ["admin", "user"]}}
+    decisions = await eval_code(code, ctx)
+    assert decisions[0].matched == True
+
+@pytest.mark.asyncio
+async def test_eval_err_002_array_index_out_of_bounds():
+    code = 'RULE r LANGUAGE 2 WHEN customer.tags[5] == \"admin\" THEN ALLOW END'
+    ctx = {"customer": {"tags": ["admin", "user"]}}
+    with pytest.raises(EvaluatorError) as exc:
+        await eval_code(code, ctx)
+    assert exc.value.code == "RF4002"
+
+@pytest.mark.asyncio
+async def test_eval_err_003_array_index_on_null():
+    code = 'RULE r LANGUAGE 2 WHEN customer.tags[0] == \"admin\" THEN ALLOW END'
+    ctx = {"customer": {}} # tags is missing -> NULL
+    with pytest.raises(EvaluatorError) as exc:
+        await eval_code(code, ctx)
+    assert exc.value.code == "RF4002"
+
+@pytest.mark.asyncio
+async def test_eval_031_array_contains():
+    code = 'RULE r LANGUAGE 2 WHEN CONTAINS(customer.tags, \"vip\") THEN ALLOW END'
+    ctx = {"customer": {"tags": ["standard", "vip", "beta"]}}
+    decisions = await eval_code(code, ctx)
+    assert decisions[0].matched == True
