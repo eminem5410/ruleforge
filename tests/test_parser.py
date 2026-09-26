@@ -3,6 +3,7 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 import pytest
+from ruleforge.parser.ast_nodes import ArrayLiteralNode
 from ruleforge.lexer import Lexer
 from ruleforge.parser import Parser, ParserError, RuleNode, ActionNode, BinaryOpNode, UnaryOpNode, NullCheckNode, LiteralNode, IdentifierNode, PropertyAccessNode, FunctionCallNode
 
