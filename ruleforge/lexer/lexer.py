@@ -135,7 +135,7 @@ class Lexer:
                 tokens.append(Token(single_ops[char], char, start_line, start_col))
                 self.advance(); continue
                 
-            symbols = {'(': TokenType.LPAREN, ')': TokenType.RPAREN, '.': TokenType.DOT, ',': TokenType.COMMA}
+            symbols = {'(': TokenType.LPAREN, ')': TokenType.RPAREN, '.': TokenType.DOT, ',': TokenType.COMMA, '[': TokenType.LBRACKET, ']': TokenType.RBRACKET}
             if char in symbols:
                 tokens.append(Token(symbols[char], char, start_line, start_col))
                 self.advance(); continue
