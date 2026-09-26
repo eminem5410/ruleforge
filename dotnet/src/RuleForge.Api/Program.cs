@@ -1,8 +1,11 @@
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.IdentityModel.Tokens;
 using RuleForge.Api.Authorization;
 using RuleForge.Api.Middleware;
+using System.Text;
 using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -11,21 +14,54 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// 1. Auth: Register the custom ApiKey Authentication Handler
-builder.Services.AddAuthentication("ApiKey")
-    .AddScheme<AuthenticationSchemeOptions, ApiKeyAuthenticationHandler>("ApiKey", null);
+// 1. Auth: Dual Authentication (ApiKey + JwtBearer)
+builder.Services.AddAuthentication()
+    .AddScheme<AuthenticationSchemeOptions, ApiKeyAuthenticationHandler>("ApiKey", null)
+    .AddJwtBearer("JwtBearer", options =>
+    {
+        var jwtConfig = builder.Configuration.GetSection("RuleForge:Jwt");
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = jwtConfig["Issuer"],
+            ValidAudience = jwtConfig["Audience"],
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtConfig["SigningKey"]!)),
+            // Map "scope" claim properly
+            NameClaimType = "sub",
+            RoleClaimType = "scope"
+        };
+    });
 
-// 2. Auth: Register Scope Policies
+// 2. Auth: Register Scope Policies (Accept both schemes)
 builder.Services.AddAuthorization(options =>
 {
-    options.AddPolicy("rules:evaluate", policy => policy.Requirements.Add(new ScopeRequirement("rules:evaluate")));
-    options.AddPolicy("rules:read", policy => policy.Requirements.Add(new ScopeRequirement("rules:read")));
-    options.AddPolicy("rules:write", policy => policy.Requirements.Add(new ScopeRequirement("rules:write")));
-    options.AddPolicy("rules:admin", policy => policy.Requirements.Add(new ScopeRequirement("rules:admin")));
+    options.AddPolicy("rules:evaluate", policy => 
+    {
+        policy.Requirements.Add(new ScopeRequirement("rules:evaluate"));
+        policy.AddAuthenticationSchemes("ApiKey", "JwtBearer");
+    });
+    options.AddPolicy("rules:read", policy => 
+    {
+        policy.Requirements.Add(new ScopeRequirement("rules:read"));
+        policy.AddAuthenticationSchemes("ApiKey", "JwtBearer");
+    });
+    options.AddPolicy("rules:write", policy => 
+    {
+        policy.Requirements.Add(new ScopeRequirement("rules:write"));
+        policy.AddAuthenticationSchemes("ApiKey", "JwtBearer");
+    });
+    options.AddPolicy("rules:admin", policy => 
+    {
+        policy.Requirements.Add(new ScopeRequirement("rules:admin"));
+        policy.AddAuthenticationSchemes("ApiKey", "JwtBearer");
+    });
 });
 builder.Services.AddSingleton<IAuthorizationHandler, ScopeHandler>();
 
-// 3. Rate Limiting: 100 req/min per API key
+// 3. Rate Limiting: 100 req/min per identity (API Key or JWT sub)
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = 429;
@@ -45,8 +81,12 @@ builder.Services.AddRateLimiter(options =>
     
     options.AddPolicy("apikey", httpContext =>
     {
-        var apiKey = httpContext.User.FindFirst("api_key_id")?.Value ?? "anonymous";
-        return RateLimitPartition.GetFixedWindowLimiter(apiKey, _ => new FixedWindowRateLimiterOptions
+        // Use api_key_id for ApiKey, or sub for JWT. Fallback to anonymous.
+        var identity = httpContext.User.FindFirst("api_key_id")?.Value 
+                     ?? httpContext.User.FindFirst("sub")?.Value 
+                     ?? "anonymous";
+                     
+        return RateLimitPartition.GetFixedWindowLimiter(identity, _ => new FixedWindowRateLimiterOptions
         {
             PermitLimit = 100,
             Window = TimeSpan.FromMinutes(1)

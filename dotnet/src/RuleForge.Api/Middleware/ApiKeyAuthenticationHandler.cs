@@ -12,7 +12,8 @@ public class ApiKeyAuthenticationHandler : AuthenticationHandler<AuthenticationS
         { "rf_live_test_key_123", new[] { "rules:evaluate", "rules:read" } },
         { "rf_live_admin_key_456", new[] { "rules:evaluate", "rules:read", "rules:write", "rules:admin" } },
         { "rf_live_rl_key_1", new[] { "rules:evaluate", "rules:read" } },
-        { "rf_live_rl_key_2", new[] { "rules:evaluate", "rules:read" } }
+        { "rf_live_rl_key_2", new[] { "rules:evaluate", "rules:read" } },
+        { "rf_live_no_scope_key", Array.Empty<string>() }
     };
 
     public ApiKeyAuthenticationHandler(IOptionsMonitor<AuthenticationSchemeOptions> options, ILoggerFactory logger, UrlEncoder encoder) 
@@ -24,16 +25,15 @@ public class ApiKeyAuthenticationHandler : AuthenticationHandler<AuthenticationS
             return Task.FromResult(AuthenticateResult.Fail("Missing Authorization header"));
 
         var headerValue = authHeader.ToString();
-        if (!headerValue.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
-            return Task.FromResult(AuthenticateResult.Fail("Invalid scheme. Expected 'Bearer'."));
+        if (!headerValue.StartsWith("ApiKey ", StringComparison.OrdinalIgnoreCase))
+            return Task.FromResult(AuthenticateResult.Fail("Invalid scheme. Expected 'ApiKey'."));
 
-        var token = headerValue.Substring("Bearer ".Length).Trim();
+        var token = headerValue.Substring("ApiKey ".Length).Trim();
 
         if (!ApiKeys.TryGetValue(token, out var scopes))
             return Task.FromResult(AuthenticateResult.Fail("Invalid API Key"));
 
         var claims = scopes.Select(s => new Claim("scope", s)).ToList();
-        // Fix: Use full token as api_key_id to ensure unique rate limit buckets
         claims.Add(new Claim("api_key_id", token));
         
         var identity = new ClaimsIdentity(claims, Scheme.Name);

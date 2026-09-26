@@ -1,6 +1,5 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
-using System.Text.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Xunit;
 
@@ -37,7 +36,7 @@ public class SecurityTests : IClassFixture<WebApplicationFactory<Program>>
     [Fact]
     public async Task AUTH_002_InvalidKeyRejected()
     {
-        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", "invalid_key");
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("ApiKey", "invalid_key");
         var res = await _client.PostAsJsonAsync("/api/v1/evaluate", Request);
         Assert.Equal(System.Net.HttpStatusCode.Unauthorized, res.StatusCode);
     }
@@ -45,7 +44,7 @@ public class SecurityTests : IClassFixture<WebApplicationFactory<Program>>
     [Fact]
     public async Task AUTH_003_ValidKeyAccepted()
     {
-        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", ValidKey);
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("ApiKey", ValidKey);
         var res = await _client.PostAsJsonAsync("/api/v1/evaluate", Request);
         res.EnsureSuccessStatusCode();
     }
@@ -61,7 +60,7 @@ public class SecurityTests : IClassFixture<WebApplicationFactory<Program>>
     [Fact]
     public async Task AUTH_005_AdminKeyAlsoWorksForEvaluate()
     {
-        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", AdminKey);
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("ApiKey", AdminKey);
         var res = await _client.PostAsJsonAsync("/api/v1/evaluate", Request);
         res.EnsureSuccessStatusCode();
     }
@@ -69,39 +68,32 @@ public class SecurityTests : IClassFixture<WebApplicationFactory<Program>>
     [Fact]
     public async Task AUTH_006_RateLimitExceededAndRetryAfter()
     {
-        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", RateLimitKey1);
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("ApiKey", RateLimitKey1);
         
-        // Send 100 requests (should be 200 OK)
         for (int i = 0; i < 100; i++)
         {
             var res = await _client.PostAsJsonAsync("/api/v1/evaluate", Request);
             Assert.True(res.IsSuccessStatusCode, $"Request {i+1} failed unexpectedly with {res.StatusCode}");
         }
 
-        // Send 101st request (should be 429 Too Many Requests)
         var blockedRes = await _client.PostAsJsonAsync("/api/v1/evaluate", Request);
         Assert.Equal(System.Net.HttpStatusCode.TooManyRequests, blockedRes.StatusCode);
-        
-        // Verify Retry-After header is present
         Assert.True(blockedRes.Headers.Contains("Retry-After"), "429 response must include Retry-After header");
     }
 
     [Fact]
     public async Task AUTH_007_IsolatedBuckets()
     {
-        // 1. Exhaust the rate limit for RateLimitKey2
-        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", RateLimitKey2);
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("ApiKey", RateLimitKey2);
         for (int i = 0; i < 100; i++)
         {
             await _client.PostAsJsonAsync("/api/v1/evaluate", Request);
         }
         
-        // 101st request for RateLimitKey2 should be 429
         var blockedRes = await _client.PostAsJsonAsync("/api/v1/evaluate", Request);
         Assert.Equal(System.Net.HttpStatusCode.TooManyRequests, blockedRes.StatusCode);
 
-        // 2. AdminKey should still have its full quota available
-        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", AdminKey);
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("ApiKey", AdminKey);
         var adminRes = await _client.PostAsJsonAsync("/api/v1/evaluate", Request);
         Assert.True(adminRes.IsSuccessStatusCode, "AdminKey was blocked due to RateLimitKey2's rate limit!");
     }
