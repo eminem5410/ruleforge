@@ -158,7 +158,8 @@ class Parser:
                     index_token = self.current_token
                     self.expect(TokenType.INTEGER)
                     self.expect(TokenType.RBRACKET)
-                    node = FunctionCallNode("__INDEX__", [node, LiteralNode(index_token.value, "INTEGER")])
+                    from .ast_nodes import ArrayIndexNode
+                    node = ArrayIndexNode(node, LiteralNode(index_token.value, "INTEGER"))
                 return node
             return IdentifierNode(name) 
         elif token.type == TokenType.EOF:

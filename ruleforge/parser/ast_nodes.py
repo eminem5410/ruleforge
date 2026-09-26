@@ -51,3 +51,9 @@ class ArrayLiteralNode:
     def __init__(self, elements):
         self.elements = elements
     def __repr__(self): return f"ArrayLit({self.elements})"
+
+class ArrayIndexNode:
+    def __init__(self, array_expr, index):
+        self.array = array_expr
+        self.index = index
+    def __repr__(self): return f"ArrayIndex({self.array}[{self.index}])"

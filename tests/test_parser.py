@@ -3,7 +3,7 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 import pytest
-from ruleforge.parser.ast_nodes import ArrayLiteralNode
+from ruleforge.parser.ast_nodes import ArrayLiteralNode, ArrayIndexNode
 from ruleforge.lexer import Lexer
 from ruleforge.parser import Parser, ParserError, RuleNode, ActionNode, BinaryOpNode, UnaryOpNode, NullCheckNode, LiteralNode, IdentifierNode, PropertyAccessNode, FunctionCallNode
 
@@ -77,11 +77,10 @@ def test_parse_008_array_indexing():
     ast = parse_code(code)
     when = ast[0].when_expr
     assert isinstance(when, BinaryOpNode)
-    # Indexing is wrapped in a FunctionCallNode __INDEX__
-    assert isinstance(when.left, FunctionCallNode)
-    assert when.left.name == "__INDEX__"
-    assert isinstance(when.left.args[0], PropertyAccessNode)
-    assert when.left.args[1].value == "0"
+    # Indexing is an ArrayIndexNode
+    assert isinstance(when.left, ArrayIndexNode)
+    assert isinstance(when.left.array, PropertyAccessNode)
+    assert when.left.index.value == "0"
 
 def test_parse_err_003_heterogeneous_array():
     code = 'RULE r LANGUAGE 2 WHEN LENGTH([1, "hello"]) == 2 THEN ALLOW END'
