@@ -66,3 +66,37 @@ public class ParserTests
         Assert.Equal("RF2002", ex.Code);
     }
 }
+
+    [Fact]
+    public void PARSE_007_ArrayLiteral()
+    {
+        var ast = ParseCode("RULE r LANGUAGE 2 WHEN LENGTH([1, 2, 3]) == 3 THEN ALLOW END");
+        var when = ast[0].WhenExpr;
+        Assert.IsType<BinaryExpression>(when);
+        var funcCall = ((BinaryExpression)when).Left as FunctionCallExpression;
+        Assert.NotNull(funcCall);
+        Assert.Equal("LENGTH", funcCall.Name);
+        var arrLit = funcCall.Arguments[0] as ArrayLiteralExpression;
+        Assert.NotNull(arrLit);
+        Assert.Equal(3, arrLit.Elements.Count);
+    }
+
+    [Fact]
+    public void PARSE_008_ArrayIndexing()
+    {
+        var ast = ParseCode("RULE r LANGUAGE 2 WHEN customer.tags[0] == \"admin\" THEN ALLOW END");
+        var when = ast[0].WhenExpr;
+        Assert.IsType<BinaryExpression>(when);
+        var arrIdx = ((BinaryExpression)when).Left as ArrayIndexExpression;
+        Assert.NotNull(arrIdx);
+        Assert.IsType<PropertyExpression>(arrIdx.Array);
+        Assert.IsType<LiteralExpression>(arrIdx.Index);
+    }
+
+    [Fact]
+    public void PARSE_ERR_003_HeterogeneousArray()
+    {
+        // Parser should parse this fine; Semantic Analyzer will reject it later
+        var ast = ParseCode("RULE r LANGUAGE 2 WHEN LENGTH([1, \"hello\"]) == 2 THEN ALLOW END");
+        Assert.IsType<BinaryExpression>(ast[0].WhenExpr);
+    }
