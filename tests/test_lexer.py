@@ -112,3 +112,20 @@ def test_lex_err_008_date_followed_by_number():
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
+
+def test_lex_006_array_brackets():
+    tokens = Lexer("[]").tokenize()
+    assert len(tokens) == 3
+    assert tokens[0].type == TokenType.LBRACKET
+    assert tokens[1].type == TokenType.RBRACKET
+    assert tokens[2].type == TokenType.EOF
+
+def test_lex_007_array_literals():
+    tokens = Lexer("[1, 2, 3]").tokenize()
+    assert tokens[0].type == TokenType.LBRACKET
+    assert tokens[1].type == TokenType.INTEGER
+    assert tokens[2].type == TokenType.COMMA
+    assert tokens[3].type == TokenType.INTEGER
+    assert tokens[4].type == TokenType.COMMA
+    assert tokens[5].type == TokenType.INTEGER
+    assert tokens[6].type == TokenType.RBRACKET
