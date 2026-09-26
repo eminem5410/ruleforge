@@ -2,15 +2,12 @@ class RuleNode:
     def __init__(self, name, lang_version, when_expr, then_actions, else_actions):
         self.name = name; self.lang_version = lang_version
         self.when_expr = when_expr; self.then_actions = then_actions; self.else_actions = else_actions
-    def __repr__(self): return f"RuleNode(name='{self.name}', lang={self.lang_version})"
+    def __repr__(self): return f"RuleNode(name='{self.name}', lang={self.lang_version}, when={self.when_expr}, then={self.then_actions}, else={self.else_actions})"
 
 class ActionNode:
     def __init__(self, action_type, value=None):
-        self.action_type = action_type
-        self.value = value
+        self.action_type = action_type; self.value = value
     def __repr__(self): return f"Action({self.action_type}, val='{self.value}')"
-    def to_dict(self):
-        return {"type": self.action_type, "value": self.value if self.value != 'None' else None}
 
 class BinaryOpNode:
     def __init__(self, left, op, right):

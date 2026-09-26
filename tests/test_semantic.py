@@ -59,3 +59,46 @@ def test_sem_err_005_when_not_boolean():
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
+
+@pytest.mark.asyncio
+async def test_sem_valid_array_literal():
+    from ruleforge.semantic import SemanticAnalyzer
+    schema = {"customer": {"tags": "Array<String>"}}
+    code = 'RULE r LANGUAGE 2 WHEN LENGTH([1, 2, 3]) == 3 THEN ALLOW END'
+    tokens = Lexer(code).tokenize()
+    ast = Parser(tokens).parse()
+    # Should not raise
+    SemanticAnalyzer(schema).analyze(ast)
+
+@pytest.mark.asyncio
+async def test_sem_err_heterogeneous_array():
+    from ruleforge.semantic import SemanticAnalyzer, SemanticError
+    schema = {}
+    code = 'RULE r LANGUAGE 2 WHEN LENGTH([1, "hello"]) == 2 THEN ALLOW END'
+    tokens = Lexer(code).tokenize()
+    ast = Parser(tokens).parse()
+    with pytest.raises(SemanticError) as exc:
+        SemanticAnalyzer(schema).analyze(ast)
+    assert exc.value.code == "RF3003"
+
+@pytest.mark.asyncio
+async def test_sem_err_contains_type_mismatch():
+    from ruleforge.semantic import SemanticAnalyzer, SemanticError
+    schema = {}
+    code = 'RULE r LANGUAGE 2 WHEN CONTAINS(["admin", "user"], 123) THEN ALLOW END'
+    tokens = Lexer(code).tokenize()
+    ast = Parser(tokens).parse()
+    with pytest.raises(SemanticError) as exc:
+        SemanticAnalyzer(schema).analyze(ast)
+    assert exc.value.code == "RF3003"
+
+@pytest.mark.asyncio
+async def test_sem_err_contains_empty_array():
+    from ruleforge.semantic import SemanticAnalyzer, SemanticError
+    schema = {}
+    code = 'RULE r LANGUAGE 2 WHEN CONTAINS([], "admin") THEN ALLOW END'
+    tokens = Lexer(code).tokenize()
+    ast = Parser(tokens).parse()
+    with pytest.raises(SemanticError) as exc:
+        SemanticAnalyzer(schema).analyze(ast)
+    assert exc.value.code == "RF3003"

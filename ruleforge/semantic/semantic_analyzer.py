@@ -1,4 +1,4 @@
-from ..parser.ast_nodes import RuleNode, ActionNode, BinaryOpNode, UnaryOpNode, NullCheckNode, LiteralNode, IdentifierNode, PropertyAccessNode, FunctionCallNode
+from ..parser.ast_nodes import RuleNode, ActionNode, BinaryOpNode, UnaryOpNode, NullCheckNode, LiteralNode, IdentifierNode, PropertyAccessNode, FunctionCallNode, ArrayLiteralNode, ArrayIndexNode
 from .errors import SemanticError
 
 MAX_AST_DEPTH = 50
@@ -7,13 +7,6 @@ MAX_AST_NODES = 500
 class SemanticAnalyzer:
     def __init__(self, context_schema):
         self.schema = context_schema
-        self.functions = {
-            "contains": (["String", "String"], "Boolean"),
-            "length": (["String"], "Integer"),
-            "starts_with": (["String", "String"], "Boolean"),
-            "ends_with": (["String", "String"], "Boolean"),
-            "abs": (["Numeric"], "Numeric")
-        }
 
     def analyze(self, ast):
         for rule in ast:
@@ -24,36 +17,35 @@ class SemanticAnalyzer:
         self.check_actions(node.then_actions)
         self.check_actions(node.else_actions)
         
-        depth, count = self.check_ast_limits(node.when_expr, 1)
-        if depth > MAX_AST_DEPTH:
-            raise SemanticError("RF5001", f"Security Limit: AST depth {depth} exceeds maximum of {MAX_AST_DEPTH}")
-        if count > MAX_AST_NODES:
-            raise SemanticError("RF5002", f"Security Limit: AST node count {count} exceeds maximum of {MAX_AST_NODES}")
-            
+        depth, count = 0, 0
+        self.check_ast_limits(node.when_expr, 1, depth, count)
+        
         expr_type = self.check_node(node.when_expr)
         if expr_type != "Boolean":
             raise SemanticError("RF3002", f"WHEN condition must evaluate to Boolean, got {expr_type}")
 
-    def check_ast_limits(self, node, current_depth):
-        count = 1
+    def check_ast_limits(self, node, current_depth, max_depth, count):
+        count += 1
+        if current_depth > max_depth: max_depth = current_depth
+        if max_depth > MAX_AST_DEPTH: raise SemanticError("RF5001", f"Security Limit: AST depth exceeds maximum of {MAX_AST_DEPTH}")
+        if count > MAX_AST_NODES: raise SemanticError("RF5002", f"Security Limit: AST node count exceeds maximum of {MAX_AST_NODES}")
+
         if isinstance(node, BinaryOpNode):
-            d1, c1 = self.check_ast_limits(node.left, current_depth + 1)
-            d2, c2 = self.check_ast_limits(node.right, current_depth + 1)
-            return max(d1, d2), count + c1 + c2
+            self.check_ast_limits(node.left, current_depth + 1, max_depth, count)
+            self.check_ast_limits(node.right, current_depth + 1, max_depth, count)
         elif isinstance(node, UnaryOpNode):
-            d, c = self.check_ast_limits(node.operand, current_depth + 1)
-            return d, count + c
+            self.check_ast_limits(node.operand, current_depth + 1, max_depth, count)
         elif isinstance(node, NullCheckNode):
-            d, c = self.check_ast_limits(node.left, current_depth + 1)
-            return d, count + c
+            self.check_ast_limits(node.left, current_depth + 1, max_depth, count)
         elif isinstance(node, FunctionCallNode):
-            max_d = current_depth
             for arg in node.args:
-                d, c = self.check_ast_limits(arg, current_depth + 1)
-                max_d = max(max_d, d)
-                count += c
-            return max_d, count
-        return current_depth, count
+                self.check_ast_limits(arg, current_depth + 1, max_depth, count)
+        elif isinstance(node, ArrayLiteralNode):
+            for el in node.elements:
+                self.check_ast_limits(el, current_depth + 1, max_depth, count)
+        elif isinstance(node, ArrayIndexNode):
+            self.check_ast_limits(node.array, current_depth + 1, max_depth, count)
+            self.check_ast_limits(node.index, current_depth + 1, max_depth, count)
 
     def check_actions(self, actions):
         terminal_count = sum(1 for a in actions if a.action_type in ["ALLOW", "DENY", "NO_ACTION"])
@@ -61,44 +53,117 @@ class SemanticAnalyzer:
             raise SemanticError("RF3002", "A block can have at most ONE terminal decision")
 
     def check_node(self, node):
-        valid_numeric = ["Integer", "Decimal", "Numeric"]
-        valid_comparison = ["Integer", "Decimal", "Numeric", "Date"]
-        
-        if isinstance(node, LiteralNode): return {"INTEGER": "Integer", "DECIMAL": "Decimal", "STRING": "String", "BOOLEAN": "Boolean", "DATE": "Date"}.get(node.type, "Unknown")
-        elif isinstance(node, IdentifierNode): raise SemanticError("RF3002", f"Unknown context property '{node.name}'")
+        if isinstance(node, LiteralNode):
+            mapping = {"INTEGER": "Integer", "DECIMAL": "Decimal", "STRING": "String", "BOOLEAN": "Boolean", "DATE": "Date"}
+            return mapping.get(node.type, "Unknown")
+            
+        elif isinstance(node, IdentifierNode):
+            raise SemanticError("RF3002", f"Unknown context property '{node.name}'")
+            
         elif isinstance(node, PropertyAccessNode):
             obj_schema = self.schema.get(node.obj)
             if not obj_schema: raise SemanticError("RF3002", f"Context object '{node.obj}' not defined")
             prop_type = obj_schema.get(node.prop)
             if not prop_type: raise SemanticError("RF3002", f"Property '{node.prop}' not found in '{node.obj}'")
             return prop_type
-        elif isinstance(node, NullCheckNode): self.check_node(node.left); return "Boolean"
+            
+        elif isinstance(node, NullCheckNode):
+            self.check_node(node.left)
+            return "Boolean"
+            
         elif isinstance(node, UnaryOpNode):
             if node.op == "NOT":
-                if self.check_node(node.operand) != "Boolean": raise SemanticError("RF3001", "Operator 'NOT' requires Boolean")
+                if self.check_node(node.operand) != "Boolean":
+                    raise SemanticError("RF3001", "Operator 'NOT' requires Boolean")
                 return "Boolean"
+                
         elif isinstance(node, BinaryOpNode):
-            l, r, op = self.check_node(node.left), self.check_node(node.right), node.op
+            left_type = self.check_node(node.left)
+            right_type = self.check_node(node.right)
+            op = node.op
+            
+            valid_numerics = ["Integer", "Decimal"]
+            valid_comparison = ["Integer", "Decimal", "Date"]
+            
             if op in ["AND", "OR"]:
-                if l != "Boolean" or r != "Boolean": raise SemanticError("RF3001", f"Operator '{op}' requires Boolean")
+                if left_type != "Boolean" or right_type != "Boolean": raise SemanticError("RF3001", f"Operator '{op}' requires Boolean operands")
                 return "Boolean"
             elif op in ["==", "!="]:
-                if (l in valid_numeric and r in valid_numeric): return "Boolean"
-                if l != r: raise SemanticError("RF3001", f"Cannot compare {l} with {r}")
+                if left_type != right_type: raise SemanticError("RF3001", f"Cannot compare {left_type} with {right_type}")
                 return "Boolean"
             elif op in [">", "<", ">=", "<="]:
-                if l not in valid_comparison or r not in valid_comparison: raise SemanticError("RF3001", f"Operator '{op}' requires numeric/date")
+                if left_type not in valid_comparison or right_type not in valid_comparison: raise SemanticError("RF3001", f"Operator '{op}' requires numeric/date")
                 return "Boolean"
             elif op in ["+", "-", "*", "/"]:
-                if l not in valid_numeric or r not in valid_numeric: raise SemanticError("RF3001", f"Operator '{op}' requires numeric")
-                return "Decimal" if "Decimal" in [l, r] else "Integer"
+                if left_type not in valid_numerics or right_type not in valid_numerics: raise SemanticError("RF3001", f"Operator '{op}' requires numeric")
+                return "Decimal" if "Decimal" in [left_type, right_type] else "Integer"
+
+        elif isinstance(node, ArrayLiteralNode):
+            if not node.elements:
+                return "Array<Null>"
+                
+            types = [self.check_node(el) for el in node.elements]
+            first_type = types[0]
+            
+            for t in types[1:]:
+                if t != first_type:
+                    raise SemanticError("RF3003", f"Heterogeneous array literal. Expected {first_type}, got {t}")
+                    
+            return f"Array<{first_type}>"
+            
+        elif isinstance(node, ArrayIndexNode):
+            arr_type = self.check_node(node.array)
+            idx_type = self.check_node(node.index)
+            
+            if idx_type != "Integer":
+                raise SemanticError("RF3003", f"Array index must be Integer, got {idx_type}")
+                
+            if not arr_type.startswith("Array<"):
+                raise SemanticError("RF3003", f"Cannot index non-array type {arr_type}")
+                
+            inner_type = arr_type[6:-1] # Strip "Array<" and ">"
+            return inner_type
+
         elif isinstance(node, FunctionCallNode):
-            if node.name not in self.functions: raise SemanticError("RF3003", f"Unknown function '{node.name}'")
-            exp_args, ret = self.functions[node.name]
-            if len(node.args) != len(exp_args): raise SemanticError("RF3003", f"Function '{node.name}' expects {len(exp_args)} arguments")
-            for i, a in enumerate(node.args):
-                t = self.check_node(a)
-                if exp_args[i] == "Numeric":
-                    if t not in valid_numeric: raise SemanticError("RF3003", f"Argument {i+1} of '{node.name}' must be Numeric")
-                elif t != exp_args[i]: raise SemanticError("RF3003", f"Argument {i+1} of '{node.name}' must be {exp_args[i]}")
-            return ret
+            if node.name not in ["contains", "length", "starts_with", "ends_with", "abs"]:
+                raise SemanticError("RF3003", f"Unknown function '{node.name}'")
+                
+            if node.name == "length":
+                if len(node.args) != 1: raise SemanticError("RF3003", "Function 'length' expects 1 argument")
+                arg_type = self.check_node(node.args[0])
+                if not arg_type.startswith("Array<"):
+                    raise SemanticError("RF3003", f"Function 'length' expects an Array, got {arg_type}")
+                return "Integer"
+                
+            elif node.name == "contains":
+                if len(node.args) != 2: raise SemanticError("RF3003", "Function 'contains' expects 2 arguments")
+                arr_type = self.check_node(node.args[0])
+                val_type = self.check_node(node.args[1])
+                
+                if not arr_type.startswith("Array<"):
+                    raise SemanticError("RF3003", f"Function 'contains' expects an Array as first argument, got {arr_type}")
+                    
+                inner_type = arr_type[6:-1]
+                
+                if inner_type == "Null":
+                    raise SemanticError("RF3003", "Cannot infer array type from empty array literal in 'contains'")
+                    
+                if inner_type != val_type:
+                    raise SemanticError("RF3003", f"Argument 2 of 'contains' must be {inner_type}, got {val_type}")
+                    
+                return "Boolean"
+                
+            # Otras funciones simples (strings/numerics)
+            elif node.name in ["starts_with", "ends_with"]:
+                if len(node.args) != 2: raise SemanticError("RF3003", f"Function '{node.name}' expects 2 arguments")
+                t1 = self.check_node(node.args[0])
+                t2 = self.check_node(node.args[1])
+                if t1 != "String" or t2 != "String": raise SemanticError("RF3003", f"Function '{node.name}' requires String arguments")
+                return "Boolean"
+            elif node.name == "abs":
+                if len(node.args) != 1: raise SemanticError("RF3003", "Function 'abs' expects 1 argument")
+                t = self.check_node(node.args[0])
+                if t not in ["Integer", "Decimal"]: raise SemanticError("RF3003", "Function 'abs' requires Numeric argument")
+                return t
+
+        raise SemanticError("RF3003", "Unknown AST node")
