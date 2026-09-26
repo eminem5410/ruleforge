@@ -41,7 +41,7 @@ class RuleForgeEngine:
                                 if not (isinstance(item, int) and not isinstance(item, bool)):
                                     raise EvaluatorError("RF4003", f"Invalid Runtime Context: Element {i} of '{obj_name}.{prop_name}' expected Integer but got {item_type}")
                             elif inner_type == "Decimal":
-                                if not (isinstance(item, (int, float)) and not isinstance(item, bool)):
+                                if not (isinstance(item, (int, float, Decimal)) and not isinstance(item, bool)):
                                     raise EvaluatorError("RF4003", f"Invalid Runtime Context: Element {i} of '{obj_name}.{prop_name}' expected Decimal but got {item_type}")
                                 obj_val[prop_name][i] = Decimal(str(item))
                             elif inner_type == "String":
@@ -65,7 +65,7 @@ class RuleForgeEngine:
                         if not (isinstance(val, int) and not isinstance(val, bool)):
                             raise EvaluatorError("RF4003", f"Invalid Runtime Context: Property '{obj_name}.{prop_name}' expected Integer but got {actual_type}")
                     elif expected_type == "Decimal":
-                        if not (isinstance(val, (int, float)) and not isinstance(val, bool)):
+                        if not (isinstance(val, (int, float, Decimal)) and not isinstance(val, bool)):
                             raise EvaluatorError("RF4003", f"Invalid Runtime Context: Property '{obj_name}.{prop_name}' expected Decimal but got {actual_type}")
                         if isinstance(val, (int, float)):
                             obj_val[prop_name] = Decimal(str(val))
