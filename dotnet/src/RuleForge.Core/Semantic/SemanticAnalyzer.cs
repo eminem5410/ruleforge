@@ -1,19 +1,12 @@
 using RuleForge.Core.Syntax;
 using RuleForge.Core.Lexing;
+using System.Linq;
 
 namespace RuleForge.Core.Semantic;
 
 public class SemanticAnalyzer
 {
     private readonly Dictionary<string, Dictionary<string, string>> _schema;
-    private readonly Dictionary<string, (string[] Args, string Ret)> _functions = new()
-    {
-        { "contains", (new[] { "String", "String" }, "Boolean") },
-        { "length", (new[] { "String" }, "Integer") },
-        { "starts_with", (new[] { "String", "String" }, "Boolean") },
-        { "ends_with", (new[] { "String", "String" }, "Boolean") },
-        { "abs", (new[] { "Numeric" }, "Numeric") }
-    };
 
     public SemanticAnalyzer(Dictionary<string, Dictionary<string, string>> schema)
     {
@@ -29,8 +22,8 @@ public class SemanticAnalyzer
             
             int depth = 0, count = 0;
             CheckAstLimits(rule.WhenExpr, 1, ref depth, ref count);
-            if (depth > 50) throw new SemanticException("RF5001", $"Security Limit: AST depth {depth} exceeds maximum of 50");
-            if (count > 500) throw new SemanticException("RF5002", $"Security Limit: AST node count {count} exceeds maximum of 500");
+            if (depth > 50) throw new SemanticException("RF5001", $"Security Limit: AST depth exceeds maximum of 50");
+            if (count > 500) throw new SemanticException("RF5002", $"Security Limit: AST node count exceeds maximum of 500");
 
             var exprType = CheckNode(rule.WhenExpr);
             if (exprType != "Boolean")
@@ -59,6 +52,15 @@ public class SemanticAnalyzer
         else if (expr is FunctionCallExpression fc)
         {
             foreach (var arg in fc.Arguments) CheckAstLimits(arg, currentDepth + 1, ref maxDepth, ref count);
+        }
+        else if (expr is ArrayLiteralExpression arrLit)
+        {
+            foreach (var el in arrLit.Elements) CheckAstLimits(el, currentDepth + 1, ref maxDepth, ref count);
+        }
+        else if (expr is ArrayIndexExpression arrIdx)
+        {
+            CheckAstLimits(arrIdx.Array, currentDepth + 1, ref maxDepth, ref count);
+            CheckAstLimits(arrIdx.Index, currentDepth + 1, ref maxDepth, ref count);
         }
     }
 
@@ -104,22 +106,6 @@ public class SemanticAnalyzer
                 return "Boolean";
             }
         }
-        if (expr is FunctionCallExpression fc)
-        {
-            if (!_functions.TryGetValue(fc.Name, out var sig))
-                throw new SemanticException("RF3003", $"Unknown function '{fc.Name}'");
-            if (fc.Arguments.Count != sig.Args.Length)
-                throw new SemanticException("RF3003", $"Function '{fc.Name}' expects {sig.Args.Length} arguments");
-            for (int i = 0; i < fc.Arguments.Count; i++)
-            {
-                var argType = CheckNode(fc.Arguments[i]);
-                if (sig.Args[i] == "Numeric" && argType != "Integer" && argType != "Decimal")
-                    throw new SemanticException("RF3003", $"Argument {i+1} of '{fc.Name}' must be Numeric");
-                else if (argType != sig.Args[i])
-                    throw new SemanticException("RF3003", $"Argument {i+1} of '{fc.Name}' must be {sig.Args[i]}");
-            }
-            return sig.Ret == "Numeric" ? "Integer" : sig.Ret;
-        }
         if (expr is BinaryExpression bin)
         {
             var l = CheckNode(bin.Left);
@@ -137,6 +123,7 @@ public class SemanticAnalyzer
             }
             if (op == "==" || op == "!=")
             {
+                if (validNumerics.Contains(l) && validNumerics.Contains(r)) return "Boolean";
                 if (l != r)
                     throw new SemanticException("RF3001", $"Cannot compare {l} with {r}");
                 return "Boolean";
@@ -151,8 +138,81 @@ public class SemanticAnalyzer
             {
                 if (!validNumerics.Contains(l) || !validNumerics.Contains(r))
                     throw new SemanticException("RF3001", $"Operator '{op}' requires numeric");
-                return l == "Decimal" || r == "Decimal" ? "Decimal" : "Integer";
+                return "Decimal";
             }
+        }
+        if (expr is ArrayLiteralExpression arrLit)
+        {
+            if (!arrLit.Elements.Any()) return "Array<Null>";
+            
+            var firstType = CheckNode(arrLit.Elements[0]);
+            foreach (var el in arrLit.Elements.Skip(1))
+            {
+                if (CheckNode(el) != firstType)
+                    throw new SemanticException("RF3003", "Heterogeneous array literal");
+            }
+            return $"Array<{firstType}>";
+        }
+        if (expr is ArrayIndexExpression arrIdx)
+        {
+            var arrType = CheckNode(arrIdx.Array);
+            var idxType = CheckNode(arrIdx.Index);
+            
+            if (idxType != "Integer")
+                throw new SemanticException("RF3003", "Array index must be Integer");
+                
+            if (!arrType.StartsWith("Array<"))
+                throw new SemanticException("RF3003", $"Cannot index non-array type {arrType}");
+                
+            return arrType.Substring(6, arrType.Length - 7);
+        }
+        if (expr is FunctionCallExpression fc)
+        {
+            if (fc.Name == "length")
+            {
+                if (fc.Arguments.Count != 1) throw new SemanticException("RF3003", "Function 'length' expects 1 argument");
+                var argType = CheckNode(fc.Arguments[0]);
+                if (argType != "String" && !argType.StartsWith("Array<"))
+                    throw new SemanticException("RF3003", $"Function 'length' expects a String or Array, got {argType}");
+                return "Integer";
+            }
+            if (fc.Name == "contains")
+            {
+                if (fc.Arguments.Count != 2) throw new SemanticException("RF3003", "Function 'contains' expects 2 arguments");
+                var arg1Type = CheckNode(fc.Arguments[0]);
+                var arg2Type = CheckNode(fc.Arguments[1]);
+                
+                if (arg1Type == "String")
+                {
+                    if (arg2Type != "String") throw new SemanticException("RF3003", "Argument 2 of 'contains' must be String");
+                }
+                else if (arg1Type.StartsWith("Array<"))
+                {
+                    var innerType = arg1Type.Substring(6, arg1Type.Length - 7);
+                    if (innerType == "Null") throw new SemanticException("RF3003", "Cannot infer array type from empty array literal in 'contains'");
+                    if (innerType != arg2Type) throw new SemanticException("RF3003", $"Argument 2 of 'contains' must be {innerType}, got {arg2Type}");
+                }
+                else
+                {
+                    throw new SemanticException("RF3003", $"Function 'contains' expects a String or Array as first argument, got {arg1Type}");
+                }
+                return "Boolean";
+            }
+            if (fc.Name == "starts_with" || fc.Name == "ends_with")
+            {
+                if (fc.Arguments.Count != 2) throw new SemanticException("RF3003", $"Function '{fc.Name}' expects 2 arguments");
+                if (CheckNode(fc.Arguments[0]) != "String" || CheckNode(fc.Arguments[1]) != "String")
+                    throw new SemanticException("RF3003", $"Function '{fc.Name}' requires String arguments");
+                return "Boolean";
+            }
+            if (fc.Name == "abs")
+            {
+                if (fc.Arguments.Count != 1) throw new SemanticException("RF3003", "Function 'abs' expects 1 argument");
+                var t = CheckNode(fc.Arguments[0]);
+                if (t != "Integer" && t != "Decimal") throw new SemanticException("RF3003", "Function 'abs' requires Numeric argument");
+                return t;
+            }
+            throw new SemanticException("RF3003", $"Unknown function '{fc.Name}'");
         }
         throw new SemanticException("RF3003", "Unknown AST node");
     }

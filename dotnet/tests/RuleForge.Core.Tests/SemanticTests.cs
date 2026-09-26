@@ -59,3 +59,32 @@ public class SemanticTests
         Assert.Contains("WHEN condition must evaluate to Boolean", ex.Message);
     }
 }
+
+    [Fact]
+    public void SEM_007_ArrayLiteralAndLength()
+    {
+        var ex = Record.Exception(() => AnalyzeCode("RULE r LANGUAGE 2 WHEN LENGTH([1, 2, 3]) == 3 THEN ALLOW END"));
+        Assert.Null(ex);
+    }
+
+    [Fact]
+    public void SEM_008_ArrayLiteralAndContains()
+    {
+        var ex = Record.Exception(() => AnalyzeCode("RULE r LANGUAGE 2 WHEN CONTAINS([1, 2, 3], 2) THEN ALLOW END"));
+        Assert.Null(ex);
+    }
+
+    [Fact]
+    public void SEM_009_ArrayIndexing()
+    {
+        var ex = Record.Exception(() => AnalyzeCode("RULE r LANGUAGE 2 WHEN customer.tags[0] == \"admin\" THEN ALLOW END"));
+        Assert.Null(ex);
+    }
+
+    [Fact]
+    public void SEM_ERR_003_HeterogeneousArray()
+    {
+        var ex = Assert.Throws<SemanticException>(() => AnalyzeCode("RULE r LANGUAGE 2 WHEN LENGTH([1, \"hello\"]) == 2 THEN ALLOW END"));
+        Assert.Equal("RF3003", ex.Code);
+        Assert.Contains("Heterogeneous array literal", ex.Message);
+    }
