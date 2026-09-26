@@ -1,5 +1,5 @@
 # RuleForge Language Specification
-Version: 1.3.0
+Version: 7.0.0
 Status: Core Stable (Runtime Validated)
 
 ## 1. Goals & Philosophy

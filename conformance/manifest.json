@@ -1,6 +1,6 @@
 {
   "contract_version": "1.0",
-  "language_version": 1,
+  "language_version": 2,
   "vectors": [
     "valid/RF-CONF-001.json",
     "valid/RF-CONF-002.json",
