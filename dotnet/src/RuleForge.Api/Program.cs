@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
 using RuleForge.Api.Authorization;
 using RuleForge.Api.Middleware;
 using System.Text;
@@ -13,14 +14,64 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
 
-// 1. Auth: Dual Authentication (ApiKey + JwtBearer)
+// 1. Swagger con Dual Auth
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "RuleForge API", Version = "v1" });
+
+    // Scheme 1: ApiKey
+    c.AddSecurityDefinition("ApiKey", new OpenApiSecurityScheme
+    {
+        Type = SecuritySchemeType.ApiKey,
+        In = ParameterLocation.Header,
+        Name = "Authorization",
+        Description = "API Key Auth. Format: 'ApiKey rf_live_...'"
+    });
+
+    // Scheme 2: JWT Bearer
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        Description = "JWT Auth. Format: 'Bearer eyJ...'"
+    });
+
+    // Aplicar ambos a todos los endpoints
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "ApiKey" }
+            },
+            Array.Empty<string>()
+        },
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
+            },
+            Array.Empty<string>()
+        }
+    });
+});
+
+// 2. Auth: Dual Authentication (ApiKey + JwtBearer)
 builder.Services.AddAuthentication()
     .AddScheme<AuthenticationSchemeOptions, ApiKeyAuthenticationHandler>("ApiKey", null)
     .AddJwtBearer("JwtBearer", options =>
     {
+        // Evitar mapeos mágicos de claims de Microsoft
+        JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
+        options.MapInboundClaims = false;
+
         var jwtConfig = builder.Configuration.GetSection("RuleForge:Jwt");
+        
+        // Leer Signing Key desde Env Var primero, fallback a appsettings para Dev
+        var signingKey = Environment.GetEnvironmentVariable("RULEFORGE_JWT_SIGNING_KEY") ?? jwtConfig["SigningKey"];
+
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
@@ -29,13 +80,13 @@ builder.Services.AddAuthentication()
             ValidateIssuerSigningKey = true,
             ValidIssuer = jwtConfig["Issuer"],
             ValidAudience = jwtConfig["Audience"],
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtConfig["SigningKey"]!)),
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(signingKey!)),
             NameClaimType = "sub",
             RoleClaimType = "scope"
         };
     });
 
-// 2. Auth: Register Scope Policies (Accept both schemes)
+// 3. Auth: Register Scope Policies
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("rules:evaluate", policy => 
@@ -61,7 +112,7 @@ builder.Services.AddAuthorization(options =>
 });
 builder.Services.AddSingleton<IAuthorizationHandler, ScopeHandler>();
 
-// 3. Rate Limiting: 100 req/min per identity (Extracted from raw header)
+// 4. Rate Limiting: 100 req/min per identity (api_key_id or sub)
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = 429;
@@ -86,14 +137,16 @@ builder.Services.AddRateLimiter(options =>
         
         if (authHeader.StartsWith("ApiKey ", StringComparison.OrdinalIgnoreCase))
         {
-            identity = authHeader.Substring("ApiKey ".Length).Trim();
+            var token = authHeader.Substring("ApiKey ".Length).Trim();
+            // Para API Key, usamos el token completo solo para el Rate Limit interno, 
+            // pero el Handler ya lo mapeó a un ID seguro para logs.
+            identity = token; 
         }
         else if (authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
         {
             var token = authHeader.Substring("Bearer ".Length).Trim();
             try
             {
-                // Parse JWT payload to extract 'sub' without validating signature (Auth middleware will validate it next)
                 var jwt = new JwtSecurityTokenHandler().ReadJwtToken(token);
                 var subClaim = jwt.Claims.FirstOrDefault(c => c.Type == "sub");
                 if (subClaim != null && !string.IsNullOrEmpty(subClaim.Value))
@@ -101,10 +154,7 @@ builder.Services.AddRateLimiter(options =>
                     identity = subClaim.Value;
                 }
             }
-            catch
-            {
-                // Token is malformed, Auth middleware will reject it. Use anonymous bucket.
-            }
+            catch { }
         }
                      
         return RateLimitPartition.GetFixedWindowLimiter(identity, _ => new FixedWindowRateLimiterOptions

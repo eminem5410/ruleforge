@@ -7,13 +7,14 @@ namespace RuleForge.Api.Middleware;
 
 public class ApiKeyAuthenticationHandler : AuthenticationHandler<AuthenticationSchemeOptions>
 {
-    private static readonly Dictionary<string, string[]> ApiKeys = new()
+    // Mapeo explícito de Secreto -> (ID, Scopes)
+    private static readonly Dictionary<string, (string Id, string[] Scopes)> ApiKeys = new()
     {
-        { "rf_live_test_key_123", new[] { "rules:evaluate", "rules:read" } },
-        { "rf_live_admin_key_456", new[] { "rules:evaluate", "rules:read", "rules:write", "rules:admin" } },
-        { "rf_live_rl_key_1", new[] { "rules:evaluate", "rules:read" } },
-        { "rf_live_rl_key_2", new[] { "rules:evaluate", "rules:read" } },
-        { "rf_live_no_scope_key", Array.Empty<string>() }
+        { "rf_live_test_key_123", ("test-key", new[] { "rules:evaluate", "rules:read" }) },
+        { "rf_live_admin_key_456", ("admin-key", new[] { "rules:evaluate", "rules:read", "rules:write", "rules:admin" }) },
+        { "rf_live_rl_key_1", ("rl-key-1", new[] { "rules:evaluate", "rules:read" }) },
+        { "rf_live_rl_key_2", ("rl-key-2", new[] { "rules:evaluate", "rules:read" }) },
+        { "rf_live_no_scope_key", ("no-scope-key", Array.Empty<string>()) }
     };
 
     public ApiKeyAuthenticationHandler(IOptionsMonitor<AuthenticationSchemeOptions> options, ILoggerFactory logger, UrlEncoder encoder) 
@@ -30,11 +31,12 @@ public class ApiKeyAuthenticationHandler : AuthenticationHandler<AuthenticationS
 
         var token = headerValue.Substring("ApiKey ".Length).Trim();
 
-        if (!ApiKeys.TryGetValue(token, out var scopes))
+        if (!ApiKeys.TryGetValue(token, out var keyInfo))
             return Task.FromResult(AuthenticateResult.Fail("Invalid API Key"));
 
-        var claims = scopes.Select(s => new Claim("scope", s)).ToList();
-        claims.Add(new Claim("api_key_id", token));
+        var claims = keyInfo.Scopes.Select(s => new Claim("scope", s)).ToList();
+        // Usar el ID sanitizado para el Rate Limiter y logs
+        claims.Add(new Claim("api_key_id", keyInfo.Id));
         
         var identity = new ClaimsIdentity(claims, Scheme.Name);
         var principal = new ClaimsPrincipal(identity);
