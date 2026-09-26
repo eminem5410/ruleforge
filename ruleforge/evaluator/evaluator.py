@@ -152,11 +152,11 @@ class Evaluator:
                 arg_traces.append(t)
                 
             try:
-                if node.name == "contains": self.check_null(arg_vals[0], "contains"); res = arg_vals[1] in arg_vals[0]
-                elif node.name == "length": self.check_null(arg_vals[0], "length"); res = len(arg_vals[0])
-                elif node.name == "starts_with": self.check_null(arg_vals[0], "starts_with"); res = arg_vals[0].startswith(arg_vals[1])
-                elif node.name == "ends_with": self.check_null(arg_vals[0], "ends_with"); res = arg_vals[0].endswith(arg_vals[1])
-                elif node.name == "abs": self.check_null(arg_vals[0], "abs"); res = abs(arg_vals[0])
+                if node.name.lower() == "contains": self.check_null(arg_vals[0], "contains"); res = arg_vals[1] in arg_vals[0]
+                elif node.name.lower() == "length": self.check_null(arg_vals[0], "length"); res = len(arg_vals[0])
+                elif node.name.lower() == "starts_with": self.check_null(arg_vals[0], "starts_with"); res = arg_vals[0].startswith(arg_vals[1])
+                elif node.name.lower() == "ends_with": self.check_null(arg_vals[0], "ends_with"); res = arg_vals[0].endswith(arg_vals[1])
+                elif node.name.lower() == "abs": self.check_null(arg_vals[0], "abs"); res = abs(arg_vals[0])
                 else: raise EvaluatorError("RF4001", f"Unknown function {node.name}")
             except TypeError as e: raise EvaluatorError("RF4002", f"Runtime Type Error in '{node.name}': {e}")
             
