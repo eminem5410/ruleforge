@@ -56,15 +56,6 @@ public class LexerTests
     }
 
     [Fact]
-    public void LEX_ERR_001_InvalidCharacter()
-    {
-        var ex = Assert.Throws<LexerException>(() => Tokenize("customer @ age"));
-        Assert.Equal("RF1001", ex.Code);
-        Assert.Contains("Unexpected character '@'", ex.Message);
-    }
-}
-
-    [Fact]
     public void LEX_006_ArrayBrackets()
     {
         var tokens = Tokenize("[]");
@@ -85,3 +76,12 @@ public class LexerTests
         Assert.Equal(TokenType.INTEGER, tokens[5].Type);
         Assert.Equal(TokenType.RBRACKET, tokens[6].Type);
     }
+
+    [Fact]
+    public void LEX_ERR_001_InvalidCharacter()
+    {
+        var ex = Assert.Throws<LexerException>(() => Tokenize("customer @ age"));
+        Assert.Equal("RF1001", ex.Code);
+        Assert.Contains("Unexpected character '@'", ex.Message);
+    }
+}

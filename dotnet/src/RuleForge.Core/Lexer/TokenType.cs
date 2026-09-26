@@ -16,6 +16,7 @@ public enum TokenType
     
     // Symbols
     LPAREN, RPAREN, DOT, COMMA,
+    LBRACKET, RBRACKET,
     
     // Control
     EOF

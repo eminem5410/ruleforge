@@ -161,6 +161,8 @@ public class Lexer
                 case '/': tokens.Add(new Token(TokenType.DIVIDE, "/", startLine, startCol)); Advance(); break;
                 case '(': tokens.Add(new Token(TokenType.LPAREN, "(", startLine, startCol)); Advance(); break;
                 case ')': tokens.Add(new Token(TokenType.RPAREN, ")", startLine, startCol)); Advance(); break;
+                case '[': tokens.Add(new Token(TokenType.LBRACKET, "[", startLine, startCol)); Advance(); break;
+                case ']': tokens.Add(new Token(TokenType.RBRACKET, "]", startLine, startCol)); Advance(); break;
                 case '.': tokens.Add(new Token(TokenType.DOT, ".", startLine, startCol)); Advance(); break;
                 case ',': tokens.Add(new Token(TokenType.COMMA, ",", startLine, startCol)); Advance(); break;
                 default: throw new LexerException("RF1001", $"Unexpected character '{_currentChar}'", startLine, startCol);
