@@ -96,71 +96,65 @@ class SemanticAnalyzer:
                 return "Boolean"
             elif op in ["+", "-", "*", "/"]:
                 if left_type not in valid_numerics or right_type not in valid_numerics: raise SemanticError("RF3001", f"Operator '{op}' requires numeric")
+                if op == "/": return "Decimal" # Division always yields Decimal
                 return "Decimal" if "Decimal" in [left_type, right_type] else "Integer"
 
         elif isinstance(node, ArrayLiteralNode):
             if not node.elements:
                 return "Array<Null>"
-                
             types = [self.check_node(el) for el in node.elements]
             first_type = types[0]
-            
             for t in types[1:]:
                 if t != first_type:
                     raise SemanticError("RF3003", f"Heterogeneous array literal. Expected {first_type}, got {t}")
-                    
             return f"Array<{first_type}>"
             
         elif isinstance(node, ArrayIndexNode):
             arr_type = self.check_node(node.array)
             idx_type = self.check_node(node.index)
-            
             if idx_type != "Integer":
                 raise SemanticError("RF3003", f"Array index must be Integer, got {idx_type}")
-                
             if not arr_type.startswith("Array<"):
                 raise SemanticError("RF3003", f"Cannot index non-array type {arr_type}")
-                
-            inner_type = arr_type[6:-1] # Strip "Array<" and ">"
+            inner_type = arr_type[6:-1]
             return inner_type
 
         elif isinstance(node, FunctionCallNode):
-            if node.name not in ["contains", "length", "starts_with", "ends_with", "abs"]:
+            func_name = node.name.lower()
+            if func_name not in ["contains", "length", "starts_with", "ends_with", "abs"]:
                 raise SemanticError("RF3003", f"Unknown function '{node.name}'")
                 
-            if node.name == "length":
+            if func_name == "length":
                 if len(node.args) != 1: raise SemanticError("RF3003", "Function 'length' expects 1 argument")
                 arg_type = self.check_node(node.args[0])
-                if not arg_type.startswith("Array<"):
-                    raise SemanticError("RF3003", f"Function 'length' expects an Array, got {arg_type}")
+                if arg_type != "String" and not arg_type.startswith("Array<"):
+                    raise SemanticError("RF3003", f"Function 'length' expects a String or Array, got {arg_type}")
                 return "Integer"
                 
-            elif node.name == "contains":
+            elif func_name == "contains":
                 if len(node.args) != 2: raise SemanticError("RF3003", "Function 'contains' expects 2 arguments")
-                arr_type = self.check_node(node.args[0])
-                val_type = self.check_node(node.args[1])
+                arg1_type = self.check_node(node.args[0])
+                arg2_type = self.check_node(node.args[1])
                 
-                if not arr_type.startswith("Array<"):
-                    raise SemanticError("RF3003", f"Function 'contains' expects an Array as first argument, got {arr_type}")
-                    
-                inner_type = arr_type[6:-1]
-                
-                if inner_type == "Null":
-                    raise SemanticError("RF3003", "Cannot infer array type from empty array literal in 'contains'")
-                    
-                if inner_type != val_type:
-                    raise SemanticError("RF3003", f"Argument 2 of 'contains' must be {inner_type}, got {val_type}")
-                    
+                if arg1_type == "String":
+                    if arg2_type != "String": raise SemanticError("RF3003", f"Argument 2 of 'contains' must be String, got {arg2_type}")
+                elif arg1_type.startswith("Array<"):
+                    inner_type = arg1_type[6:-1]
+                    if inner_type == "Null":
+                        raise SemanticError("RF3003", "Cannot infer array type from empty array literal in 'contains'")
+                    if inner_type != arg2_type:
+                        raise SemanticError("RF3003", f"Argument 2 of 'contains' must be {inner_type}, got {arg2_type}")
+                else:
+                    raise SemanticError("RF3003", f"Function 'contains' expects a String or Array as first argument, got {arg1_type}")
                 return "Boolean"
                 
-            # Otras funciones simples (strings/numerics)
-            elif node.name in ["starts_with", "ends_with"]:
-                if len(node.args) != 2: raise SemanticError("RF3003", f"Function '{node.name}' expects 2 arguments")
+            elif func_name in ["starts_with", "ends_with"]:
+                if len(node.args) != 2: raise SemanticError("RF3003", f"Function '{func_name}' expects 2 arguments")
                 t1 = self.check_node(node.args[0])
                 t2 = self.check_node(node.args[1])
-                if t1 != "String" or t2 != "String": raise SemanticError("RF3003", f"Function '{node.name}' requires String arguments")
+                if t1 != "String" or t2 != "String": raise SemanticError("RF3003", f"Function '{func_name}' requires String arguments")
                 return "Boolean"
-            elif node.name == "abs":
+            elif func_name == "abs":
                 if len(node.args) != 1: raise SemanticError("RF3003", "Function 'abs' expects 1 argument")
                 t = self.check_node(node.args[0])
                 if t not in ["Integer", "Decimal"]: raise SemanticError("RF3003", "Function 'abs' requires Numeric argument")
