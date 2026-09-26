@@ -1,0 +1,1 @@
+{"id":"RF-CONF-010","name":"Array Indexing","source":"RULE r LANGUAGE 2 WHEN customer.tags[0] == \"admin\" THEN ALLOW END","context_schema":{"customer":{"tags":"Array<String>"}},"context":{"customer":{"tags":["admin","user"]}},"expected":{"status":"ok","decisions":[{"rule_id":"r","matched":true,"actions":[{"type":"ALLOW","value":null}]}]}}

@@ -27,3 +27,21 @@ The Golden Rule: A RuleForge rule must never directly perform external side effe
   - RF4002: Runtime Type Error (e.g., NULL arithmetic, incompatible operations)
   - RF4003: Invalid Runtime Context (Context data structure or types do not match Schema)
 - RF5xxx: Security / Resource Limits
+
+## 14. V7.0.0 Language Extensions (Arrays)
+
+### 14.1 EBNF Additions
+factor          = literal | property_access | function_call | "(" expression ")" | array_literal ;
+array_literal   = "[" [ expression { "," expression } ] "]" ;
+property_access = identifier "." identifier | identifier "." identifier "[" integer "]" ;
+function_call   = identifier "(" [ expression { "," expression } ] ")" ;
+
+Note: Array indexing only supports integer literals in V7. CONTAINS is added to the standard library.
+
+### 14.2 Type Matrix Additions
+Left = Array<T> | Op = CONTAINS | Right = T | Result = Boolean
+Left = Array<T> | Op = LENGTH | Right = (none) | Result = Integer
+
+### 14.3 Error Codes for Arrays
+- RF3003 Semantic Error: Heterogeneous array literal.
+- RF4002 Runtime Type Error: Indexing a NULL array, Out of bounds index, or calling LENGTH/CONTAINS on NULL.

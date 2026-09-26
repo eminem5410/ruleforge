@@ -1,0 +1,1 @@
+{"id":"RF-CONF-008","name":"Array Literal and LENGTH","source":"RULE r LANGUAGE 2 WHEN LENGTH([1, 2, 3]) == 3 THEN ALLOW END","context_schema":{},"context":{},"expected":{"status":"ok","decisions":[{"rule_id":"r","matched":true,"actions":[{"type":"ALLOW","value":null}]}]}}

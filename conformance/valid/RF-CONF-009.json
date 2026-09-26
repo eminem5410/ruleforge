@@ -1,0 +1,1 @@
+{"id":"RF-CONF-009","name":"Array Context Property and CONTAINS","source":"RULE r LANGUAGE 2 WHEN CONTAINS(customer.tags, \"vip\") THEN ALLOW END","context_schema":{"customer":{"tags":"Array<String>"}},"context":{"customer":{"tags":["standard","vip","beta"]}},"expected":{"status":"ok","decisions":[{"rule_id":"r","matched":true,"actions":[{"type":"ALLOW","value":null}]}]}}

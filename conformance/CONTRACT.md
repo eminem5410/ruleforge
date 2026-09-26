@@ -69,3 +69,9 @@ Error categories:
 
 ## 8. Determinism
 Given the same `source`, `context_schema`, `context`, and `language_version`, the implementation MUST produce the exact same canonical output.
+
+## 9. V7.0.0 Array Type Extensions
+- Supported Types: Array<Integer>, Array<Decimal>, Array<String>, Array<Boolean>, Array<Date>.
+- Serialization: JSON Arrays (e.g., ["A", "B"]).
+- Homogeneity: Arrays must be strictly homogeneous. Mixing types results in RF3003 Semantic Error.
+- NULL Semantics: LENGTH(NULL) -> RF4002. CONTAINS(NULL, val) -> RF4002. arr[0] where arr is NULL -> RF4002. Out of bounds index -> RF4002.

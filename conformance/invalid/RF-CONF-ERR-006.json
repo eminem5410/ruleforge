@@ -1,0 +1,1 @@
+{"id":"RF-CONF-ERR-006","name":"Runtime Error: LENGTH on NULL","source":"RULE r LANGUAGE 2 WHEN LENGTH(customer.tags) > 0 THEN ALLOW END","context_schema":{"customer":{"tags":"Array<String>"}},"context":{"customer":{}},"expected":{"status":"error","error_code":"RF4002"}}

@@ -1,0 +1,1 @@
+{"id":"RF-CONF-ERR-005","name":"Semantic Error: Heterogeneous Array","source":"RULE r LANGUAGE 2 WHEN LENGTH([1, \"hello\"]) == 2 THEN ALLOW END","context_schema":{},"context":{},"expected":{"status":"error","error_code":"RF3003"}}
