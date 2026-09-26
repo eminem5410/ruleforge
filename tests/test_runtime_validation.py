@@ -102,3 +102,31 @@ def test_runtime_missing_object_allowed_as_null():
     ctx = {"customer": {"age": 20}}
     decisions = engine.evaluate(rule, ctx)
     assert decisions[0].matched == True
+
+def test_runtime_valid_string_array():
+    schema = {"customer": {"tags": "Array<String>"}}
+    ctx = {"customer": {"tags": ["admin", "user"]}}
+    decisions = RuleForgeEngine(schema).evaluate("RULE r LANGUAGE 2 WHEN LENGTH(customer.tags) == 2 THEN ALLOW END", ctx)
+    assert decisions[0].matched == True
+
+def test_runtime_valid_integer_array():
+    schema = {"customer": {"ids": "Array<Integer>"}}
+    ctx = {"customer": {"ids": [1, 2, 3]}}
+    decisions = RuleForgeEngine(schema).evaluate("RULE r LANGUAGE 2 WHEN LENGTH(customer.ids) == 3 THEN ALLOW END", ctx)
+    assert decisions[0].matched == True
+
+def test_runtime_invalid_array_heterogeneous():
+    schema = {"customer": {"tags": "Array<String>"}}
+    ctx = {"customer": {"tags": ["admin", 42]}}
+    with pytest.raises(EvaluatorError) as exc:
+        RuleForgeEngine(schema).evaluate("RULE r LANGUAGE 2 WHEN LENGTH(customer.tags) == 2 THEN ALLOW END", ctx)
+    assert exc.value.code == "RF4003"
+    assert "expected String but got int" in exc.value.message
+
+def test_runtime_invalid_array_value_not_list():
+    schema = {"customer": {"tags": "Array<String>"}}
+    ctx = {"customer": {"tags": "admin"}} # String instead of List
+    with pytest.raises(EvaluatorError) as exc:
+        RuleForgeEngine(schema).evaluate("RULE r LANGUAGE 2 WHEN LENGTH(customer.tags) == 1 THEN ALLOW END", ctx)
+    assert exc.value.code == "RF4003"
+    assert "expected Array but got str" in exc.value.message
