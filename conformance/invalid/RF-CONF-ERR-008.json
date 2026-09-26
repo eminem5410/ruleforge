@@ -1,0 +1,1 @@
+{"id":"RF-CONF-ERR-008","name":"Runtime Error: Indexing NULL Array","source":"RULE r LANGUAGE 2 WHEN customer.tags[0] == \"admin\" THEN ALLOW END","context_schema":{"customer":{"tags":"Array<String>"}},"context":{"customer":{}},"expected":{"status":"error","error_code":"RF4002"}}

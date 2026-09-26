@@ -1,0 +1,1 @@
+{"id":"RF-CONF-ERR-007","name":"Runtime Error: Index Out of Bounds","source":"RULE r LANGUAGE 2 WHEN customer.tags[5] == \"admin\" THEN ALLOW END","context_schema":{"customer":{"tags":"Array<String>"}},"context":{"customer":{"tags":["admin","user"]}},"expected":{"status":"error","error_code":"RF4002"}}

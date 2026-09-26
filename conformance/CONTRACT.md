@@ -75,3 +75,6 @@ Given the same `source`, `context_schema`, `context`, and `language_version`, th
 - Serialization: JSON Arrays (e.g., ["A", "B"]).
 - Homogeneity: Arrays must be strictly homogeneous. Mixing types results in RF3003 Semantic Error.
 - NULL Semantics: LENGTH(NULL) -> RF4002. CONTAINS(NULL, val) -> RF4002. arr[0] where arr is NULL -> RF4002. Out of bounds index -> RF4002.
+
+## 10. Backward Compatibility
+Language Version 2 is backward-compatible with Language Version 1. All V1 conformance vectors remain valid for V2.

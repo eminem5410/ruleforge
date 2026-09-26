@@ -22,7 +22,11 @@ Arrays of Arrays (nested arrays) are explicitly forbidden in V7.
 - `[1, 2, 3]` evaluates to `Array<Integer>`.
 - `["A", "B"]` evaluates to `Array<String>`.
 - `[1, "A"]` results in a Semantic Error (`RF3xxx`) due to type mismatch.
-- `[]` (empty array literal) evaluates to `Array<Null>` and can be implicitly cast to any `Array<T>` expected by a function or context property.
+
+### 2.2 Empty Array Literals
+`[]` is an untyped empty array literal. It does not participate in type inference by itself.
+- `LENGTH([])` is valid and returns `0`.
+- `CONTAINS([], "value")` is invalid and results in a Semantic Error (`RF3xxx`) because the inner type `T` cannot be determined.
 
 ## 3. Context Integration
 Arrays can be provided via the runtime context, just like primitive types.
@@ -35,10 +39,12 @@ Arrays can be provided via the runtime context, just like primitive types.
 Enclosed in square brackets, separated by commas.
 `[1, 2, 3]`
 
-### 4.2 Indexing (Property Access)
-Arrays are 0-indexed. Indexing is performed using the dot notation property access, followed by the index in brackets.
-- `customer.tags[0]`
-- Only Integer literals are allowed as indices. Dynamic expressions (`customer.tags[someVar]`) are not allowed in V7.
+### 4.2 Indexing
+Arrays are 0-indexed. 
+- V7 indexing is strictly restricted to context property access. General expression indexing (e.g., `[1,2,3][0]` or `func()[0]`) is NOT supported.
+- Syntax: `identifier "." identifier "[" integer "]"`
+- Example: `customer.tags[0]`
+- Only Integer literals are allowed as indices. Dynamic expressions are not allowed.
 
 ## 5. Built-in Functions
 V7 extends the standard library with two array-specific functions.
@@ -57,6 +63,7 @@ V7 extends the standard library with two array-specific functions.
 - **Errors:**
   - `CONTAINS(NULL, value)` -> Runtime Type Error (`RF4002`).
   - `CONTAINS(array, NULL)` -> Semantic Error (`RF3xxx`). Searching for NULL is forbidden.
+  - `CONTAINS([], value)` -> Semantic Error (`RF3xxx`). Type cannot be inferred.
 - **Type Safety:** The type of `value` must match the inner type `T` of the `array`.
   - `CONTAINS(["admin", "user"], "admin")` -> Boolean
   - `CONTAINS(["admin", "user"], 123)` -> Semantic Error (`RF3xxx`). Integer does not match String.
@@ -74,3 +81,4 @@ To maintain the language's deterministic and bounded-execution guarantees, the f
 - Array equality (`arr1 == arr2`)
 - Higher-order functions (`MAP`, `FILTER`, `ANY`, `ALL`, `REDUCE`)
 - Lambdas / Anonymous functions
+- General expression indexing (`[1,2,3][0]`)

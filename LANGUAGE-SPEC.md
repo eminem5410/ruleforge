@@ -45,3 +45,8 @@ Left = Array<T> | Op = LENGTH | Right = (none) | Result = Integer
 ### 14.3 Error Codes for Arrays
 - RF3003 Semantic Error: Heterogeneous array literal.
 - RF4002 Runtime Type Error: Indexing a NULL array, Out of bounds index, or calling LENGTH/CONTAINS on NULL.
+
+## 15. Backward Compatibility
+Language Version 2 is backward-compatible with Language Version 1. 
+All valid V1 programs remain valid under V2 unless explicitly deprecated. 
+The Conformance Suite vectors for V1 (RF-CONF-001 to 007) are considered valid for V2.

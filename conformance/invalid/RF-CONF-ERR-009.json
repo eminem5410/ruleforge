@@ -1,0 +1,1 @@
+{"id":"RF-CONF-ERR-009","name":"Semantic Error: CONTAINS Type Mismatch","source":"RULE r LANGUAGE 2 WHEN CONTAINS([\"admin\", \"user\"], 123) THEN ALLOW END","context_schema":{},"context":{},"expected":{"status":"error","error_code":"RF3003"}}

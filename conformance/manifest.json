@@ -17,6 +17,9 @@
     "invalid/RF-CONF-ERR-003.json",
     "invalid/RF-CONF-ERR-004.json",
     "invalid/RF-CONF-ERR-005.json",
-    "invalid/RF-CONF-ERR-006.json"
+    "invalid/RF-CONF-ERR-006.json",
+    "invalid/RF-CONF-ERR-007.json",
+    "invalid/RF-CONF-ERR-008.json",
+    "invalid/RF-CONF-ERR-009.json"
   ]
 }
