@@ -3,14 +3,14 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 import pytest
-from ruleforge import RuleForgeEngine
+from ruleforge import RuleEngine
 from ruleforge.lexer import LexerError
 from ruleforge.parser import ParserError
 from ruleforge.semantic import SemanticError
 from ruleforge.evaluator import EvaluatorError
 
 SCHEMA = {"customer": {"age": "Integer", "active": "Boolean"}}
-engine = RuleForgeEngine(SCHEMA)
+engine = RuleEngine(SCHEMA)
 
 def test_engine_valid():
     code = 'RULE r LANGUAGE 1 WHEN customer.age >= 18 THEN ALLOW END'

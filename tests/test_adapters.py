@@ -4,7 +4,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 import pytest
 from datetime import date
 from decimal import Decimal
-from ruleforge import RuleForgeEngine
+from ruleforge import RuleEngine
 from ruleforge.evaluator import EvaluatorError
 from adapters.fhir_adapter import FhirAdapter
 from adapters.erp_adapter import ErpAdapter
@@ -15,7 +15,7 @@ FHIR_SCHEMA = {
     "patient": {"age": "Integer", "active": "Boolean"},
     "observation": {"code": "String", "value": "Decimal"}
 }
-fhir_engine = RuleForgeEngine(FHIR_SCHEMA)
+fhir_engine = RuleEngine(FHIR_SCHEMA)
 REFERENCE_DATE = date(2024, 1, 1) # Fecha fija para determinismo
 
 def test_fhir_adapter_determinism_and_precision():
@@ -62,7 +62,7 @@ ERP_SCHEMA = {
     "customer": {"active": "Boolean", "credit_score": "Integer"},
     "invoice": {"total": "Decimal", "status": "String"}
 }
-erp_engine = RuleForgeEngine(ERP_SCHEMA)
+erp_engine = RuleEngine(ERP_SCHEMA)
 
 def test_erp_adapter_precision_and_missing_data():
     customer = {"active": True} # Falta credit_score
@@ -100,7 +100,7 @@ FHIR_SCHEMA_V2 = {
     "dispense": {"code": "String", "status": "String"},
     "encounter": {"status": "String", "class": "String"}
 }
-fhir_engine_v2 = RuleForgeEngine(FHIR_SCHEMA_V2)
+fhir_engine_v2 = RuleEngine(FHIR_SCHEMA_V2)
 
 def test_fhir_adapter_allergy_intolerance():
     patient = {"resourceType": "Patient", "birthDate": "2000-01-01"}
@@ -177,7 +177,7 @@ ERP_SCHEMA_V2 = {
     "payment": {"amount": "Decimal", "method": "String"},
     "stock": {"quantity": "Integer", "warehouse": "String"}
 }
-erp_engine_v2 = RuleForgeEngine(ERP_SCHEMA_V2)
+erp_engine_v2 = RuleEngine(ERP_SCHEMA_V2)
 
 def test_erp_adapter_product():
     customer = {"active": True}

@@ -3,11 +3,12 @@ import pytest
 from ruleforge.lexer import Lexer, LexerError
 from ruleforge.parser import Parser, ParserError
 from ruleforge.semantic import SemanticAnalyzer, SemanticError
-from ruleforge.evaluator import Evaluator, EvaluatorError
+from ruleforge.engine import RuleEngine
+from ruleforge.evaluator import EvaluatorError
 
 SCHEMA = {
     "customer": {"age": "Integer", "name": "String", "active": "Boolean", "email": "String", "tags": "Array<String>", "birth_date": "Date", "registration_date": "Date", "id": "Integer", "risk_score": "Integer", "status": "String"},
-    "invoice": {"total": "Decimal", "amount": "Integer", "status": "String", "issue_date": "Date", "due_date": "Date"},
+    "invoice": {"total": "Decimal", "amount": "Decimal", "status": "String", "issue_date": "Date", "due_date": "Date"},
     "observation": {"code": "String", "value": "Decimal", "unit": "String"}
 }
 
@@ -29,15 +30,14 @@ def test_valid_conformance(rule_path, data_path):
     with open(rule_path, 'r', encoding='utf-8') as f: source_code = f.read()
     with open(data_path, 'r', encoding='utf-8') as f: data = json.load(f)
 
-    tokens = Lexer(source_code).tokenize()
-    ast = Parser(tokens).parse()
-    SemanticAnalyzer(SCHEMA).analyze(ast)
-    
     ctx = data.get("context", {})
-    evaluator = Evaluator(ctx)
-    decisions = evaluator.eval_rules(ast)
     
-    d = decisions[0]
+    # V10: Use RuleEngine to support pipeline/SET patches
+    engine = RuleEngine(SCHEMA)
+    decisions = engine.evaluate(source_code, ctx)
+    
+    # Pipeline might have multiple decisions, we check the last one for the vector
+    d = decisions[-1]
     expected = data["expected"]
     
     assert d.matched == expected["matched"]
@@ -46,6 +46,8 @@ def test_valid_conformance(rule_path, data_path):
         assert d.actions[i].action_type == exp_act["action_type"]
         if exp_act.get("value") is not None:
             assert d.actions[i].value == exp_act["value"]
+        if exp_act.get("payload") is not None:
+            assert d.actions[i].payload == exp_act["payload"]
 
 @pytest.mark.parametrize("rule_path, data_path", invalid_cases)
 def test_invalid_conformance(rule_path, data_path):
@@ -53,13 +55,8 @@ def test_invalid_conformance(rule_path, data_path):
     with open(data_path, 'r', encoding='utf-8') as f: data = json.load(f)
 
     with pytest.raises((LexerError, ParserError, SemanticError, EvaluatorError)) as exc:
-        tokens = Lexer(source_code).tokenize()
-        ast = Parser(tokens).parse()
-        SemanticAnalyzer(SCHEMA).analyze(ast)
-        
-        ctx = data.get("context", {})
-        evaluator = Evaluator(ctx)
-        evaluator.eval_rules(ast)
+        engine = RuleEngine(SCHEMA)
+        engine.evaluate(source_code, data.get("context", {}))
         
     assert exc.value.code == data["expected_error_code"], f"Expected {data['expected_error_code']} but got {exc.value.code}"
 

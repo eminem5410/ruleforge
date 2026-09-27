@@ -2,10 +2,10 @@ import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 import pytest
-from ruleforge import RuleForgeEngine
+from ruleforge import RuleEngine
 
 SCHEMA = {"customer": {"age": "Integer", "active": "Boolean", "email": "String"}}
-engine = RuleForgeEngine(SCHEMA)
+engine = RuleEngine(SCHEMA)
 
 def get_trace(code, ctx):
     decisions = engine.evaluate(code, ctx, explain=True)

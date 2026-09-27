@@ -70,7 +70,7 @@ async def test_api_010_invalid_schema_structure(client):
 async def test_api_011_internal_error_sanitization(client, monkeypatch):
     def mock_evaluate(*args, **kwargs):
         raise Exception("Secret internal error details")
-    monkeypatch.setattr(ruleforge.RuleForgeEngine, "evaluate", mock_evaluate)
+    monkeypatch.setattr(ruleforge.RuleEngine, "evaluate", mock_evaluate)
     payload = {"rules": RULE, "context": {"customer": {"age": 21}}, "context_schema": SCHEMA}
     res = await client.post("/v1/evaluate", json=payload)
     assert res.status_code == 500

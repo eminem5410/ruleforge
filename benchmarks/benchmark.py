@@ -1,11 +1,11 @@
 import time
 import statistics
-from ruleforge import RuleForgeEngine
+from ruleforge import RuleEngine
 
 SCHEMA = {
     "customer": {"age": "Integer", "name": "String", "active": "Boolean", "email": "String"}
 }
-engine = RuleForgeEngine(SCHEMA)
+engine = RuleEngine(SCHEMA)
 
 RULE_SIMPLE = 'RULE r LANGUAGE 1 WHEN customer.age >= 18 THEN ALLOW END'
 RULE_COMPLEX = 'RULE r LANGUAGE 1 WHEN customer.age >= 18 AND customer.active == true OR contains(customer.name, "Pablo") AND customer.email IS NOT NULL THEN ALLOW END'

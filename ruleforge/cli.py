@@ -4,7 +4,7 @@ import os
 import argparse
 from decimal import Decimal
 from datetime import date
-from . import RuleForgeEngine
+from . import RuleEngine
 from .lexer import LexerError
 from .parser import ParserError
 from .semantic import SemanticError
@@ -47,7 +47,7 @@ def main():
         sys.exit(2)
 
     try:
-        engine = RuleForgeEngine(schema)
+        engine = RuleEngine(schema)
         explain_mode = (args.command == "explain") or args.json_output
         decisions = engine.evaluate(source_code, context, explain=explain_mode)
         

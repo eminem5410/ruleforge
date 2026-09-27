@@ -1,0 +1,11 @@
+RULE BlockHighRisk
+LANGUAGE 3
+WHEN customer.risk_score >= 80
+THEN SET customer.status = "blocked"
+END
+
+RULE NotifyBlocked
+LANGUAGE 3
+WHEN customer.status == "blocked"
+THEN EMIT "ALERT_USER" WITH customer.id
+END

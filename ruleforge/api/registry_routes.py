@@ -9,7 +9,7 @@ from ..registry.in_memory_repository import InMemoryRuleRepository
 from ..registry.postgres_repository import PostgresRuleRepository
 from ..registry.repository import RuleRepository
 from ..persistence.models import Base
-from .. import RuleForgeEngine
+from ..engine import RuleEngine
 from ..lexer import LexerError
 from ..parser import ParserError
 from ..semantic import SemanticError
@@ -115,7 +115,7 @@ async def evaluate_registered_rule(rule_id: str, request: EvaluateRegisteredRule
                         val = ctx_copy[obj_name][prop_name]
                         if val is not None and prop_type == "Decimal" and not isinstance(val, Decimal):
                             ctx_copy[obj_name][prop_name] = Decimal(str(val))
-        engine = RuleForgeEngine(request.context_schema)
+        engine = RuleEngine(request.context_schema)
         decisions = engine.evaluate(rule.source, ctx_copy, explain=request.explain)
         output = {"decisions": [d.to_dict() for d in decisions]}
         

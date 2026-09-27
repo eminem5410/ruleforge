@@ -8,6 +8,7 @@ using RuleForge.Core.Lexing;
 using RuleForge.Core.Parsing;
 using RuleForge.Core.Semantic;
 using RuleForge.Core.Evaluation;
+using RuleForge.Core.Orchestration;
 
 namespace RuleForge.Core.Tests;
 
@@ -16,7 +17,7 @@ public class ConformanceTests
     private readonly Dictionary<string, Dictionary<string, string>> _schema = new()
     {
         { "customer", new Dictionary<string, string> { { "age", "Integer" }, { "name", "String" }, { "active", "Boolean" }, { "email", "String" }, { "tags", "Array<String>" }, { "birth_date", "Date" }, { "registration_date", "Date" }, { "id", "Integer" }, { "risk_score", "Integer" }, { "status", "String" } } },
-        { "invoice", new Dictionary<string, string> { { "total", "Decimal" }, { "amount", "Integer" }, { "status", "String" }, { "issue_date", "Date" }, { "due_date", "Date" } } },
+        { "invoice", new Dictionary<string, string> { { "total", "Decimal" }, { "amount", "Decimal" }, { "status", "String" }, { "issue_date", "Date" }, { "due_date", "Date" } } },
         { "observation", new Dictionary<string, string> { { "code", "String" }, { "value", "Decimal" }, { "unit", "String" } } }
     };
 
@@ -59,12 +60,13 @@ public class ConformanceTests
                 ctx = DeserializeContext(ctxEl);
             }
 
-            var eval = new Evaluator(ctx);
-            var decisions = eval.EvaluateRules(ast);
+            var engine = new RuleEngine(ast, _schema, useCompiler: false);
+            var pipelineResult = engine.Execute(ctx);
+            var decisions = pipelineResult.Decisions;
 
             Assert.Null(expectedError); // Should not have errored
             
-            var d = decisions[0];
+            var d = decisions[decisions.Count - 1];
             var expected = data.GetProperty("expected");
             Assert.Equal(expected.GetProperty("matched").GetBoolean(), d.Matched);
             

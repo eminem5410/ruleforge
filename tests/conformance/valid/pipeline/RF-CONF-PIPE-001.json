@@ -1,0 +1,7 @@
+{
+    "context": {"customer": {"risk_score": 90, "status": "active", "id": 123}},
+    "expected": {
+        "matched": true,
+        "actions": [{"action_type": "EMIT", "value": "ALERT_USER", "payload": 123}]
+    }
+}

@@ -3,14 +3,14 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 import pytest
-from ruleforge import RuleForgeEngine
+from ruleforge import RuleEngine
 from ruleforge.evaluator import EvaluatorError
 
 SCHEMA = {
     "customer": {"age": "Integer", "name": "String", "active": "Boolean"},
     "invoice": {"total": "Decimal", "paid": "Boolean"}
 }
-engine = RuleForgeEngine(SCHEMA)
+engine = RuleEngine(SCHEMA)
 
 RULE = 'RULE r LANGUAGE 1 WHEN customer.age >= 18 THEN ALLOW END'
 
@@ -51,7 +51,7 @@ def test_runtime_context_not_dict():
 SCHEMA_FULL = {
     "customer": {"age": "Integer", "balance": "Decimal", "active": "Boolean", "birth_date": "Date"}
 }
-engine_full = RuleForgeEngine(SCHEMA_FULL)
+engine_full = RuleEngine(SCHEMA_FULL)
 
 def test_runtime_valid_decimal():
     ctx = {"customer": {"balance": 150.75}}
@@ -106,20 +106,20 @@ def test_runtime_missing_object_allowed_as_null():
 def test_runtime_valid_string_array():
     schema = {"customer": {"tags": "Array<String>"}}
     ctx = {"customer": {"tags": ["admin", "user"]}}
-    decisions = RuleForgeEngine(schema).evaluate("RULE r LANGUAGE 2 WHEN LENGTH(customer.tags) == 2 THEN ALLOW END", ctx)
+    decisions = RuleEngine(schema).evaluate("RULE r LANGUAGE 2 WHEN LENGTH(customer.tags) == 2 THEN ALLOW END", ctx)
     assert decisions[0].matched == True
 
 def test_runtime_valid_integer_array():
     schema = {"customer": {"ids": "Array<Integer>"}}
     ctx = {"customer": {"ids": [1, 2, 3]}}
-    decisions = RuleForgeEngine(schema).evaluate("RULE r LANGUAGE 2 WHEN LENGTH(customer.ids) == 3 THEN ALLOW END", ctx)
+    decisions = RuleEngine(schema).evaluate("RULE r LANGUAGE 2 WHEN LENGTH(customer.ids) == 3 THEN ALLOW END", ctx)
     assert decisions[0].matched == True
 
 def test_runtime_invalid_array_heterogeneous():
     schema = {"customer": {"tags": "Array<String>"}}
     ctx = {"customer": {"tags": ["admin", 42]}}
     with pytest.raises(EvaluatorError) as exc:
-        RuleForgeEngine(schema).evaluate("RULE r LANGUAGE 2 WHEN LENGTH(customer.tags) == 2 THEN ALLOW END", ctx)
+        RuleEngine(schema).evaluate("RULE r LANGUAGE 2 WHEN LENGTH(customer.tags) == 2 THEN ALLOW END", ctx)
     assert exc.value.code == "RF4003"
     assert "expected String but got int" in exc.value.message
 
@@ -127,6 +127,6 @@ def test_runtime_invalid_array_value_not_list():
     schema = {"customer": {"tags": "Array<String>"}}
     ctx = {"customer": {"tags": "admin"}} # String instead of List
     with pytest.raises(EvaluatorError) as exc:
-        RuleForgeEngine(schema).evaluate("RULE r LANGUAGE 2 WHEN LENGTH(customer.tags) == 1 THEN ALLOW END", ctx)
+        RuleEngine(schema).evaluate("RULE r LANGUAGE 2 WHEN LENGTH(customer.tags) == 1 THEN ALLOW END", ctx)
     assert exc.value.code == "RF4003"
     assert "expected Array but got str" in exc.value.message

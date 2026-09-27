@@ -9,7 +9,7 @@ import argparse
 # Agregar el paquete al path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from ruleforge import RuleForgeEngine
+from ruleforge import RuleEngine
 from ruleforge.lexer import LexerError
 from ruleforge.parser import ParserError
 from ruleforge.semantic import SemanticError
@@ -48,7 +48,7 @@ def run_vectors(verbose=False):
             vector = json.load(f)
             
         try:
-            engine = RuleForgeEngine(vector['context_schema'])
+            engine = RuleEngine(vector['context_schema'])
             decisions = engine.evaluate(vector['source'], vector['context'])
             
             actual_output = {

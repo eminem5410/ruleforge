@@ -3,11 +3,11 @@ from ruleforge.lexer import Lexer, LexerError
 from ruleforge.parser import Parser, ParserError
 from ruleforge.semantic import SemanticAnalyzer, SemanticError
 from ruleforge.evaluator import Evaluator, EvaluatorError
-from ruleforge.compiler import RuleForgeCompiler
+from ruleforge.engine import RuleEngine
 
 SCHEMA = {
     "customer": {"age": "Integer", "name": "String", "active": "Boolean", "email": "String", "tags": "Array<String>", "birth_date": "Date", "registration_date": "Date", "id": "Integer", "risk_score": "Integer", "status": "String"},
-    "invoice": {"total": "Decimal", "amount": "Integer", "status": "String", "issue_date": "Date", "due_date": "Date"},
+    "invoice": {"total": "Decimal", "amount": "Decimal", "status": "String", "issue_date": "Date", "due_date": "Date"},
     "observation": {"code": "String", "value": "Decimal", "unit": "String"}
 }
 
@@ -15,17 +15,11 @@ def get_result(rule_path, data_path, use_compiler):
     with open(rule_path) as f: source = f.read()
     with open(data_path) as f: data = json.load(f)
     try:
-        tokens = Lexer(source).tokenize()
-        ast = Parser(tokens).parse()
-        SemanticAnalyzer(SCHEMA).analyze(ast)
         ctx = data.get("context", {})
+        engine = RuleEngine(SCHEMA, use_compiler=use_compiler)
+        decisions = engine.evaluate(source, ctx)
+        d = decisions[-1]
         
-        if use_compiler:
-            decisions = RuleForgeCompiler(ast).execute(ctx)
-        else:
-            decisions = Evaluator(ctx).eval_rules(ast)
-            
-        d = decisions[0]
         actions = [{"action_type": a.action_type, "value": a.value, "payload": a.payload} for a in d.actions]
         return {"code": None, "matched": d.matched, "actions": actions}
     except (LexerError, ParserError, SemanticError, EvaluatorError) as e:

@@ -31,7 +31,7 @@ public class Evaluator
         return new Decision(node.Name, 1, node.LanguageVersion, matched, actions);
     }
 
-    private Decision EvaluateRule(RuleNode node)
+    public Decision EvaluateRule(RuleNode node)
     {
         _stepCount = 0;
         bool conditionResult = EvaluateNode(node.WhenExpr) is { Type: RuleValueType.Boolean, Value: true };

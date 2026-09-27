@@ -3,10 +3,11 @@ from ruleforge.lexer import Lexer, LexerError
 from ruleforge.parser import Parser, ParserError
 from ruleforge.semantic import SemanticAnalyzer, SemanticError
 from ruleforge.evaluator import Evaluator, EvaluatorError
+from ruleforge.engine import RuleEngine
 
 SCHEMA = {
     "customer": {"age": "Integer", "name": "String", "active": "Boolean", "email": "String", "tags": "Array<String>", "birth_date": "Date", "registration_date": "Date", "id": "Integer", "risk_score": "Integer", "status": "String"},
-    "invoice": {"total": "Decimal", "amount": "Integer", "status": "String", "issue_date": "Date", "due_date": "Date"},
+    "invoice": {"total": "Decimal", "amount": "Decimal", "status": "String", "issue_date": "Date", "due_date": "Date"},
     "observation": {"code": "String", "value": "Decimal", "unit": "String"}
 }
 
@@ -14,20 +15,17 @@ def get_python_result(rule_path, data_path):
     with open(rule_path) as f: source = f.read()
     with open(data_path) as f: data = json.load(f)
     try:
-        tokens = Lexer(source).tokenize()
-        ast = Parser(tokens).parse()
-        SemanticAnalyzer(SCHEMA).analyze(ast)
         ctx = data.get("context", {})
-        eval = Evaluator(ctx)
-        decisions = eval.eval_rules(ast)
-        d = decisions[0]
+        engine = RuleEngine(SCHEMA, use_compiler=True)
+        decisions = engine.evaluate(source, ctx)
+        d = decisions[-1]
+        
         actions = [{"action_type": a.action_type, "value": a.value, "payload": a.payload} for a in d.actions]
         return {"code": None, "matched": d.matched, "actions": actions}
     except (LexerError, ParserError, SemanticError, EvaluatorError) as e:
         return {"code": e.code, "matched": False, "actions": []}
 
 def get_csharp_result(rule_path, data_path):
-    # Usamos la DLL compilada directamente para mayor velocidad
     dll_path = "dotnet/src/RuleForge.ConformanceRunner/bin/Debug/net8.0/RuleForge.ConformanceRunner.dll"
     result = subprocess.run(["dotnet", dll_path, rule_path, data_path], capture_output=True, text=True)
     if result.returncode != 0:

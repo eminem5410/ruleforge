@@ -3,14 +3,14 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 import pytest
 from decimal import Decimal
-from ruleforge import RuleForgeEngine
+from ruleforge import RuleEngine
 from adapters.shipping_adapter import ShippingAdapter
 
 # Schema definido exclusivamente para este dominio de logística ficticio
 SHIPPING_SCHEMA = {
     "shipment": {"weight": "Decimal", "zone": "String", "priority": "Boolean"}
 }
-engine = RuleForgeEngine(SHIPPING_SCHEMA)
+engine = RuleEngine(SHIPPING_SCHEMA)
 
 def test_custom_adapter_shipping_express_rule():
     # Entidad de dominio: Un paquete de logística
