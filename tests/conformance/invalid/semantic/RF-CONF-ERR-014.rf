@@ -1,0 +1,5 @@
+RULE AnyNonArray
+LANGUAGE 4
+WHEN ANY customer.name WHERE it == "x"
+THEN ALLOW
+END

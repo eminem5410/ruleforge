@@ -155,6 +155,14 @@ class Parser:
 
     def factor(self):
         token = self.current_token
+        if token.type == TokenType.ANY or token.type == TokenType.ALL:
+            is_all = token.type == TokenType.ALL
+            self.advance()
+            array_node = self.factor()
+            self.expect(TokenType.WHERE)
+            where_node = self.expression()
+            from .ast_nodes import AnyAllNode
+            return AnyAllNode(is_all, array_node, where_node)
         if token.type == TokenType.DATE:
             self.advance()
             str_token = self.expect(TokenType.STRING)

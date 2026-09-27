@@ -1,0 +1,5 @@
+RULE AnyContext
+LANGUAGE 4
+WHEN ANY customer.tags WHERE it == "admin"
+THEN ALLOW
+END

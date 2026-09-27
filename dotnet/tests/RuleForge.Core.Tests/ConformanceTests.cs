@@ -97,6 +97,7 @@ public class ConformanceTests
         }
         catch (Exception ex) when (ex is LexerException || ex is ParserException || ex is SemanticException || ex is EvaluatorException)
         {
+            Console.WriteLine($"!!! EXCEPTION CAUGHT: {ex.GetType().Name} - {ex.Message}");
             Assert.NotNull(expectedError);
             string? code = ex switch
             {

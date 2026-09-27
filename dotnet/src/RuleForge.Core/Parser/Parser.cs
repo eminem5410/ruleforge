@@ -214,6 +214,15 @@ public class Parser
     private Expression Factor()
     {
         var t = CurrentToken;
+        if (t.Type == TokenType.ANY || t.Type == TokenType.ALL)
+        {
+            bool isAll = t.Type == TokenType.ALL;
+            Advance();
+            var arrayExpr = Factor();
+            Expect(TokenType.WHERE);
+            var whereExpr = Expression();
+            return new AnyAllExpression(isAll, arrayExpr, whereExpr);
+        }
         if (t.Type == TokenType.DATE)
         {
             Advance();
@@ -255,6 +264,11 @@ public class Parser
         }
         if (t.Type == TokenType.IDENTIFIER)
         {
+            if (t.Value == "it")
+            {
+                Advance();
+                return new ItExpression();
+            }
             var name = t.Value;
             Advance();
             

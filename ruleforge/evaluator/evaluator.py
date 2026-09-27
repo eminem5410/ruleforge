@@ -1,7 +1,7 @@
 from decimal import Decimal, InvalidOperation
 from datetime import date, timedelta
 from datetime import date
-from ..parser.ast_nodes import RuleNode, ActionNode, BinaryOpNode, UnaryOpNode, NullCheckNode, LiteralNode, IdentifierNode, PropertyAccessNode, FunctionCallNode, ArrayLiteralNode, ArrayIndexNode, DateLiteralNode, EmitActionNode, SetActionNode
+from ..parser.ast_nodes import RuleNode, ActionNode, BinaryOpNode, UnaryOpNode, NullCheckNode, LiteralNode, IdentifierNode, PropertyAccessNode, FunctionCallNode, ArrayLiteralNode, ArrayIndexNode, DateLiteralNode, EmitActionNode, SetActionNode, AnyAllNode
 from .errors import EvaluatorError
 
 MAX_EXECUTION_STEPS = 10000
@@ -78,6 +78,8 @@ class Evaluator:
         if isinstance(node, DateLiteralNode):
             return node.value, {"type": "date_literal", "value": node.value}
         if isinstance(node, LiteralNode):
+            if node.type == "IDENTIFIER" and node.value == "it" and "it" in self.context:
+                return self.context["it"], {"type": "it"}
             val = None
             if node.type == "BOOLEAN": val = node.value == "true"
             elif node.type == "INTEGER": val = int(node.value)
@@ -102,6 +104,20 @@ class Evaluator:
             if self.explain_mode:
                 return val, {"type": "property", "path": node.name, "value": val}
             return val, None
+            
+        elif isinstance(node, AnyAllNode):
+            arr_val, _ = self.eval_node(node.array_node)
+            if not isinstance(arr_val, list):
+                raise EvaluatorError("RF4002", "Cannot iterate non-array")
+            
+            for item in arr_val:
+                self.context["it"] = item
+                res, _ = self.eval_node(node.where_node)
+                if node.is_all:
+                    if not res: return False, None
+                else:
+                    if res: return True, None
+            return node.is_all, None
             
         elif isinstance(node, NullCheckNode):
             val, left_trace = self.eval_node(node.left)

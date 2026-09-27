@@ -1,0 +1,5 @@
+RULE AllShortCircuitFalse
+LANGUAGE 4
+WHEN ALL [1, 2, 3] WHERE it > 2
+THEN ALLOW
+END

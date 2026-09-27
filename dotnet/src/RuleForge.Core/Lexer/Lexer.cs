@@ -22,6 +22,9 @@ public class Lexer
         { "IS", TokenType.IS }, { "NULL", TokenType.NULL },
         { "DATE", TokenType.DATE },
         { "SET", TokenType.SET },
+        { "ANY", TokenType.ANY },
+        { "ALL", TokenType.ALL },
+        { "WHERE", TokenType.WHERE },
         { "EMIT", TokenType.EMIT },
         { "WITH", TokenType.WITH },
         { "true", TokenType.BOOLEAN }, { "false", TokenType.BOOLEAN }

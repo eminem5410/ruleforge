@@ -88,6 +88,10 @@ public class Evaluator
         }
         if (expr is LiteralExpression lit)
         {
+            if (lit.Value?.ToString() == "it" && _context.ContainsKey("it"))
+            {
+                return ToRuleValue(_context["it"]);
+            }
             return lit.Type switch
             {
                 TokenType.BOOLEAN => new RuleValue(RuleValueType.Boolean, lit.Value?.ToString() == "true"),
@@ -124,6 +128,33 @@ public class Evaluator
             }
         }
         
+        if (expr is ItExpression)
+        {
+            return ToRuleValue(_context["it"]);
+        }
+        if (expr is AnyAllExpression aa)
+        {
+            var arrVal = EvaluateNode(aa.ArrayExpr);
+            if (arrVal.Type != RuleValueType.Array) throw new EvaluatorException("RF4002", "Cannot iterate non-array");
+            var list = (List<RuleValue>)arrVal.Value!;
+            
+            foreach (var item in list)
+            {
+                _context["it"] = item.Value;
+                var res = EvaluateNode(aa.WhereExpr);
+                if (res.Type != RuleValueType.Boolean) throw new EvaluatorException("RF4002", "WHERE clause must return boolean");
+                
+                if (aa.IsAll)
+                {
+                    if (!(bool)res.Value!) return new RuleValue(RuleValueType.Boolean, false);
+                }
+                else
+                {
+                    if ((bool)res.Value!) return new RuleValue(RuleValueType.Boolean, true);
+                }
+            }
+            return new RuleValue(RuleValueType.Boolean, aa.IsAll);
+        }
         if (expr is ArrayLiteralExpression arrLit)
         {
             var elements = arrLit.Elements.Select(EvaluateNode).ToList();

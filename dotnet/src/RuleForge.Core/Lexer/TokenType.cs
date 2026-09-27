@@ -8,7 +8,7 @@ public enum TokenType
     AND, OR, NOT, IS, NULL,
     
     // Literals
-    IDENTIFIER, INTEGER, DECIMAL, STRING, BOOLEAN, DATE, EMIT, WITH, SET,
+    IDENTIFIER, INTEGER, DECIMAL, STRING, BOOLEAN, DATE, EMIT, WITH, SET, ANY, ALL, WHERE,
     
     // Operators
     EQ, ASSIGN, NEQ, GT, LT, GTE, LTE,

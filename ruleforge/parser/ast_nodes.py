@@ -78,3 +78,10 @@ class SetActionNode(ActionNode):
         self.obj_name = obj_name
         self.prop_name = prop_name
         self.value_node = value_node
+
+class AnyAllNode:
+    def __init__(self, is_all, array_node, where_node):
+        self.is_all = is_all
+        self.array_node = array_node
+        self.where_node = where_node
+    def __repr__(self): return f"AnyAll({'ALL' if self.is_all else 'ANY'} {self.array_node} WHERE {self.where_node})"

@@ -7,6 +7,7 @@ namespace RuleForge.Core.Semantic;
 public class SemanticAnalyzer
 {
     private readonly Dictionary<string, Dictionary<string, string>> _schema;
+    private string? _itType = null;
 
     public SemanticAnalyzer(Dictionary<string, Dictionary<string, string>> schema)
     {
@@ -176,6 +177,23 @@ public class SemanticAnalyzer
                     throw new SemanticException("RF3001", $"Operator '{op}' requires numeric or String operands");
                 return "Decimal";
             }
+        }
+        if (expr is ItExpression)
+        {
+            return _itType ?? "Unknown";
+        }
+        if (expr is AnyAllExpression aa)
+        {
+            var arrType = CheckNode(aa.ArrayExpr);
+            if (!arrType.StartsWith("Array<")) throw new SemanticException("RF3003", "ANY/ALL requires an array");
+            var innerType = arrType.Substring(6, arrType.Length - 7);
+            
+            _itType = innerType;
+            var whereType = CheckNode(aa.WhereExpr);
+            _itType = null;
+            
+            if (whereType != "Boolean") throw new SemanticException("RF3003", "WHERE clause must be Boolean");
+            return "Boolean";
         }
         if (expr is ArrayLiteralExpression arrLit)
         {

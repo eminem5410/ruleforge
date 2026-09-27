@@ -51,6 +51,10 @@ public class RuleForgeCompiler
                 return LinqExpr.Constant(lit.Value?.ToString(), typeof(string));
             throw new NotImplementedException();
         }
+        if (node is ItExpression || node is AnyAllExpression)
+        {
+            throw new NotImplementedException(); // Fallback to interpreter
+        }
         if (node is DateLiteralExpression dlit)
         {
             return LinqExpr.Constant(dlit.Value, typeof(DateOnly));

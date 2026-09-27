@@ -1,4 +1,4 @@
-from ..parser.ast_nodes import RuleNode, ActionNode, BinaryOpNode, UnaryOpNode, NullCheckNode, LiteralNode, IdentifierNode, PropertyAccessNode, FunctionCallNode, ArrayLiteralNode, ArrayIndexNode, DateLiteralNode, EmitActionNode, SetActionNode
+from ..parser.ast_nodes import RuleNode, ActionNode, BinaryOpNode, UnaryOpNode, NullCheckNode, LiteralNode, IdentifierNode, PropertyAccessNode, FunctionCallNode, ArrayLiteralNode, ArrayIndexNode, DateLiteralNode, EmitActionNode, SetActionNode, AnyAllNode
 from .errors import SemanticError
 
 MAX_AST_DEPTH = 50
@@ -68,12 +68,16 @@ class SemanticAnalyzer:
 
     def check_node(self, node):
         if isinstance(node, LiteralNode):
+            if node.type == "IDENTIFIER" and node.value == "it" and getattr(self, '_it_type', None):
+                return self._it_type
             mapping = {"INTEGER": "Integer", "DECIMAL": "Decimal", "STRING": "String", "BOOLEAN": "Boolean", "DATE": "Date"}
             return mapping.get(node.type, "Unknown")
         if isinstance(node, DateLiteralNode):
             return "Date"
             
         elif isinstance(node, IdentifierNode):
+            if node.name == "it" and getattr(self, "_it_type", None):
+                return self._it_type
             raise SemanticError("RF3002", f"Unknown context property '{node.name}'")
             
         elif isinstance(node, PropertyAccessNode):
@@ -203,4 +207,18 @@ class SemanticAnalyzer:
                 if t not in ["Integer", "Decimal"]: raise SemanticError("RF3003", "Function 'abs' requires Numeric argument")
                 return t
 
+        if isinstance(node, AnyAllNode):
+            arr_type = self.check_node(node.array_node)
+            if not arr_type.startswith("Array<"):
+                raise SemanticError("RF3003", "ANY/ALL requires an array")
+            inner_type = arr_type[6:-1]
+            
+            self._it_type = inner_type
+            where_type = self.check_node(node.where_node)
+            self._it_type = None
+            
+            if where_type != "Boolean":
+                raise SemanticError("RF3003", "WHERE clause must be Boolean")
+            return "Boolean"
+            
         raise SemanticError("RF3003", "Unknown AST node")

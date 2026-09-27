@@ -1,0 +1,1 @@
+{"context": {"customer": {"tags": ["vip", "admin"]}}, "expected": {"matched": true, "actions": [{"action_type": "ALLOW"}]}}
