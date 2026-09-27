@@ -1,12 +1,13 @@
 import subprocess
 import os
+import sys
 import json
 import tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 def run_cli(args):
-    cmd = ["python3", "-m", "ruleforge.cli"] + args
+    cmd = [sys.executable, "-m", "ruleforge.cli"] + args
     return subprocess.run(cmd, capture_output=True, text=True)
 
 def test_cli_eval_json():

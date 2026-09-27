@@ -1,0 +1,5 @@
+RULE EmitUnknownPath
+LANGUAGE 2
+WHEN customer.age >= 18
+THEN EMIT "EVENT" WITH unknown.path
+END

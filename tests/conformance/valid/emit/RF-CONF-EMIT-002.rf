@@ -1,0 +1,5 @@
+RULE EmitWithPayload
+LANGUAGE 2
+WHEN customer.risk_score >= 80
+THEN EMIT "BLOCK_USER" WITH customer.id
+END

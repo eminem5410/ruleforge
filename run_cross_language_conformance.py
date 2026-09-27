@@ -5,7 +5,7 @@ from ruleforge.semantic import SemanticAnalyzer, SemanticError
 from ruleforge.evaluator import Evaluator, EvaluatorError
 
 SCHEMA = {
-    "customer": {"age": "Integer", "name": "String", "active": "Boolean", "email": "String", "tags": "Array<String>", "birth_date": "Date", "registration_date": "Date"},
+    "customer": {"age": "Integer", "name": "String", "active": "Boolean", "email": "String", "tags": "Array<String>", "birth_date": "Date", "registration_date": "Date", "id": "Integer", "risk_score": "Integer"},
     "invoice": {"total": "Decimal", "amount": "Integer", "status": "String", "issue_date": "Date", "due_date": "Date"},
     "observation": {"code": "String", "value": "Decimal", "unit": "String"}
 }
@@ -21,7 +21,7 @@ def get_python_result(rule_path, data_path):
         eval = Evaluator(ctx)
         decisions = eval.eval_rules(ast)
         d = decisions[0]
-        actions = [{"action_type": a.action_type, "value": a.value} for a in d.actions]
+        actions = [{"action_type": a.action_type, "value": a.value, "payload": a.payload} for a in d.actions]
         return {"code": None, "matched": d.matched, "actions": actions}
     except (LexerError, ParserError, SemanticError, EvaluatorError) as e:
         return {"code": e.code, "matched": False, "actions": []}

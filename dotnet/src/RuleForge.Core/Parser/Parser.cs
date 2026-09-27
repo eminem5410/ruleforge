@@ -96,7 +96,22 @@ public class Parser
             Expect(TokenType.STRING);
             return new ActionNode(t.Value, valToken.Value);
         }
-        throw new ParserException("RF2005", $"Expected action but got {t.Type}", t.Line, t.Column);
+        if (t.Type == TokenType.EMIT)
+        {
+            Advance();
+            var intentToken = Expect(TokenType.STRING);
+            Expression? payloadExpr = null;
+            if (CurrentToken.Type == TokenType.WITH)
+            {
+                Advance();
+                var objToken = Expect(TokenType.IDENTIFIER);
+                Expect(TokenType.DOT);
+                var propToken = Expect(TokenType.IDENTIFIER);
+                payloadExpr = new PropertyExpression(objToken.Value, propToken.Value);
+            }
+            return new EmitActionNode(intentToken.Value, payloadExpr);
+        }
+                throw new ParserException("RF2005", $"Expected action but got {t.Type}", t.Line, t.Column);
     }
 
     private Expression Expression() => LogicalOr();

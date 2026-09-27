@@ -31,8 +31,35 @@ public class Evaluator
         _stepCount = 0;
         bool conditionResult = EvaluateNode(node.WhenExpr) is { Type: RuleValueType.Boolean, Value: true };
         
-        var actions = conditionResult ? node.ThenActions : (node.ElseActions.Count > 0 ? node.ElseActions : new List<ActionNode> { new ActionNode("NO_ACTION") });
+        var rawActions = conditionResult ? node.ThenActions : (node.ElseActions.Count > 0 ? node.ElseActions : new List<ActionNode> { new ActionNode("NO_ACTION") });
+            var actions = new List<ActionNode>();
+            foreach (var a in rawActions)
+            {
+                if (a is EmitActionNode emit)
+                {
+                    object? payload = null;
+                    if (emit.PayloadPath != null)
+                    {
+                        var payloadVal = EvaluateNode(emit.PayloadPath);
+                        payload = UnwrapRuleValue(payloadVal);
+                    }
+                    actions.Add(new ActionNode("EMIT", emit.IntentName, payload));
+                }
+                else
+                {
+                    actions.Add(a);
+                }
+            }
         return new Decision(node.Name, 1, node.LanguageVersion, conditionResult, actions);
+    }
+
+    private object? UnwrapRuleValue(RuleValue val)
+    {
+        if (val.Type == RuleValueType.Array && val.Value is List<RuleValue> list)
+        {
+            return list.Select(UnwrapRuleValue).ToList();
+        }
+        return val.Value;
     }
 
     private void CheckNull(RuleValue val, string op)

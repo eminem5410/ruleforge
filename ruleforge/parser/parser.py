@@ -53,11 +53,11 @@ class Parser:
         
         # Validación estricta de NO_ACTION
         if actions[0].action_type == "NO_ACTION":
-            if self.current_token.type in [TokenType.ALLOW, TokenType.DENY, TokenType.ALERT, TokenType.APPLY, TokenType.NO_ACTION]:
+            if self.current_token.type in [TokenType.ALLOW, TokenType.DENY, TokenType.ALERT, TokenType.APPLY, TokenType.NO_ACTION, TokenType.EMIT]:
                 t = self.current_token
                 raise ParserError("RF2005", "NO_ACTION must be the only action in its block", t.line, t.column)
         else:
-            while self.current_token.type in [TokenType.ALLOW, TokenType.DENY, TokenType.ALERT, TokenType.APPLY]:
+            while self.current_token.type in [TokenType.ALLOW, TokenType.DENY, TokenType.ALERT, TokenType.APPLY, TokenType.EMIT]:
                 actions.append(self.parse_action())
         return actions
 
@@ -71,6 +71,21 @@ class Parser:
             val_token = self.current_token
             self.expect(TokenType.STRING)
             return ActionNode(token.value, val_token.value)
+        if token.type == TokenType.EMIT:
+            self.advance()
+            str_token = self.expect(TokenType.STRING)
+            intent_name = str_token.value
+            payload_node = None
+            if self.current_token.type == TokenType.WITH:
+                self.advance()
+                obj_name = self.current_token.value
+                self.expect(TokenType.IDENTIFIER)
+                self.expect(TokenType.DOT)
+                prop_name = self.current_token.value
+                self.expect(TokenType.IDENTIFIER)
+                payload_node = PropertyAccessNode(obj_name, prop_name)
+            from .ast_nodes import EmitActionNode
+            return EmitActionNode(intent_name, payload_node)
         raise ParserError("RF2005", f"Expected action but got {token.type}", token.line, token.column)
 
     def expression(self):

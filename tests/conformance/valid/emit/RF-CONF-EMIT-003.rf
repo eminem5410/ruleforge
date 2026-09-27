@@ -1,0 +1,5 @@
+RULE EmitWithArrayPayload
+LANGUAGE 2
+WHEN customer.active == true
+THEN EMIT "SYNC_TAGS" WITH customer.tags
+END

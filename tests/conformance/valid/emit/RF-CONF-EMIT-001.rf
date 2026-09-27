@@ -1,0 +1,5 @@
+RULE EmitSimple
+LANGUAGE 2
+WHEN customer.age >= 18
+THEN EMIT "AUDIT_EVENT"
+END

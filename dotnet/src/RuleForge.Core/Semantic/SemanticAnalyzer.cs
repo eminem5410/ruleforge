@@ -17,18 +17,38 @@ public class SemanticAnalyzer
     {
         foreach (var rule in ast)
         {
-            CheckActions(rule.ThenActions);
-            CheckActions(rule.ElseActions);
-            
-            int depth = 0, count = 0;
-            CheckAstLimits(rule.WhenExpr, 1, ref depth, ref count);
-            if (depth > 50) throw new SemanticException("RF5001", $"Security Limit: AST depth exceeds maximum of 50");
-            if (count > 500) throw new SemanticException("RF5002", $"Security Limit: AST node count exceeds maximum of 500");
-
-            var exprType = CheckNode(rule.WhenExpr);
-            if (exprType != "Boolean")
-                throw new SemanticException("RF3002", $"WHEN condition must evaluate to Boolean, got {exprType}");
+            AnalyzeRule(rule);
         }
+    }
+
+    private void AnalyzeRule(RuleNode rule)
+    {
+        foreach (var action in rule.ThenActions.Concat(rule.ElseActions))
+        {
+            if (action is EmitActionNode emitAction && emitAction.PayloadPath != null)
+            {
+                if (emitAction.PayloadPath is PropertyExpression propExpr && !_schema.ContainsKey(propExpr.ObjectName))
+                {
+                    throw new SemanticException("RF3002", $"Context object '{propExpr.ObjectName}' not defined");
+                }
+                else if (emitAction.PayloadPath is not PropertyExpression)
+                {
+                    CheckNode(emitAction.PayloadPath);
+                }
+            }
+        }
+
+        CheckActions(rule.ThenActions);
+        CheckActions(rule.ElseActions);
+        
+        int depth = 0, count = 0;
+        CheckAstLimits(rule.WhenExpr, 1, ref depth, ref count);
+        if (depth > 50) throw new SemanticException("RF5001", $"Security Limit: AST depth exceeds maximum of 50");
+        if (count > 500) throw new SemanticException("RF5002", $"Security Limit: AST node count exceeds maximum of 500");
+
+        var exprType = CheckNode(rule.WhenExpr);
+        if (exprType != "Boolean")
+            throw new SemanticException("RF3002", $"WHEN condition must evaluate to Boolean, got {exprType}");
     }
 
     private void CheckAstLimits(Expression expr, int currentDepth, ref int maxDepth, ref int count)

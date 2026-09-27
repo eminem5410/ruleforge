@@ -9,6 +9,8 @@ KEYWORDS = {
     "ALERT": TokenType.ALERT, "APPLY": TokenType.APPLY, "AND": TokenType.AND,
     "OR": TokenType.OR, "NOT": TokenType.NOT, "IS": TokenType.IS, "NULL": TokenType.NULL,
     "DATE": TokenType.DATE,
+    "EMIT": TokenType.EMIT,
+    "WITH": TokenType.WITH,
     "true": TokenType.BOOLEAN, "false": TokenType.BOOLEAN
 }
 

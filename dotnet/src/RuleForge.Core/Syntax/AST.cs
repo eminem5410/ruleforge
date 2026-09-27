@@ -20,7 +20,9 @@ public sealed record ArrayLiteralExpression(List<Expression> Elements) : Express
 
 public sealed record ArrayIndexExpression(Expression Array, Expression Index) : Expression;
 
-public sealed record ActionNode(string ActionType, string? Value = null);
+public record ActionNode(string ActionType, string? Value = null, object? Payload = null);
+
+public sealed record EmitActionNode(string IntentName, Expression? PayloadPath) : ActionNode("EMIT", IntentName);
 
 public sealed record RuleNode(string Name, int LanguageVersion, Expression WhenExpr, List<ActionNode> ThenActions, List<ActionNode> ElseActions);
 

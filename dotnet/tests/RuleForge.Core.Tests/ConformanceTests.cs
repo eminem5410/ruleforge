@@ -15,7 +15,7 @@ public class ConformanceTests
 {
     private readonly Dictionary<string, Dictionary<string, string>> _schema = new()
     {
-        { "customer", new Dictionary<string, string> { { "age", "Integer" }, { "name", "String" }, { "active", "Boolean" }, { "email", "String" }, { "tags", "Array<String>" }, { "birth_date", "Date" }, { "registration_date", "Date" } } },
+        { "customer", new Dictionary<string, string> { { "age", "Integer" }, { "name", "String" }, { "active", "Boolean" }, { "email", "String" }, { "tags", "Array<String>" }, { "birth_date", "Date" }, { "registration_date", "Date" }, { "id", "Integer" }, { "risk_score", "Integer" } } },
         { "invoice", new Dictionary<string, string> { { "total", "Decimal" }, { "amount", "Integer" }, { "status", "String" }, { "issue_date", "Date" }, { "due_date", "Date" } } },
         { "observation", new Dictionary<string, string> { { "code", "String" }, { "value", "Decimal" }, { "unit", "String" } } }
     };

@@ -1,0 +1,1 @@
+{"context": {"customer": {"active": true, "tags": ["vip", "beta"]}}, "expected": {"matched": true, "actions": [{"action_type": "EMIT", "value": "SYNC_TAGS", "payload": ["vip", "beta"]}]}}

@@ -5,7 +5,10 @@ class RuleNode:
     def __repr__(self): return f"RuleNode(name='{self.name}', lang={self.lang_version})"
 
 class ActionNode:
-    def __init__(self, action_type, value=None):
+    def __init__(self, action_type, value=None, payload=None):
+        self.action_type = action_type
+        self.value = value
+        self.payload = payload
         self.action_type = action_type; self.value = value
     def __repr__(self): return f"Action({self.action_type}, val='{self.value}')"
     def to_dict(self):
@@ -62,3 +65,9 @@ class DateLiteralNode:
         parts = value.split("-")
         self.value = date(int(parts[0]), int(parts[1]), int(parts[2]))
     def __repr__(self): return f"DateLiteral({self.value})"
+
+class EmitActionNode(ActionNode):
+    def __init__(self, intent_name, payload_node=None):
+        super().__init__("EMIT", intent_name)
+        self.payload_node = payload_node
+    def __repr__(self): return f"EmitAction({self.value}, payload={self.payload_node})"

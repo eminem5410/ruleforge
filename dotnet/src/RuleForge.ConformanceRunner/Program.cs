@@ -8,7 +8,7 @@ var rulePath = args[0];
 var dataPath = args[1];
 
 var schema = new Dictionary<string, Dictionary<string, string>> {
-    { "customer", new Dictionary<string, string> { { "age", "Integer" }, { "name", "String" }, { "active", "Boolean" }, { "email", "String" }, { "tags", "Array<String>" }, { "birth_date", "Date" }, { "registration_date", "Date" } } },
+    { "customer", new Dictionary<string, string> { { "age", "Integer" }, { "name", "String" }, { "active", "Boolean" }, { "email", "String" }, { "tags", "Array<String>" }, { "birth_date", "Date" }, { "registration_date", "Date" }, { "id", "Integer" }, { "risk_score", "Integer" } } },
     { "invoice", new Dictionary<string, string> { { "total", "Decimal" }, { "amount", "Integer" }, { "status", "String" }, { "issue_date", "Date" }, { "due_date", "Date" } } },
     { "observation", new() { {"code", "String"}, {"value", "Decimal"}, {"unit", "String"} } }
 };
@@ -31,7 +31,7 @@ try {
     var decisions = eval.EvaluateRules(ast);
     var d = decisions[0];
     
-    var actions = d.Actions.Select(a => new { action_type = a.ActionType, value = a.Value }).ToList();
+    var actions = d.Actions.Select(a => new { action_type = a.ActionType, value = a.Value, payload = a.Payload }).ToList();
     Console.WriteLine(JsonSerializer.Serialize(new { code = (string?)null, matched = d.Matched, actions }));
 } catch (Exception ex) when (ex is LexerException || ex is ParserException || ex is SemanticException || ex is EvaluatorException) {
     string? code = ex switch {

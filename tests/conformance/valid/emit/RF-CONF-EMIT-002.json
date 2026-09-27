@@ -1,0 +1,1 @@
+{"context": {"customer": {"risk_score": 90, "id": 12345}}, "expected": {"matched": true, "actions": [{"action_type": "EMIT", "value": "BLOCK_USER", "payload": 12345}]}}
