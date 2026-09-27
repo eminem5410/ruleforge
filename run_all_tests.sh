@@ -19,4 +19,8 @@ echo ">>> 4. CORRIENDO CROSS-LANGUAGE VALIDATION..."
 .venv/bin/python run_cross_language_conformance.py
 
 echo ""
-echo "✅ TODOS LOS TESTS PASARON EXITOSAMENTE (PYTHON, C#, CROSS-LANGUAGE)."
+echo ">>> 5. CORRIENDO COMPILER CONFORMANCE (Interpreter vs Compiler)..."
+.venv/bin/python run_compiler_conformance.py
+
+echo ""
+echo "✅ TODOS LOS TESTS PASARON EXITOSAMENTE (PYTHON, C#, CROSS-LANGUAGE, COMPILER)."
