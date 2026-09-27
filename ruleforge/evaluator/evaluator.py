@@ -1,6 +1,7 @@
 from decimal import Decimal, InvalidOperation
+from datetime import date, timedelta
 from datetime import date
-from ..parser.ast_nodes import RuleNode, ActionNode, BinaryOpNode, UnaryOpNode, NullCheckNode, LiteralNode, IdentifierNode, PropertyAccessNode, FunctionCallNode, ArrayLiteralNode, ArrayIndexNode
+from ..parser.ast_nodes import RuleNode, ActionNode, BinaryOpNode, UnaryOpNode, NullCheckNode, LiteralNode, IdentifierNode, PropertyAccessNode, FunctionCallNode, ArrayLiteralNode, ArrayIndexNode, DateLiteralNode
 from .errors import EvaluatorError
 
 MAX_EXECUTION_STEPS = 10000
@@ -40,6 +41,16 @@ class Evaluator:
         actions = node.then_actions if condition_result else (node.else_actions if node.else_actions else [ActionNode("NO_ACTION")])
         return Decision(node.name, 1, node.lang_version, condition_result, actions, self.trace)
 
+    def _get_date(self, val):
+        if isinstance(val, date): return val
+        if isinstance(val, str):
+            try:
+                from datetime import date as d
+                parts = val.split("-")
+                return d(int(parts[0]), int(parts[1]), int(parts[2]))
+            except: raise EvaluatorError("RF4002", "Invalid date format in context")
+        raise EvaluatorError("RF4002", "Value is not a date")
+
     def check_null(self, val, op):
         if val is None: raise EvaluatorError("RF4002", f"Runtime Type Error: Cannot perform '{op}' on NULL. Use IS NULL / IS NOT NULL.")
 
@@ -48,6 +59,8 @@ class Evaluator:
         if self.step_count > MAX_EXECUTION_STEPS:
             raise EvaluatorError("RF5003", f"Security Limit: Execution exceeded {MAX_EXECUTION_STEPS} steps")
 
+        if isinstance(node, DateLiteralNode):
+            return node.value, {"type": "date_literal", "value": node.value}
         if isinstance(node, LiteralNode):
             val = None
             if node.type == "BOOLEAN": val = node.value == "true"
@@ -157,6 +170,9 @@ class Evaluator:
                 elif node.name.lower() == "starts_with": self.check_null(arg_vals[0], "starts_with"); res = arg_vals[0].startswith(arg_vals[1])
                 elif node.name.lower() == "ends_with": self.check_null(arg_vals[0], "ends_with"); res = arg_vals[0].endswith(arg_vals[1])
                 elif node.name.lower() == "abs": self.check_null(arg_vals[0], "abs"); res = abs(arg_vals[0])
+                elif node.name.lower() == "date_add": self.check_null(arg_vals[0], "date_add"); res = self._get_date(arg_vals[0]) + timedelta(days=arg_vals[1])
+                elif node.name.lower() == "date_diff": self.check_null(arg_vals[0], "date_diff"); self.check_null(arg_vals[1], "date_diff"); res = (self._get_date(arg_vals[1]) - self._get_date(arg_vals[0])).days
+                elif node.name.lower() == "extract": self.check_null(arg_vals[0], "extract"); d = self._get_date(arg_vals[0]); res = getattr(d, arg_vals[1])
                 else: raise EvaluatorError("RF4001", f"Unknown function {node.name}")
             except TypeError as e: raise EvaluatorError("RF4002", f"Runtime Type Error in '{node.name}': {e}")
             

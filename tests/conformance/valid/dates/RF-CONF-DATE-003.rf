@@ -1,0 +1,5 @@
+RULE ExtractYear
+LANGUAGE 1
+WHEN EXTRACT(customer.birth_date, "year") == 1990
+THEN ALLOW
+END

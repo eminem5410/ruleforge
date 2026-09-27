@@ -40,7 +40,7 @@ def test_eval_004_string_comparison():
     assert decisions[0].matched == True
 
 def test_eval_005_date_comparison():
-    code = 'RULE r LANGUAGE 1 WHEN customer.birth_date > 1990-01-01 THEN ALLOW END'
+    code = 'RULE r LANGUAGE 1 WHEN customer.birth_date > DATE "1990-01-01" THEN ALLOW END'
     decisions = eval_code(code, {"customer": {"birth_date": date(1995, 5, 20)}})
     assert decisions[0].matched == True
 

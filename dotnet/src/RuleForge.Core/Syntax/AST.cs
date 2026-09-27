@@ -23,3 +23,5 @@ public sealed record ArrayIndexExpression(Expression Array, Expression Index) : 
 public sealed record ActionNode(string ActionType, string? Value = null);
 
 public sealed record RuleNode(string Name, int LanguageVersion, Expression WhenExpr, List<ActionNode> ThenActions, List<ActionNode> ElseActions);
+
+public sealed record DateLiteralExpression(DateOnly Value) : Expression;

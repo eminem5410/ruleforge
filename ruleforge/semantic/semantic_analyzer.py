@@ -1,4 +1,4 @@
-from ..parser.ast_nodes import RuleNode, ActionNode, BinaryOpNode, UnaryOpNode, NullCheckNode, LiteralNode, IdentifierNode, PropertyAccessNode, FunctionCallNode, ArrayLiteralNode, ArrayIndexNode
+from ..parser.ast_nodes import RuleNode, ActionNode, BinaryOpNode, UnaryOpNode, NullCheckNode, LiteralNode, IdentifierNode, PropertyAccessNode, FunctionCallNode, ArrayLiteralNode, ArrayIndexNode, DateLiteralNode
 from .errors import SemanticError
 
 MAX_AST_DEPTH = 50
@@ -56,6 +56,8 @@ class SemanticAnalyzer:
         if isinstance(node, LiteralNode):
             mapping = {"INTEGER": "Integer", "DECIMAL": "Decimal", "STRING": "String", "BOOLEAN": "Boolean", "DATE": "Date"}
             return mapping.get(node.type, "Unknown")
+        if isinstance(node, DateLiteralNode):
+            return "Date"
             
         elif isinstance(node, IdentifierNode):
             raise SemanticError("RF3002", f"Unknown context property '{node.name}'")
@@ -124,7 +126,7 @@ class SemanticAnalyzer:
 
         elif isinstance(node, FunctionCallNode):
             func_name = node.name.lower()
-            if func_name not in ["contains", "length", "starts_with", "ends_with", "abs"]:
+            if func_name not in ["contains", "length", "starts_with", "ends_with", "abs", "date_add", "date_diff", "extract"]:
                 raise SemanticError("RF3003", f"Unknown function '{node.name}'")
                 
             if func_name == "length":
@@ -134,6 +136,28 @@ class SemanticAnalyzer:
                     raise SemanticError("RF3003", f"Function 'length' expects a String or Array, got {arg_type}")
                 return "Integer"
                 
+            elif func_name == "date_add":
+                if len(node.args) != 2: raise SemanticError("RF3003", "Function 'date_add' expects 2 arguments")
+                arg1_type = self.check_node(node.args[0])
+                arg2_type = self.check_node(node.args[1])
+                if arg1_type != "Date": raise SemanticError("RF3003", f"Argument 1 of 'date_add' must be Date, got {arg1_type}")
+                if arg2_type != "Integer": raise SemanticError("RF3003", f"Argument 2 of 'date_add' must be Integer, got {arg2_type}")
+                return "Date"
+            elif func_name == "date_diff":
+                if len(node.args) != 2: raise SemanticError("RF3003", "Function 'date_diff' expects 2 arguments")
+                arg1_type = self.check_node(node.args[0])
+                arg2_type = self.check_node(node.args[1])
+                if arg1_type != "Date" or arg2_type != "Date": raise SemanticError("RF3003", "Function 'date_diff' requires Date arguments")
+                return "Integer"
+            elif func_name == "extract":
+                if len(node.args) != 2: raise SemanticError("RF3003", "Function 'extract' expects 2 arguments")
+                arg1_type = self.check_node(node.args[0])
+                if arg1_type != "Date": raise SemanticError("RF3003", f"Argument 1 of 'extract' must be Date, got {arg1_type}")
+                if not isinstance(node.args[1], LiteralNode) or node.args[1].type != "STRING":
+                    raise SemanticError("RF3003", "Argument 2 of 'extract' must be String literal")
+                part = node.args[1].value
+                if part not in ["year", "month", "day"]: raise SemanticError("RF3003", f"Invalid part for EXTRACT. Expected 'year', 'month', or 'day'")
+                return "Integer"
             elif func_name == "contains":
                 if len(node.args) != 2: raise SemanticError("RF3003", "Function 'contains' expects 2 arguments")
                 arg1_type = self.check_node(node.args[0])

@@ -45,6 +45,10 @@ public class Evaluator
         _stepCount++;
         if (_stepCount > MaxExecutionSteps) throw new EvaluatorException("RF5003", $"Security Limit: Execution exceeded {MaxExecutionSteps} steps");
 
+        if (expr is DateLiteralExpression dlit)
+        {
+            return new RuleValue(RuleValueType.Date, dlit.Value);
+        }
         if (expr is LiteralExpression lit)
         {
             return lit.Type switch
@@ -116,6 +120,9 @@ public class Evaluator
                 "STARTS_WITH" => new RuleValue(RuleValueType.Boolean, ((string)args[0].Value!).StartsWith((string)args[1].Value!)),
                 "ENDS_WITH" => new RuleValue(RuleValueType.Boolean, ((string)args[0].Value!).EndsWith((string)args[1].Value!)),
                 "ABS" => new RuleValue(args[0].Type, Math.Abs(Convert.ToDecimal(args[0].Value, CultureInfo.InvariantCulture))),
+                "DATE_ADD" => new RuleValue(RuleValueType.Date, GetDate(args[0], "DATE_ADD").AddDays((int)args[1].Value!)),
+                "DATE_DIFF" => new RuleValue(RuleValueType.Integer, GetDate(args[1], "DATE_DIFF").DayNumber - GetDate(args[0], "DATE_DIFF").DayNumber),
+                "EXTRACT" => GetExtract(args[0], (string)args[1].Value!),
                 _ => throw new EvaluatorException("RF4001", $"Unknown function {fc.Name}")
             };
         }
@@ -181,6 +188,26 @@ public class Evaluator
                 return new RuleValue(RuleValueType.Boolean, ((string)args[0].Value!).Contains((string)args[1].Value!));
             }
             throw new EvaluatorException("RF4001", "CONTAINS requires string or array");
+        }
+
+        private DateOnly GetDate(RuleValue val, string funcName)
+        {
+            if (val.Type == RuleValueType.Null) throw new EvaluatorException("RF4002", $"Cannot perform '{funcName}' on NULL");
+            if (val.Type == RuleValueType.Date) return (DateOnly)val.Value!;
+            if (val.Type == RuleValueType.String && DateOnly.TryParseExact((string)val.Value!, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var d)) return d;
+            throw new EvaluatorException("RF4002", "Invalid date value");
+        }
+
+        private RuleValue GetExtract(RuleValue dateVal, string part)
+        {
+            var d = GetDate(dateVal, "EXTRACT");
+            return part switch
+            {
+                "year" => new RuleValue(RuleValueType.Integer, d.Year),
+                "month" => new RuleValue(RuleValueType.Integer, d.Month),
+                "day" => new RuleValue(RuleValueType.Integer, d.Day),
+                _ => throw new EvaluatorException("RF4001", "Invalid part for EXTRACT")
+            };
         }
 
         private int Compare(RuleValue l, RuleValue r)

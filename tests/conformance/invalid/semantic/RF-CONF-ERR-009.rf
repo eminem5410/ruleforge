@@ -1,0 +1,5 @@
+RULE ExtractInvalidPart
+LANGUAGE 1
+WHEN EXTRACT(customer.birth_date, "century") == 1
+THEN ALLOW
+END

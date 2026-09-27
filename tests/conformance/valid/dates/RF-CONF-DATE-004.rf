@@ -1,0 +1,5 @@
+RULE ExtractMonthDay
+LANGUAGE 1
+WHEN EXTRACT(customer.birth_date, "month") == 5 AND EXTRACT(customer.birth_date, "day") == 15
+THEN ALLOW
+END

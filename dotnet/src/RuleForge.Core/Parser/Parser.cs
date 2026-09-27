@@ -188,6 +188,14 @@ public class Parser
     private Expression Factor()
     {
         var t = CurrentToken;
+        if (t.Type == TokenType.DATE)
+        {
+            Advance();
+            var strToken = Expect(TokenType.STRING);
+            if (DateOnly.TryParseExact(strToken.Value, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var dateVal))
+                return new DateLiteralExpression(dateVal);
+            throw new ParserException("RF2002", "Invalid date format, expected YYYY-MM-DD", t.Line, t.Column);
+        }
         if (t.Type == TokenType.LPAREN)
         {
             Advance();

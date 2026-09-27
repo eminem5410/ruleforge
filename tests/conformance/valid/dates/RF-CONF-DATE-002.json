@@ -1,0 +1,1 @@
+{"context": {"invoice": {"issue_date": "2023-01-01", "due_date": "2023-02-01"}}, "expected": {"matched": true, "actions": [{"action_type": "ALLOW"}]}}

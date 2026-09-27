@@ -1,0 +1,5 @@
+RULE DateDiffContext
+LANGUAGE 1
+WHEN DATE_DIFF(invoice.issue_date, invoice.due_date) == 31
+THEN ALLOW
+END

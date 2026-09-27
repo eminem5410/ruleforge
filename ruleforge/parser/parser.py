@@ -127,6 +127,17 @@ class Parser:
 
     def factor(self):
         token = self.current_token
+        if token.type == TokenType.DATE:
+            self.advance()
+            str_token = self.expect(TokenType.STRING)
+            from .ast_nodes import DateLiteralNode
+            return DateLiteralNode(str_token.value)
+
+        if token.type == TokenType.DATE:
+            self.advance()
+            str_token = self.expect(TokenType.STRING)
+            from .ast_nodes import DateLiteralNode
+            return DateLiteralNode(str_token.value)
         if token.type == TokenType.LPAREN:
             self.advance()
             expr = self.expression()

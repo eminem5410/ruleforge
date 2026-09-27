@@ -1,0 +1,5 @@
+RULE DateAddContext
+LANGUAGE 1
+WHEN DATE_ADD(customer.registration_date, 30) == DATE "2023-01-31"
+THEN ALLOW
+END

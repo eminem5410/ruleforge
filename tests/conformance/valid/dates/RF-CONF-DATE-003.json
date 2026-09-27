@@ -1,0 +1,1 @@
+{"context": {"customer": {"birth_date": "1990-05-15"}}, "expected": {"matched": true, "actions": [{"action_type": "ALLOW"}]}}

@@ -73,6 +73,10 @@ public class SemanticAnalyzer
 
     private string CheckNode(Expression expr)
     {
+        if (expr is DateLiteralExpression dlit)
+        {
+            return "Date";
+        }
         if (expr is LiteralExpression lit)
         {
             return lit.Type switch
@@ -168,6 +172,33 @@ public class SemanticAnalyzer
         }
         if (expr is FunctionCallExpression fc)
         {
+            if (fc.Name.ToUpper() == "DATE_ADD")
+            {
+                if (fc.Arguments.Count != 2) throw new SemanticException("RF3003", "Function 'DATE_ADD' expects 2 arguments");
+                var arg1 = CheckNode(fc.Arguments[0]);
+                var arg2 = CheckNode(fc.Arguments[1]);
+                if (arg1 != "Date") throw new SemanticException("RF3003", $"Argument 1 of 'DATE_ADD' must be Date, got {arg1}");
+                if (arg2 != "Integer") throw new SemanticException("RF3003", $"Argument 2 of 'DATE_ADD' must be Integer, got {arg2}");
+                return "Date";
+            }
+            if (fc.Name.ToUpper() == "DATE_DIFF")
+            {
+                if (fc.Arguments.Count != 2) throw new SemanticException("RF3003", "Function 'DATE_DIFF' expects 2 arguments");
+                var arg1 = CheckNode(fc.Arguments[0]);
+                var arg2 = CheckNode(fc.Arguments[1]);
+                if (arg1 != "Date" || arg2 != "Date") throw new SemanticException("RF3003", "Function 'DATE_DIFF' requires Date arguments");
+                return "Integer";
+            }
+            if (fc.Name.ToUpper() == "EXTRACT")
+            {
+                if (fc.Arguments.Count != 2) throw new SemanticException("RF3003", "Function 'EXTRACT' expects 2 arguments");
+                var arg1 = CheckNode(fc.Arguments[0]);
+                if (arg1 != "Date") throw new SemanticException("RF3003", $"Argument 1 of 'EXTRACT' must be Date, got {arg1}");
+                if (!(fc.Arguments[1] is LiteralExpression lit) || lit.Type != TokenType.STRING) throw new SemanticException("RF3003", "Argument 2 of 'EXTRACT' must be String literal");
+                var part = lit.Value?.ToString();
+                if (part != "year" && part != "month" && part != "day") throw new SemanticException("RF3003", "Invalid part for EXTRACT. Expected 'year', 'month', or 'day'");
+                return "Integer";
+            }
             if (fc.Name.ToLower() == "length")
             {
                 if (fc.Arguments.Count != 1) throw new SemanticException("RF3003", "Function 'length' expects 1 argument");

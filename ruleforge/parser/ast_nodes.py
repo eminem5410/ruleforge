@@ -55,3 +55,10 @@ class ArrayIndexNode:
     def __init__(self, array_expr, index):
         self.array = array_expr; self.index = index
     def __repr__(self): return f"ArrayIndex({self.array}[{self.index}])"
+
+class DateLiteralNode:
+    def __init__(self, value: str):
+        from datetime import date
+        parts = value.split("-")
+        self.value = date(int(parts[0]), int(parts[1]), int(parts[2]))
+    def __repr__(self): return f"DateLiteral({self.value})"

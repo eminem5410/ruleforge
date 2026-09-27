@@ -69,13 +69,13 @@ def test_runtime_invalid_decimal_with_string():
 
 def test_runtime_valid_date():
     ctx = {"customer": {"birth_date": "1990-05-20"}}
-    rule = 'RULE r LANGUAGE 1 WHEN customer.birth_date > 1990-01-01 THEN ALLOW END'
+    rule = 'RULE r LANGUAGE 1 WHEN customer.birth_date > DATE "1990-01-01" THEN ALLOW END'
     decisions = engine_full.evaluate(rule, ctx)
     assert decisions[0].matched == True
 
 def test_runtime_invalid_date_with_int():
     ctx = {"customer": {"birth_date": 12345}}
-    rule = 'RULE r LANGUAGE 1 WHEN customer.birth_date > 1990-01-01 THEN ALLOW END'
+    rule = 'RULE r LANGUAGE 1 WHEN customer.birth_date > DATE "1990-01-01" THEN ALLOW END'
     with pytest.raises(EvaluatorError) as exc:
         engine_full.evaluate(rule, ctx)
     assert exc.value.code == "RF4003"

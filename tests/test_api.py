@@ -82,7 +82,7 @@ async def test_api_012_null_handling(client):
     assert res.status_code == 200
 
 async def test_api_013_date_serialization(client):
-    payload = {"rules": 'RULE r LANGUAGE 1 WHEN customer.birth_date > 1990-01-01 THEN ALLOW END', "context": {"customer": {"birth_date": "1995-05-20"}}, "context_schema": {"customer": {"birth_date": "Date"}}}
+    payload = {"rules": 'RULE r LANGUAGE 1 WHEN customer.birth_date > DATE "1990-01-01" THEN ALLOW END', "context": {"customer": {"birth_date": "1995-05-20"}}, "context_schema": {"customer": {"birth_date": "Date"}}}
     res = await client.post("/v1/evaluate", json=payload)
     assert res.status_code == 200
 
