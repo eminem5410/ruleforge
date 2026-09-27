@@ -78,6 +78,14 @@ public class RuleForgeCompiler
             }
             throw new NotImplementedException();
         }
+        if (node is NullCheckExpression nc)
+        {
+            var left = CompileNode(nc.Left, param);
+            // Box value types (like int) to object before comparing to null
+            if (left.Type.IsValueType) left = LinqExpr.Convert(left, typeof(object));
+            var nullConst = LinqExpr.Constant(null, typeof(object));
+            return nc.IsNot ? LinqExpr.NotEqual(left, nullConst) : LinqExpr.Equal(left, nullConst);
+        }
         if (node is BinaryExpression bin)
         {
             if (bin.Operator == "AND") return LinqExpr.AndAlso(EnsureBool(CompileNode(bin.Left, param)), EnsureBool(CompileNode(bin.Right, param)));

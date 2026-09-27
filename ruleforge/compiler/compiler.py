@@ -1,7 +1,7 @@
 from decimal import Decimal
 from ..evaluator import Evaluator
 from ..evaluator.errors import EvaluatorError
-from ..parser.ast_nodes import RuleNode, ActionNode, BinaryOpNode, UnaryOpNode, LiteralNode, PropertyAccessNode, EmitActionNode, FunctionCallNode
+from ..parser.ast_nodes import RuleNode, ActionNode, BinaryOpNode, UnaryOpNode, LiteralNode, PropertyAccessNode, EmitActionNode, FunctionCallNode, NullCheckNode
 
 def _safe_get(ctx, obj, prop):
     val = ctx.get(obj)
@@ -54,6 +54,10 @@ class RuleForgeCompiler:
             if op == "AND": op = "and"
             elif op == "OR": op = "or"
             return f"({left} {op} {right})"
+            
+        elif isinstance(node, NullCheckNode):
+            operand = self._compile_node(node.left)
+            return f"({operand} is not None)" if node.is_not else f"({operand} is None)"
             
         elif isinstance(node, UnaryOpNode):
             if node.op == "NOT": return f"(not {self._compile_node(node.operand)})"

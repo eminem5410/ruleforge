@@ -1,0 +1,5 @@
+RULE IsNotNullCheck
+LANGUAGE 2
+WHEN customer.name IS NOT NULL
+THEN ALLOW
+END
