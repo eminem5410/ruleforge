@@ -153,13 +153,18 @@ class Parser:
                 prop_token = self.current_token
                 self.expect(TokenType.IDENTIFIER)
                 node = PropertyAccessNode(name, prop_token.value)
-                while self.current_token.type == TokenType.LBRACKET:
+                if self.current_token.type == TokenType.LBRACKET:
                     self.advance()
                     index_token = self.current_token
                     self.expect(TokenType.INTEGER)
-                    self.expect(TokenType.RBRACKET)
+                    if self.current_token.type != TokenType.RBRACKET:
+                        raise ParserError("RF2004", "V7 array index must be a single integer literal", self.current_token.line, self.current_token.column)
+                    self.advance() # Consumir RBRACKET
                     from .ast_nodes import ArrayIndexNode
                     node = ArrayIndexNode(node, LiteralNode(index_token.value, "INTEGER"))
+                    
+                    if self.current_token.type == TokenType.LBRACKET:
+                        raise ParserError("RF2004", "V7 does not allow chained array indexing", self.current_token.line, self.current_token.column)
                 return node
             return IdentifierNode(name) 
         elif token.type == TokenType.EOF:

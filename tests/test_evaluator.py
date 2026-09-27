@@ -4,7 +4,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 import pytest
 from datetime import date
 from ruleforge.lexer import Lexer
-from ruleforge.parser import Parser
+from ruleforge.parser import Parser, ParserError
 from ruleforge.semantic import SemanticAnalyzer
 from ruleforge.evaluator import Evaluator, EvaluatorError
 
@@ -215,3 +215,17 @@ def test_eval_031_array_contains():
     ctx = {"customer": {"tags": ["standard", "vip", "beta"]}}
     decisions = eval_code(code, ctx)
     assert decisions[0].matched == True
+
+def test_chained_array_indexing_throws_rf2004():
+    rule = "RULE r LANGUAGE 1 WHEN customer.tags[0][1] == 1 THEN ALLOW END"
+    tokens = Lexer(rule).tokenize()
+    with pytest.raises(ParserError) as exc:
+        Parser(tokens).parse()
+    assert exc.value.code == "RF2004"
+
+def test_non_literal_array_index_throws_rf2004():
+    rule = "RULE r LANGUAGE 1 WHEN customer.tags[1 + 1] == 1 THEN ALLOW END"
+    tokens = Lexer(rule).tokenize()
+    with pytest.raises(ParserError) as exc:
+        Parser(tokens).parse()
+    assert exc.value.code == "RF2004"
