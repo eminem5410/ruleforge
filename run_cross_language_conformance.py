@@ -1,4 +1,4 @@
-import os, json, glob, subprocess
+import os, json, glob, subprocess, sys
 from ruleforge.lexer import Lexer, LexerError
 from ruleforge.parser import Parser, ParserError
 from ruleforge.semantic import SemanticAnalyzer, SemanticError
@@ -54,8 +54,10 @@ def main():
             
     if all_match:
         print("\n=== CROSS-LANGUAGE CONFORMANCE: 100% MATCH ===")
+        sys.exit(0)
     else:
         print("\n=== CROSS-LANGUAGE CONFORMANCE: FAILURES DETECTED ===")
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()
