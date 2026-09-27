@@ -25,6 +25,16 @@ public class SemanticAnalyzer
     {
         foreach (var action in rule.ThenActions.Concat(rule.ElseActions))
         {
+            if (action is SetActionNode setAction)
+            {
+                var parts = setAction.Path.Split('.');
+                if (parts.Length != 2 || !_schema.ContainsKey(parts[0]))
+                    throw new SemanticException("RF3002", $"Context object '{parts[0]}' not defined");
+                if (!_schema[parts[0]].TryGetValue(parts[1], out var propType))
+                    throw new SemanticException("RF3002", $"Property '{parts[1]}' not found in '{parts[0]}'");
+                var valType = CheckNode(setAction.ValueExpr);
+                if (valType != propType) throw new SemanticException("RF3001", $"Cannot assign {valType} to {propType}");
+            }
             if (action is EmitActionNode emitAction && emitAction.PayloadPath != null)
             {
                 if (emitAction.PayloadPath is PropertyExpression propExpr && !_schema.ContainsKey(propExpr.ObjectName))

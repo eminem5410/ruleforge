@@ -1,0 +1,5 @@
+RULE SetValid
+LANGUAGE 3
+WHEN customer.risk_score >= 80
+THEN SET customer.status = "blocked"
+END

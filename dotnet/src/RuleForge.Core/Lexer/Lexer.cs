@@ -21,6 +21,7 @@ public class Lexer
         { "OR", TokenType.OR }, { "NOT", TokenType.NOT },
         { "IS", TokenType.IS }, { "NULL", TokenType.NULL },
         { "DATE", TokenType.DATE },
+        { "SET", TokenType.SET },
         { "EMIT", TokenType.EMIT },
         { "WITH", TokenType.WITH },
         { "true", TokenType.BOOLEAN }, { "false", TokenType.BOOLEAN }
@@ -140,6 +141,7 @@ public class Lexer
             if (char.IsLetter(_currentChar.Value) || _currentChar == '_') { tokens.Add(ReadIdentifier()); continue; }
             
             if (_currentChar == '=' && _pos + 1 < _source.Length && _source[_pos + 1] == '=') { tokens.Add(new Token(TokenType.EQ, "==", startLine, startCol)); Advance(); Advance(); continue; }
+            if (_currentChar == '=') { tokens.Add(new Token(TokenType.ASSIGN, "=", startLine, startCol)); Advance(); continue; }
             if (_currentChar == '!' && _pos + 1 < _source.Length && _source[_pos + 1] == '=') { tokens.Add(new Token(TokenType.NEQ, "!=", startLine, startCol)); Advance(); Advance(); continue; }
             if (_currentChar == '>' && _pos + 1 < _source.Length && _source[_pos + 1] == '=') { tokens.Add(new Token(TokenType.GTE, ">=", startLine, startCol)); Advance(); Advance(); continue; }
             if (_currentChar == '<' && _pos + 1 < _source.Length && _source[_pos + 1] == '=') { tokens.Add(new Token(TokenType.LTE, "<=", startLine, startCol)); Advance(); Advance(); continue; }

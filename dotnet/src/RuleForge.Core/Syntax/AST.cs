@@ -24,6 +24,8 @@ public record ActionNode(string ActionType, string? Value = null, object? Payloa
 
 public sealed record EmitActionNode(string IntentName, Expression? PayloadPath) : ActionNode("EMIT", IntentName);
 
+public sealed record SetActionNode(string Path, Expression ValueExpr) : ActionNode("SET", Path);
+
 public sealed record RuleNode(string Name, int LanguageVersion, Expression WhenExpr, List<ActionNode> ThenActions, List<ActionNode> ElseActions);
 
 public sealed record DateLiteralExpression(DateOnly Value) : Expression;

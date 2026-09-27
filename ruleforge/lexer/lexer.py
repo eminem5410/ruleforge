@@ -9,6 +9,7 @@ KEYWORDS = {
     "ALERT": TokenType.ALERT, "APPLY": TokenType.APPLY, "AND": TokenType.AND,
     "OR": TokenType.OR, "NOT": TokenType.NOT, "IS": TokenType.IS, "NULL": TokenType.NULL,
     "DATE": TokenType.DATE,
+    "SET": TokenType.SET,
     "EMIT": TokenType.EMIT,
     "WITH": TokenType.WITH,
     "true": TokenType.BOOLEAN, "false": TokenType.BOOLEAN
@@ -110,7 +111,9 @@ class Lexer:
                 if self.peek(1) == '=':
                     tokens.append(Token(TokenType.EQ, '==', start_line, start_col))
                     self.advance(); self.advance(); continue
-                raise LexerError("RF1001", "Invalid character '='", start_line, start_col)
+                tokens.append(Token(TokenType.ASSIGN, '=', start_line, start_col))
+                self.advance(); continue
+                
             if char == '!':
                 if self.peek(1) == '=':
                     tokens.append(Token(TokenType.NEQ, '!=', start_line, start_col))

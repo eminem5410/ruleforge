@@ -1,4 +1,4 @@
-from ..parser.ast_nodes import RuleNode, ActionNode, BinaryOpNode, UnaryOpNode, NullCheckNode, LiteralNode, IdentifierNode, PropertyAccessNode, FunctionCallNode, ArrayLiteralNode, ArrayIndexNode, DateLiteralNode, EmitActionNode
+from ..parser.ast_nodes import RuleNode, ActionNode, BinaryOpNode, UnaryOpNode, NullCheckNode, LiteralNode, IdentifierNode, PropertyAccessNode, FunctionCallNode, ArrayLiteralNode, ArrayIndexNode, DateLiteralNode, EmitActionNode, SetActionNode
 from .errors import SemanticError
 
 MAX_AST_DEPTH = 50
@@ -15,6 +15,13 @@ class SemanticAnalyzer:
 
     def check_rule(self, node):
         for action in node.then_actions + node.else_actions:
+            if isinstance(action, SetActionNode):
+                obj_schema = self.schema.get(action.obj_name)
+                if not obj_schema: raise SemanticError("RF3002", f"Context object '{action.obj_name}' not defined")
+                prop_type = obj_schema.get(action.prop_name)
+                if not prop_type: raise SemanticError("RF3002", f"Property '{action.prop_name}' not found in '{action.obj_name}'")
+                val_type = self.check_node(action.value_node)
+                if val_type != prop_type: raise SemanticError("RF3001", f"Cannot assign {val_type} to {prop_type}")
             if isinstance(action, EmitActionNode) and action.payload_node:
                 # Only enforce that the context object exists. Missing properties are allowed and resolve to NULL.
                 if isinstance(action.payload_node, PropertyAccessNode) and action.payload_node.obj not in self.schema:

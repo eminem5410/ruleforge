@@ -82,10 +82,10 @@ def test_lex_err_003_invalid_number():
     assert exc.value.code == "RF1001"
     assert "Invalid number" in exc.value.message
 
-def test_lex_err_004_single_equal():
-    with pytest.raises(LexerError) as exc:
-        Lexer("= 1").tokenize()
-    assert exc.value.code == "RF1001"
+def test_lex_005_assign():
+    tokens = Lexer("= 1").tokenize()
+    assert tokens[0].type == TokenType.ASSIGN
+    assert tokens[0].value == "="
 
 def test_lex_err_005_single_bang():
     with pytest.raises(LexerError) as exc:

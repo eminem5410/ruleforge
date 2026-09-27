@@ -281,7 +281,12 @@ public class RuleForgeCompiler
                 
                 foreach (var a in rawActions)
                 {
-                    if (a is EmitActionNode emit)
+                    if (a is SetActionNode setAct)
+                    {
+                        var val = evaluator.EvaluateNode(setAct.ValueExpr);
+                        resolvedActions.Add(new ActionNode("SET", setAct.Path, Evaluator.UnwrapRuleValue(val)));
+                    }
+                    else if (a is EmitActionNode emit)
                     {
                         object? payload = null;
                         if (emit.PayloadPath != null)

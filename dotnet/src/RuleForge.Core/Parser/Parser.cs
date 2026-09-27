@@ -111,7 +111,17 @@ public class Parser
             }
             return new EmitActionNode(intentToken.Value, payloadExpr);
         }
-                throw new ParserException("RF2005", $"Expected action but got {t.Type}", t.Line, t.Column);
+                if (t.Type == TokenType.SET)
+        {
+            Advance();
+            var objToken = Expect(TokenType.IDENTIFIER);
+            Expect(TokenType.DOT);
+            var propToken = Expect(TokenType.IDENTIFIER);
+            Expect(TokenType.ASSIGN);
+            var valueExpr = Expression();
+            return new SetActionNode($"{objToken.Value}.{propToken.Value}", valueExpr);
+        }
+        throw new ParserException("RF2005", $"Expected action but got {t.Type}", t.Line, t.Column);
     }
 
     private Expression Expression() => LogicalOr();

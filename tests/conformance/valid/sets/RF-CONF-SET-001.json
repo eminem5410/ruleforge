@@ -1,0 +1,1 @@
+{"context": {"customer": {"risk_score": 90, "status": "active"}}, "expected": {"matched": true, "actions": [{"action_type": "SET", "value": "customer.status", "payload": "blocked"}]}}

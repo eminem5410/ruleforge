@@ -9,7 +9,7 @@ var rulePath = args[0];
 var dataPath = args[1];
 
 var schema = new Dictionary<string, Dictionary<string, string>> {
-    { "customer", new() { {"age", "Integer"}, {"name", "String"}, {"active", "Boolean"}, {"email", "String"}, {"tags", "Array<String>"}, {"birth_date", "Date"}, {"registration_date", "Date"}, {"id", "Integer"}, {"risk_score", "Integer"} } },
+    { "customer", new() { {"age", "Integer"}, {"name", "String"}, {"active", "Boolean"}, {"email", "String"}, {"tags", "Array<String>"}, {"birth_date", "Date"}, {"registration_date", "Date"}, {"id", "Integer"}, {"risk_score", "Integer"}, {"status", "String"} } },
     { "invoice", new() { {"total", "Decimal"}, {"amount", "Integer"}, {"status", "String"}, {"issue_date", "Date"}, {"due_date", "Date"} } },
     { "observation", new() { {"code", "String"}, {"value", "Decimal"}, {"unit", "String"} } }
 };

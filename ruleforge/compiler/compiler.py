@@ -2,7 +2,7 @@ from decimal import Decimal
 from datetime import date, timedelta
 from ..evaluator import Evaluator
 from ..evaluator.errors import EvaluatorError
-from ..parser.ast_nodes import RuleNode, ActionNode, BinaryOpNode, UnaryOpNode, LiteralNode, PropertyAccessNode, EmitActionNode, FunctionCallNode, NullCheckNode, DateLiteralNode, ArrayLiteralNode, ArrayIndexNode
+from ..parser.ast_nodes import RuleNode, ActionNode, BinaryOpNode, UnaryOpNode, LiteralNode, PropertyAccessNode, EmitActionNode, FunctionCallNode, NullCheckNode, DateLiteralNode, ArrayLiteralNode, ArrayIndexNode, SetActionNode
 
 def _safe_index(arr, idx):
     if arr is None or not isinstance(arr, list): raise TypeError("Not an array")
@@ -118,7 +118,10 @@ class RuleForgeCompiler:
                 resolved_actions = []
                 
                 for a in actions_to_resolve:
-                    if isinstance(a, EmitActionNode):
+                    if isinstance(a, SetActionNode):
+                        val, _ = evaluator.eval_node(a.value_node)
+                        resolved_actions.append(ActionNode("SET", a.value, val))
+                    elif isinstance(a, EmitActionNode):
                         payload = None
                         if a.payload_node:
                             payload, _ = evaluator.eval_node(a.payload_node)

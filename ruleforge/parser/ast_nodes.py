@@ -71,3 +71,10 @@ class EmitActionNode(ActionNode):
         super().__init__("EMIT", intent_name)
         self.payload_node = payload_node
     def __repr__(self): return f"EmitAction({self.value}, payload={self.payload_node})"
+
+class SetActionNode(ActionNode):
+    def __init__(self, obj_name, prop_name, value_node):
+        super().__init__("SET", f"{obj_name}.{prop_name}")
+        self.obj_name = obj_name
+        self.prop_name = prop_name
+        self.value_node = value_node

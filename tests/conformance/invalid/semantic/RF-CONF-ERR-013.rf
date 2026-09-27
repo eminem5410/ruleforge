@@ -1,0 +1,5 @@
+RULE SetUnknownProp
+LANGUAGE 3
+WHEN true
+THEN SET customer.unknown = "x"
+END

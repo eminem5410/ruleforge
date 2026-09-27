@@ -1,7 +1,7 @@
 from decimal import Decimal, InvalidOperation
 from datetime import date, timedelta
 from datetime import date
-from ..parser.ast_nodes import RuleNode, ActionNode, BinaryOpNode, UnaryOpNode, NullCheckNode, LiteralNode, IdentifierNode, PropertyAccessNode, FunctionCallNode, ArrayLiteralNode, ArrayIndexNode, DateLiteralNode, EmitActionNode
+from ..parser.ast_nodes import RuleNode, ActionNode, BinaryOpNode, UnaryOpNode, NullCheckNode, LiteralNode, IdentifierNode, PropertyAccessNode, FunctionCallNode, ArrayLiteralNode, ArrayIndexNode, DateLiteralNode, EmitActionNode, SetActionNode
 from .errors import EvaluatorError
 
 MAX_EXECUTION_STEPS = 10000
@@ -44,7 +44,10 @@ class Evaluator:
         actions = node.then_actions if condition_result else (node.else_actions if node.else_actions else [ActionNode("NO_ACTION")])
         resolved_actions = []
         for a in actions:
-            if isinstance(a, EmitActionNode):
+            if isinstance(a, SetActionNode):
+                val, _ = self.eval_node(a.value_node)
+                resolved_actions.append(ActionNode("SET", a.value, val))
+            elif isinstance(a, EmitActionNode):
                 payload = None
                 if a.payload_node:
                     payload, _ = self.eval_node(a.payload_node)

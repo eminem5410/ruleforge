@@ -2,13 +2,13 @@ class TokenType:
     # Keywords
     RULE="RULE"; LANGUAGE="LANGUAGE"; WHEN="WHEN"; THEN="THEN"; ELSE="ELSE"; END="END"
     ALLOW="ALLOW"; DENY="DENY"; NO_ACTION="NO_ACTION"; ALERT="ALERT"; APPLY="APPLY"
-    AND="AND"; OR="OR"; NOT="NOT"; IS="IS"; NULL="NULL"
+    AND="AND"; OR="OR"; NOT="NOT"; IS="IS"; NULL="NULL"; SET="SET"
     
     # Literals
     IDENTIFIER="IDENTIFIER"; INTEGER="INTEGER"; DECIMAL="DECIMAL"; STRING="STRING"; BOOLEAN="BOOLEAN"; DATE="DATE"; EMIT="EMIT"; WITH="WITH"
     
     # Operators
-    EQ="=="; NEQ="!="; GT=">"; LT="<"; GTE=">="; LTE="<="
+    EQ="=="; ASSIGN="="; NEQ="!="; GT=">"; LT="<"; GTE=">="; LTE="<="
     PLUS="+"; MINUS="-"; MULTIPLY="*"; DIVIDE="/"
     
     # Symbols

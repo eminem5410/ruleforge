@@ -1,0 +1,5 @@
+RULE SetTypeMismatch
+LANGUAGE 3
+WHEN true
+THEN SET customer.status = 123
+END
