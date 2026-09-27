@@ -121,14 +121,33 @@ public class RuleForgeCompiler
                 }
                 catch (Exception)
                 {
-                    // Fallback to interpreter on runtime error (e.g. NullReferenceException)
+                    // Fallback to interpreter on runtime error
                     decisions.Add(evaluator.EvaluateRules(new List<RuleNode> { rule })[0]);
                     continue;
                 }
                 
-                // Use 'with' expression to create a copy with the dummy condition, preserving immutability
-                var dummyRule = rule with { WhenExpr = new LiteralExpression(conditionResult ? "true" : "false", TokenType.BOOLEAN) };
-                decisions.Add(evaluator.EvaluateRules(new List<RuleNode> { dummyRule })[0]);
+                // Slice 2: Resolve actions directly without Evaluator
+                var rawActions = conditionResult ? rule.ThenActions : (rule.ElseActions.Count > 0 ? rule.ElseActions : new List<ActionNode> { new ActionNode("NO_ACTION") });
+                var resolvedActions = new List<ActionNode>();
+                
+                foreach (var a in rawActions)
+                {
+                    if (a is EmitActionNode emit)
+                    {
+                        object? payload = null;
+                        if (emit.PayloadPath != null)
+                        {
+                            var payloadVal = evaluator.EvaluateNode(emit.PayloadPath);
+                            payload = Evaluator.UnwrapRuleValue(payloadVal);
+                        }
+                        resolvedActions.Add(new ActionNode("EMIT", emit.IntentName, payload));
+                    }
+                    else
+                    {
+                        resolvedActions.Add(a);
+                    }
+                }
+                decisions.Add(evaluator.BuildDecision(rule, conditionResult, resolvedActions));
             }
             else
             {

@@ -26,6 +26,9 @@ class Evaluator:
     def eval_rules(self, ast_list):
         return [self.eval_rule(rule) for rule in ast_list]
 
+    def build_decision(self, node, matched, actions):
+        return Decision(node.name, 1, node.lang_version, matched, actions)
+
     def eval_rule(self, node: RuleNode):
         self.step_count = 0
         self.trace = []

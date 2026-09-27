@@ -28,11 +28,13 @@ foreach (var iterations in scales) {
     var sw = Stopwatch.StartNew();
     for(int i=0; i<iterations; i++) evaluator.EvaluateRules(ast);
     sw.Stop();
-    Console.WriteLine($"Interpreter: {sw.Elapsed.TotalMilliseconds:F2}ms ({iterations / sw.Elapsed.TotalSeconds:F0} ops/sec)");
+    double interpMs = sw.Elapsed.TotalMilliseconds;
+    Console.WriteLine($"Interpreter: {interpMs:F2}ms ({iterations / sw.Elapsed.TotalSeconds:F0} ops/sec)");
 
     sw.Restart();
     for(int i=0; i<iterations; i++) compiler.Execute(ctx);
     sw.Stop();
-    Console.WriteLine($"Compiled:    {sw.Elapsed.TotalMilliseconds:F2}ms ({iterations / sw.Elapsed.TotalSeconds:F0} ops/sec)");
-    Console.WriteLine($"Speedup:     {(double)evaluator.EvaluateRules(ast).Count}... (Check console for ratio)");
+    double compMs = sw.Elapsed.TotalMilliseconds;
+    Console.WriteLine($"Compiled:    {compMs:F2}ms ({iterations / sw.Elapsed.TotalSeconds:F0} ops/sec)");
+    Console.WriteLine($"Speedup:     {interpMs / compMs:F2}x");
 }

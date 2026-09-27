@@ -26,6 +26,11 @@ public class Evaluator
         return decisions;
     }
 
+    public Decision BuildDecision(RuleNode node, bool matched, List<ActionNode> actions)
+    {
+        return new Decision(node.Name, 1, node.LanguageVersion, matched, actions);
+    }
+
     private Decision EvaluateRule(RuleNode node)
     {
         _stepCount = 0;
@@ -53,7 +58,7 @@ public class Evaluator
         return new Decision(node.Name, 1, node.LanguageVersion, conditionResult, actions);
     }
 
-    private object? UnwrapRuleValue(RuleValue val)
+    public static object? UnwrapRuleValue(RuleValue val)
     {
         if (val.Type == RuleValueType.Array && val.Value is List<RuleValue> list)
         {
@@ -67,7 +72,7 @@ public class Evaluator
         if (val.Type == RuleValueType.Null) throw new EvaluatorException("RF4002", $"Cannot perform '{op}' on NULL. Use IS NULL / IS NOT NULL.");
     }
 
-    private RuleValue EvaluateNode(Expression expr)
+    public RuleValue EvaluateNode(Expression expr)
     {
         _stepCount++;
         if (_stepCount > MaxExecutionSteps) throw new EvaluatorException("RF5003", $"Security Limit: Execution exceeded {MaxExecutionSteps} steps");

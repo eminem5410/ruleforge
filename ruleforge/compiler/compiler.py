@@ -1,6 +1,6 @@
 from ..evaluator import Evaluator
 from ..evaluator.errors import EvaluatorError
-from ..parser.ast_nodes import RuleNode, ActionNode, BinaryOpNode, UnaryOpNode, LiteralNode, PropertyAccessNode
+from ..parser.ast_nodes import RuleNode, ActionNode, BinaryOpNode, UnaryOpNode, LiteralNode, PropertyAccessNode, EmitActionNode
 
 def _safe_get(ctx, obj, prop):
     val = ctx.get(obj)
@@ -8,10 +8,6 @@ def _safe_get(ctx, obj, prop):
     return None
 
 class RuleForgeCompiler:
-    """
-    V9.0.0-Beta: Real Python compilation (Slice 1).
-    Preserves interpreter semantics by falling back to interpreter for Decimals and Arithmetic.
-    """
     def __init__(self, ast):
         self.ast = ast
         self.compiled_conditions = {}
@@ -28,17 +24,13 @@ class RuleForgeCompiler:
             if node.type == "STRING": return repr(node.value)
             if node.type == "INTEGER": return str(node.value)
             if node.type == "BOOLEAN": return "True" if node.value == "true" else "False"
-            # Fall back for DECIMAL to preserve Decimal semantics
             raise NotImplementedError
             
         elif isinstance(node, PropertyAccessNode):
             return f"_safe_get(ctx, '{node.obj}', '{node.prop}')"
             
         elif isinstance(node, BinaryOpNode):
-            # Fall back for arithmetic to preserve Decimal semantics
-            if node.op in ["+", "-", "*", "/"]:
-                raise NotImplementedError
-                
+            if node.op in ["+", "-", "*", "/"]: raise NotImplementedError
             left = self._compile_node(node.left)
             right = self._compile_node(node.right)
             op = node.op
@@ -47,9 +39,7 @@ class RuleForgeCompiler:
             return f"({left} {op} {right})"
             
         elif isinstance(node, UnaryOpNode):
-            if node.op == "NOT":
-                operand = self._compile_node(node.operand)
-                return f"(not {operand})"
+            if node.op == "NOT": return f"(not {self._compile_node(node.operand)})"
             raise NotImplementedError
             
         raise NotImplementedError
@@ -59,8 +49,6 @@ class RuleForgeCompiler:
         decisions = []
         globals_dict = {"__builtins__": {}, "_safe_get": _safe_get}
         locals_dict = {"ctx": context}
-        
-        from ..parser.ast_nodes import LiteralNode as _Lit
         
         for rule in self.ast:
             code = self.compiled_conditions.get(id(rule))
@@ -74,10 +62,20 @@ class RuleForgeCompiler:
                 except ZeroDivisionError:
                     raise EvaluatorError("RF4001", "Division by zero")
                 
-                dummy_expr = _Lit("true", "BOOLEAN") if condition_result else _Lit("false", "BOOLEAN")
-                original_expr = rule.when_expr
-                rule.when_expr = dummy_expr
-                decisions.append(evaluator.eval_rule(rule))
-                rule.when_expr = original_expr
+                # Slice 2: Resolve actions directly without Evaluator
+                actions_to_resolve = rule.then_actions if condition_result else (rule.else_actions if rule.else_actions else [ActionNode("NO_ACTION")])
+                resolved_actions = []
                 
+                for a in actions_to_resolve:
+                    if isinstance(a, EmitActionNode):
+                        payload = None
+                        if a.payload_node:
+                            # Fallback to interpreter only for payload evaluation
+                            payload, _ = evaluator.eval_node(a.payload_node)
+                        resolved_actions.append(ActionNode("EMIT", a.value, payload))
+                    else:
+                        resolved_actions.append(a)
+                
+                decisions.append(evaluator.build_decision(rule, condition_result, resolved_actions))
+
         return decisions
