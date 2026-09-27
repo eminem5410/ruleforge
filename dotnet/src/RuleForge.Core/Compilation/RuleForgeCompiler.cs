@@ -120,6 +120,29 @@ public class RuleForgeCompiler
             }
             throw new NotImplementedException();
         }
+        if (node is ArrayLiteralExpression arrLit)
+        {
+            var elements = arrLit.Elements.Select(e => {
+                var comp = CompileNode(e, param);
+                if (comp.Type == typeof(int)) comp = LinqExpr.Convert(comp, typeof(object));
+                else if (comp.Type == typeof(string)) comp = LinqExpr.Convert(comp, typeof(object));
+                else if (comp.Type == typeof(bool)) comp = LinqExpr.Convert(comp, typeof(object));
+                else if (comp.Type == typeof(decimal)) comp = LinqExpr.Convert(comp, typeof(object));
+                return comp;
+            }).ToArray();
+            return LinqExpr.Call(typeof(RuleForgeCompiler), "CreateArray", null, elements);
+        }
+        if (node is ArrayIndexExpression arrIdx)
+        {
+            var arr = CompileNode(arrIdx.Array, param);
+            if (arr.Type != typeof(object)) arr = LinqExpr.Convert(arr, typeof(object));
+            
+            var idx = CompileNode(arrIdx.Index, param);
+            if (idx.Type == typeof(object)) idx = LinqExpr.Convert(idx, typeof(int));
+            if (idx.Type != typeof(int)) throw new NotImplementedException();
+            
+            return LinqExpr.Call(typeof(RuleForgeCompiler), "SafeIndex", null, arr, idx);
+        }
         if (node is NullCheckExpression nc)
         {
             var left = CompileNode(nc.Left, param);
@@ -211,6 +234,15 @@ public class RuleForgeCompiler
         if (val is DateOnly d) return d;
         if (val is string s && DateOnly.TryParseExact(s, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsed)) return parsed;
         throw new NotImplementedException();
+    }
+
+    public static List<object?> CreateArray(params object?[] items) => items.ToList();
+    
+    public static object? SafeIndex(object? arr, int idx)
+    {
+        if (arr == null || arr is not List<object?> list) throw new NotImplementedException();
+        if (idx < 0 || idx >= list.Count) throw new NotImplementedException();
+        return list[idx];
     }
 
     public static object? GetProperty(Dictionary<string, object?> ctx, string objName, string propName)

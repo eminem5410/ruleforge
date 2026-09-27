@@ -2,7 +2,12 @@ from decimal import Decimal
 from datetime import date, timedelta
 from ..evaluator import Evaluator
 from ..evaluator.errors import EvaluatorError
-from ..parser.ast_nodes import RuleNode, ActionNode, BinaryOpNode, UnaryOpNode, LiteralNode, PropertyAccessNode, EmitActionNode, FunctionCallNode, NullCheckNode, DateLiteralNode
+from ..parser.ast_nodes import RuleNode, ActionNode, BinaryOpNode, UnaryOpNode, LiteralNode, PropertyAccessNode, EmitActionNode, FunctionCallNode, NullCheckNode, DateLiteralNode, ArrayLiteralNode, ArrayIndexNode
+
+def _safe_index(arr, idx):
+    if arr is None or not isinstance(arr, list): raise TypeError("Not an array")
+    if idx < 0 or idx >= len(arr): raise IndexError("Out of bounds")
+    return arr[idx]
 
 def _safe_get(ctx, obj, prop):
     val = ctx.get(obj)
@@ -60,6 +65,15 @@ class RuleForgeCompiler:
                 return f"getattr(_get_date({self._compile_node(node.args[0])}), '{part}')"
             raise NotImplementedError
             
+        elif isinstance(node, ArrayLiteralNode):
+            elements = [self._compile_node(el) for el in node.elements]
+            return "[" + ", ".join(elements) + "]"
+            
+        elif isinstance(node, ArrayIndexNode):
+            arr = self._compile_node(node.array)
+            idx = self._compile_node(node.index)
+            return f"_safe_index({arr}, {idx})"
+            
         elif isinstance(node, NullCheckNode):
             operand = self._compile_node(node.left)
             return f"({operand} is not None)" if node.is_not else f"({operand} is None)"
@@ -86,7 +100,7 @@ class RuleForgeCompiler:
     def execute(self, context):
         evaluator = Evaluator(context)
         decisions = []
-        globals_dict = {"__builtins__": {}, "_safe_get": _safe_get, "Decimal": Decimal, "date": date, "timedelta": timedelta, "_get_date": _get_date}
+        globals_dict = {"__builtins__": {}, "_safe_get": _safe_get, "_safe_index": _safe_index, "Decimal": Decimal, "date": date, "timedelta": timedelta, "_get_date": _get_date}
         locals_dict = {"ctx": context}
         
         for rule in self.ast:
