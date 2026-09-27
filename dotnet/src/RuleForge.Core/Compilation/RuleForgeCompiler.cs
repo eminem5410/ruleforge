@@ -101,6 +101,12 @@ public class RuleForgeCompiler
                 else if (right.Type == typeof(int) && left.Type == typeof(decimal))
                     right = LinqExpr.Convert(right, typeof(decimal));
 
+                if (left.Type == typeof(string) && right.Type == typeof(string))
+                {
+                    var concatMethod = typeof(string).GetMethod("Concat", new[] { typeof(string), typeof(string) });
+                    return LinqExpr.Add(left, right, concatMethod);
+                }
+
                 return bin.Operator switch
                 {
                     "+" => LinqExpr.Add(left, right),

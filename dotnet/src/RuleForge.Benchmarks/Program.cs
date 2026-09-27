@@ -6,9 +6,9 @@ using RuleForge.Core.Semantic;
 using RuleForge.Core.Evaluation;
 using RuleForge.Core.Compilation;
 
-var rule = "RULE r LANGUAGE 2 WHEN LENGTH(customer.name) >= 4 AND CONTAINS(customer.email, \"@\") THEN ALLOW END";
-var schema = new Dictionary<string, Dictionary<string, string>> { { "customer", new() { {"name", "String"}, {"email", "String"} } } };
-var ctx = new Dictionary<string, object?> { { "customer", new Dictionary<string, object?> { {"name", "admin"}, {"email", "admin@test.com"} } } };
+var rule = "RULE r LANGUAGE 2 WHEN customer.name + \"!\" == \"admin!\" THEN ALLOW END";
+var schema = new Dictionary<string, Dictionary<string, string>> { { "customer", new() { {"name", "String"} } } };
+var ctx = new Dictionary<string, object?> { { "customer", new Dictionary<string, object?> { {"name", "admin"} } } };
 
 var tokens = new Lexer(rule).Tokenize();
 var ast = new Parser(tokens).Parse();

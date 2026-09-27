@@ -1,0 +1,5 @@
+RULE StringConcatValid
+LANGUAGE 2
+WHEN customer.name + "!" == "Pablo!"
+THEN ALLOW
+END

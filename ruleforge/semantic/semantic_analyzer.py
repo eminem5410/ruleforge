@@ -107,7 +107,9 @@ class SemanticAnalyzer:
                 if left_type not in valid_comparison or right_type not in valid_comparison: raise SemanticError("RF3001", f"Operator '{op}' requires numeric/date")
                 return "Boolean"
             elif op in ["+", "-", "*", "/"]:
-                if left_type not in valid_numerics or right_type not in valid_numerics: raise SemanticError("RF3001", f"Operator '{op}' requires numeric")
+                if op == "+" and left_type == "String" and right_type == "String":
+                    return "String"
+                if left_type not in valid_numerics or right_type not in valid_numerics: raise SemanticError("RF3001", f"Operator '{op}' requires numeric or String operands")
                 if op == "/": return "Decimal" # Division always yields Decimal
                 return "Decimal" if "Decimal" in [left_type, right_type] else "Integer"
 

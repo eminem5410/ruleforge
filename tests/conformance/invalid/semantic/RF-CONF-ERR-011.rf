@@ -1,0 +1,5 @@
+RULE StringConcatInvalid
+LANGUAGE 2
+WHEN customer.name + customer.age == "Pablo21"
+THEN ALLOW
+END

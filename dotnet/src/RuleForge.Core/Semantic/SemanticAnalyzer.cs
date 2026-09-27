@@ -160,8 +160,10 @@ public class SemanticAnalyzer
             }
             if (op == "+" || op == "-" || op == "*" || op == "/")
             {
+                if (op == "+" && l == "String" && r == "String")
+                    return "String";
                 if (!validNumerics.Contains(l) || !validNumerics.Contains(r))
-                    throw new SemanticException("RF3001", $"Operator '{op}' requires numeric");
+                    throw new SemanticException("RF3001", $"Operator '{op}' requires numeric or String operands");
                 return "Decimal";
             }
         }
