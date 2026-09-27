@@ -51,6 +51,10 @@ public class RuleForgeCompiler
                 return LinqExpr.Constant(lit.Value?.ToString(), typeof(string));
             throw new NotImplementedException();
         }
+        if (node is DateLiteralExpression dlit)
+        {
+            return LinqExpr.Constant(dlit.Value, typeof(DateOnly));
+        }
         if (node is PropertyExpression prop)
         {
             var call = LinqExpr.Call(typeof(RuleForgeCompiler), "GetProperty", null, param, LinqExpr.Constant(prop.ObjectName), LinqExpr.Constant(prop.PropertyName));
@@ -75,6 +79,44 @@ public class RuleForgeCompiler
                 
                 var method = typeof(string).GetMethod("Contains", new[] { typeof(string) });
                 return LinqExpr.Call(arg1, method!, arg2);
+            }
+            if (fc.Name.ToUpper() == "DATE_ADD" && fc.Arguments.Count == 2)
+            {
+                var d = CompileNode(fc.Arguments[0], param);
+                if (d.Type == typeof(object)) d = LinqExpr.Call(typeof(RuleForgeCompiler), "GetDate", null, d);
+                if (d.Type != typeof(DateOnly)) throw new NotImplementedException();
+                
+                var days = CompileNode(fc.Arguments[1], param);
+                if (days.Type == typeof(object)) days = LinqExpr.Convert(days, typeof(int));
+                if (days.Type != typeof(int)) throw new NotImplementedException();
+                
+                var addDaysMethod = typeof(DateOnly).GetMethod("AddDays", new[] { typeof(int) });
+                return LinqExpr.Call(d, addDaysMethod!, days);
+            }
+            if (fc.Name.ToUpper() == "DATE_DIFF" && fc.Arguments.Count == 2)
+            {
+                var d1 = CompileNode(fc.Arguments[0], param);
+                var d2 = CompileNode(fc.Arguments[1], param);
+                if (d1.Type == typeof(object)) d1 = LinqExpr.Call(typeof(RuleForgeCompiler), "GetDate", null, d1);
+                if (d2.Type == typeof(object)) d2 = LinqExpr.Call(typeof(RuleForgeCompiler), "GetDate", null, d2);
+                if (d1.Type != typeof(DateOnly) || d2.Type != typeof(DateOnly)) throw new NotImplementedException();
+                
+                return LinqExpr.Subtract(LinqExpr.Property(d2, "DayNumber"), LinqExpr.Property(d1, "DayNumber"));
+            }
+            if (fc.Name.ToUpper() == "EXTRACT" && fc.Arguments.Count == 2)
+            {
+                if (!(fc.Arguments[1] is LiteralExpression lit2) || lit2.Type != TokenType.STRING) throw new NotImplementedException();
+                var d = CompileNode(fc.Arguments[0], param);
+                if (d.Type == typeof(object)) d = LinqExpr.Call(typeof(RuleForgeCompiler), "GetDate", null, d);
+                if (d.Type != typeof(DateOnly)) throw new NotImplementedException();
+                
+                return lit2.Value?.ToString() switch
+                {
+                    "year" => LinqExpr.Property(d, "Year"),
+                    "month" => LinqExpr.Property(d, "Month"),
+                    "day" => LinqExpr.Property(d, "Day"),
+                    _ => throw new NotImplementedException()
+                };
             }
             throw new NotImplementedException();
         }
@@ -161,6 +203,13 @@ public class RuleForgeCompiler
     {
         if (expr.Type == typeof(bool)) return expr;
         if (expr.Type == typeof(object)) return LinqExpr.Convert(expr, typeof(bool));
+        throw new NotImplementedException();
+    }
+
+    public static DateOnly GetDate(object? val)
+    {
+        if (val is DateOnly d) return d;
+        if (val is string s && DateOnly.TryParseExact(s, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsed)) return parsed;
         throw new NotImplementedException();
     }
 

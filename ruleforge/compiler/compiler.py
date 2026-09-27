@@ -1,12 +1,20 @@
 from decimal import Decimal
+from datetime import date, timedelta
 from ..evaluator import Evaluator
 from ..evaluator.errors import EvaluatorError
-from ..parser.ast_nodes import RuleNode, ActionNode, BinaryOpNode, UnaryOpNode, LiteralNode, PropertyAccessNode, EmitActionNode, FunctionCallNode, NullCheckNode
+from ..parser.ast_nodes import RuleNode, ActionNode, BinaryOpNode, UnaryOpNode, LiteralNode, PropertyAccessNode, EmitActionNode, FunctionCallNode, NullCheckNode, DateLiteralNode
 
 def _safe_get(ctx, obj, prop):
     val = ctx.get(obj)
     if isinstance(val, dict): return val.get(prop)
     return None
+
+def _get_date(val):
+    if isinstance(val, date): return val
+    if isinstance(val, str):
+        parts = val.split("-")
+        return date(int(parts[0]), int(parts[1]), int(parts[2]))
+    raise TypeError("Not a date")
 
 class RuleForgeCompiler:
     def __init__(self, ast):
@@ -28,19 +36,33 @@ class RuleForgeCompiler:
             if node.type == "BOOLEAN": return "True" if node.value == "true" else "False"
             raise NotImplementedError
             
+        elif isinstance(node, DateLiteralNode):
+            # node.value is already a datetime.date object from the parser
+            return f"date({node.value.year}, {node.value.month}, {node.value.day})"
+            
         elif isinstance(node, PropertyAccessNode):
             return f"_safe_get(ctx, '{node.obj}', '{node.prop}')"
             
         elif isinstance(node, FunctionCallNode):
             name = node.name.lower()
             if name == "length" and len(node.args) == 1:
-                arg = self._compile_node(node.args[0])
-                return f"len({arg})"
+                return f"len({self._compile_node(node.args[0])})"
             elif name == "contains" and len(node.args) == 2:
-                arg1 = self._compile_node(node.args[0])
-                arg2 = self._compile_node(node.args[1])
-                return f"({arg2} in {arg1})"
+                return f"({self._compile_node(node.args[1])} in {self._compile_node(node.args[0])})"
+            elif name == "date_add" and len(node.args) == 2:
+                return f"(_get_date({self._compile_node(node.args[0])}) + timedelta(days={self._compile_node(node.args[1])}))"
+            elif name == "date_diff" and len(node.args) == 2:
+                return f"((_get_date({self._compile_node(node.args[1])}) - _get_date({self._compile_node(node.args[0])})).days)"
+            elif name == "extract" and len(node.args) == 2:
+                if not isinstance(node.args[1], LiteralNode) or node.args[1].type != "STRING": raise NotImplementedError
+                part = node.args[1].value
+                if part not in ["year", "month", "day"]: raise NotImplementedError
+                return f"getattr(_get_date({self._compile_node(node.args[0])}), '{part}')"
             raise NotImplementedError
+            
+        elif isinstance(node, NullCheckNode):
+            operand = self._compile_node(node.left)
+            return f"({operand} is not None)" if node.is_not else f"({operand} is None)"
             
         elif isinstance(node, BinaryOpNode):
             if node.op in ["+", "-", "*", "/"]:
@@ -55,10 +77,6 @@ class RuleForgeCompiler:
             elif op == "OR": op = "or"
             return f"({left} {op} {right})"
             
-        elif isinstance(node, NullCheckNode):
-            operand = self._compile_node(node.left)
-            return f"({operand} is not None)" if node.is_not else f"({operand} is None)"
-            
         elif isinstance(node, UnaryOpNode):
             if node.op == "NOT": return f"(not {self._compile_node(node.operand)})"
             raise NotImplementedError
@@ -68,7 +86,7 @@ class RuleForgeCompiler:
     def execute(self, context):
         evaluator = Evaluator(context)
         decisions = []
-        globals_dict = {"__builtins__": {}, "_safe_get": _safe_get, "Decimal": Decimal}
+        globals_dict = {"__builtins__": {}, "_safe_get": _safe_get, "Decimal": Decimal, "date": date, "timedelta": timedelta, "_get_date": _get_date}
         locals_dict = {"ctx": context}
         
         for rule in self.ast:
@@ -79,7 +97,6 @@ class RuleForgeCompiler:
                 try:
                     condition_result = bool(eval(code, globals_dict, locals_dict))
                 except Exception:
-                    # Fallback to interpreter for any runtime error (e.g. TypeError on float+Decimal, ZeroDivisionError)
                     decisions.append(evaluator.eval_rule(rule))
                     continue
                 

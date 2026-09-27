@@ -1,0 +1,5 @@
+RULE DateAddContext
+LANGUAGE 2
+WHEN DATE_ADD(customer.birth_date, 30) == DATE "1990-06-14"
+THEN ALLOW
+END
