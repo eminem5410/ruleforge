@@ -1,0 +1,11 @@
+{
+    "context": {
+        "customer": {
+            "tags": ["vip", "beta", "admin"]
+        }
+    },
+    "expected": {
+        "matched": true,
+        "actions": [{"action_type": "ALLOW"}]
+    }
+}

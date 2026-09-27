@@ -1,0 +1,5 @@
+RULE StringLengthValid
+LANGUAGE 1
+WHEN length(customer.name) == 4
+THEN ALLOW
+END

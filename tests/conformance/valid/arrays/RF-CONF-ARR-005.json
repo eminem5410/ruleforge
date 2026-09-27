@@ -1,0 +1,11 @@
+{
+    "context": {
+        "customer": {
+            "name": "John"
+        }
+    },
+    "expected": {
+        "matched": true,
+        "actions": [{"action_type": "ALLOW"}]
+    }
+}

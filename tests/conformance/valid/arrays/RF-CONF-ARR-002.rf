@@ -1,0 +1,5 @@
+RULE ArrayLengthValid
+LANGUAGE 1
+WHEN length(customer.tags) == 3
+THEN ALLOW
+END

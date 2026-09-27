@@ -1,0 +1,5 @@
+RULE OutOfBoundsError
+LANGUAGE 1
+WHEN customer.tags[10] == "vip"
+THEN ALLOW
+END

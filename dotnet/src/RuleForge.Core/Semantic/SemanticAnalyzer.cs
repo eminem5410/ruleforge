@@ -184,7 +184,7 @@ public class SemanticAnalyzer
                 
                 if (arg1Type == "String")
                 {
-                    if (arg2Type != "String") throw new SemanticException("RF3003", "Argument 2 of 'contains' must be String");
+                    if (arg2Type != "String") throw new SemanticException("RF3003", "CONTAINS expects String, got " + arg2Type);
                 }
                 else if (arg1Type.StartsWith("Array<"))
                 {

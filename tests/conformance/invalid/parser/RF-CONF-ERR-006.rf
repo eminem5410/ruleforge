@@ -1,0 +1,5 @@
+RULE ComplexIndexError
+LANGUAGE 1
+WHEN customer.tags[1 + 1] == "vip"
+THEN ALLOW
+END

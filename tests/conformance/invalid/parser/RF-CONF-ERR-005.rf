@@ -1,0 +1,5 @@
+RULE ChainedIndexError
+LANGUAGE 1
+WHEN customer.tags[0][1] == "vip"
+THEN ALLOW
+END

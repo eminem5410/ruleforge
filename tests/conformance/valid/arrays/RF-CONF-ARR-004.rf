@@ -1,0 +1,5 @@
+RULE StringContainsValid
+LANGUAGE 1
+WHEN contains(customer.email, "@")
+THEN DENY "Invalid Email"
+END

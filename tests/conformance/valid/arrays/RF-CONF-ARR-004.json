@@ -1,0 +1,11 @@
+{
+    "context": {
+        "customer": {
+            "email": "test@example.com"
+        }
+    },
+    "expected": {
+        "matched": true,
+        "actions": [{"action_type": "DENY", "value": "Invalid Email"}]
+    }
+}

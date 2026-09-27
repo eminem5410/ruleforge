@@ -1,0 +1,8 @@
+{
+    "context": {
+        "customer": {
+            "tags": ["vip"]
+        }
+    },
+    "expected_error_code": "RF4002"
+}

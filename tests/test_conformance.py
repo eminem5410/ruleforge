@@ -6,7 +6,7 @@ from ruleforge.semantic import SemanticAnalyzer, SemanticError
 from ruleforge.evaluator import Evaluator, EvaluatorError
 
 SCHEMA = {
-    "customer": {"age": "Integer", "name": "String", "active": "Boolean", "email": "String"},
+    "customer": {"age": "Integer", "name": "String", "active": "Boolean", "email": "String", "tags": "Array<String>"},
     "invoice": {"total": "Decimal", "amount": "Integer", "status": "String"},
     "observation": {"code": "String", "value": "Decimal", "unit": "String"}
 }

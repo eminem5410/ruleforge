@@ -1,0 +1,8 @@
+{
+    "context": {
+        "customer": {
+            "tags": null
+        }
+    },
+    "expected_error_code": "RF4002"
+}

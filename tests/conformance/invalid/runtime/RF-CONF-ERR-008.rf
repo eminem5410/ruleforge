@@ -1,0 +1,5 @@
+RULE NullIndexError
+LANGUAGE 1
+WHEN customer.tags[0] == "vip"
+THEN ALLOW
+END
