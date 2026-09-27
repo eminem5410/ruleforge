@@ -49,7 +49,7 @@ def main():
     try:
         engine = RuleEngine(schema)
         explain_mode = (args.command == "explain") or args.json_output
-        decisions = engine.evaluate(source_code, context, explain=explain_mode)
+        decisions = engine.evaluate(source_code, context, explain=explain_mode).decisions
         
         if args.json_output:
             output = {"decisions": [d.to_dict() for d in decisions]}

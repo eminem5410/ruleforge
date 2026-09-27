@@ -15,7 +15,7 @@ engine = RuleEngine(SCHEMA)
 def test_engine_valid():
     code = 'RULE r LANGUAGE 1 WHEN customer.age >= 18 THEN ALLOW END'
     ctx = {"customer": {"age": 20}}
-    decisions = engine.evaluate(code, ctx)
+    decisions = engine.evaluate(code, ctx).decisions
     assert decisions[0].matched == True
 
 def test_engine_semantic_error():
@@ -39,5 +39,5 @@ def test_engine_lexer_error():
 def test_engine_explain_mode():
     code = 'RULE r LANGUAGE 1 WHEN customer.age >= 18 THEN ALLOW END'
     ctx = {"customer": {"age": 20}}
-    decisions = engine.evaluate(code, ctx, explain=True)
-    assert len(decisions[0].trace) > 0
+    pipeline_result = engine.evaluate(code, ctx, explain=True)
+    assert len(pipeline_result.decisions[0].trace) > 0

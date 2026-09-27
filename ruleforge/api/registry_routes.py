@@ -116,7 +116,7 @@ async def evaluate_registered_rule(rule_id: str, request: EvaluateRegisteredRule
                         if val is not None and prop_type == "Decimal" and not isinstance(val, Decimal):
                             ctx_copy[obj_name][prop_name] = Decimal(str(val))
         engine = RuleEngine(request.context_schema)
-        decisions = engine.evaluate(rule.source, ctx_copy, explain=request.explain)
+        decisions = engine.evaluate(rule.source, ctx_copy, explain=request.explain).decisions
         output = {"decisions": [d.to_dict() for d in decisions]}
         
         duration = time.time() - start_time

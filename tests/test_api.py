@@ -109,5 +109,7 @@ async def test_api_get_rule(client):
 async def test_api_evaluate_registered_rule(client):
     payload = {"context": {"customer": {"age": 21}}, "context_schema": SCHEMA}
     res = await client.post("/v1/rules/adult_check/evaluate", json=payload)
+    print("DEBUG STATUS:", res.status_code)
+    print("DEBUG RESP:", res.text)
     assert res.status_code == 200
     assert res.json()["decisions"][0]["matched"] == True

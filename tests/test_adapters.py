@@ -35,7 +35,7 @@ def test_fhir_adapter_determinism_and_precision():
     assert isinstance(context["observation"]["value"], Decimal)
     
     rule = 'RULE hypertension_alert LANGUAGE 1 WHEN observation.code == "8480-6" AND observation.value >= 140 THEN ALERT "High BP" END'
-    decisions = fhir_engine.evaluate(rule, context)
+    decisions = fhir_engine.evaluate(rule, context).decisions
     assert decisions[0].matched == True
 
 def test_fhir_adapter_missing_active_is_null():
@@ -47,7 +47,7 @@ def test_fhir_adapter_missing_active_is_null():
     assert context["patient"]["active"] is None
     
     rule = 'RULE r LANGUAGE 1 WHEN patient.active IS NULL THEN ALLOW END'
-    decisions = fhir_engine.evaluate(rule, context)
+    decisions = fhir_engine.evaluate(rule, context).decisions
     assert decisions[0].matched == True
 
 def test_fhir_adapter_missing_reference_date_fails():
@@ -76,7 +76,7 @@ def test_erp_adapter_precision_and_missing_data():
     assert context["customer"]["credit_score"] is None
     
     rule = 'RULE r LANGUAGE 1 WHEN customer.credit_score IS NULL THEN ALLOW END'
-    decisions = erp_engine.evaluate(rule, context)
+    decisions = erp_engine.evaluate(rule, context).decisions
     assert decisions[0].matched == True
 
 def test_erp_adapter_runtime_validation_fails_on_bad_data():
@@ -116,7 +116,7 @@ def test_fhir_adapter_allergy_intolerance():
     assert context["allergy"]["status"] == "active"
     
     rule = 'RULE r LANGUAGE 1 WHEN allergy.status == "active" THEN ALERT "Active Allergy" END'
-    decisions = fhir_engine_v2.evaluate(rule, context)
+    decisions = fhir_engine_v2.evaluate(rule, context).decisions
     assert decisions[0].matched == True
 
 def test_fhir_adapter_medication_request():
@@ -197,7 +197,7 @@ def test_erp_adapter_sale_integration():
     assert context["sale"]["total"] == Decimal("150000.50")
     
     rule = 'RULE high_value_sale LANGUAGE 1 WHEN sale.total > 100000.00 AND sale.status == "COMPLETED" THEN APPLY "REQUIRE_REVIEW" END'
-    decisions = erp_engine_v2.evaluate(rule, context)
+    decisions = erp_engine_v2.evaluate(rule, context).decisions
     assert decisions[0].matched == True
     assert decisions[0].actions[0].value == "REQUIRE_REVIEW"
 
@@ -249,7 +249,7 @@ def test_fhir_adapter_omitted_resources_are_null():
     
     # Probamos que RuleForge puede evaluar esto sin problemas
     rule = 'RULE r LANGUAGE 1 WHEN allergy.code IS NULL AND encounter.status IS NULL THEN ALLOW END'
-    decisions = fhir_engine_v2.evaluate(rule, context)
+    decisions = fhir_engine_v2.evaluate(rule, context).decisions
     assert decisions[0].matched == True
 
 def test_erp_adapter_omitted_entities_are_null():
@@ -265,5 +265,5 @@ def test_erp_adapter_omitted_entities_are_null():
     assert context["stock"]["quantity"] is None
     
     rule = 'RULE r LANGUAGE 1 WHEN product.price IS NULL AND stock.quantity IS NULL THEN ALLOW END'
-    decisions = erp_engine_v2.evaluate(rule, context)
+    decisions = erp_engine_v2.evaluate(rule, context).decisions
     assert decisions[0].matched == True

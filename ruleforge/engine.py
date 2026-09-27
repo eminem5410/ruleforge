@@ -17,6 +17,21 @@ class AppliedPatch:
         self.old_value = old_value
         self.new_value = new_value
 
+class RuleTraceEntry:
+    def __init__(self, rule_name, rule_index, matched, applied_patches, actions):
+        self.rule_name = rule_name
+        self.rule_index = rule_index
+        self.matched = matched
+        self.applied_patches = applied_patches
+        self.actions = actions
+
+class PipelineResult:
+    def __init__(self, decisions, applied_patches, final_context, trace):
+        self.decisions = decisions
+        self.applied_patches = applied_patches
+        self.final_context = final_context
+        self.trace = trace
+
 class RuleEngine:
     def __init__(self, schema, use_compiler=False):
         self.schema = schema
@@ -41,11 +56,7 @@ class RuleEngine:
                             if prop_type == "Date":
                                 if isinstance(val, str):
                                     parts = val.split("-")
-                                    normalized_date = date(
-                                        int(parts[0]),
-                                        int(parts[1]),
-                                        int(parts[2])
-                                    )
+                                    normalized_date = date(int(parts[0]), int(parts[1]), int(parts[2]))
                                     context[obj_name][prop_name] = normalized_date
                                 elif isinstance(val, datetime):
                                     context[obj_name][prop_name] = val.date()
@@ -63,7 +74,7 @@ class RuleEngine:
                         except (ValueError, TypeError):
                             raise EvaluatorError("RF4003", f"expected {prop_type} but got {type(val).__name__}")
 
-    def evaluate(self, source_code, context, explain=False):
+    def evaluate(self, source_code, context, explain=False, trace=False):
         tokens = Lexer(source_code).tokenize()
         ast = Parser(tokens).parse()
         SemanticAnalyzer(self.schema).analyze(ast)
@@ -76,14 +87,14 @@ class RuleEngine:
         
         decisions = []
         applied_patches = []
+        trace_entries = [] if trace else None
         
         for i, rule in enumerate(ast):
-            if compiler and compiler.compiled_conditions.get(id(rule)):
-                decision = compiler.execute(working_context)[i]
-            else:
-                decision = evaluator.eval_rule(rule)
-                
+            decision = evaluator.eval_rule(rule) if not compiler or not compiler.compiled_conditions.get(id(rule)) else compiler.execute(working_context)[i]
             decisions.append(decision)
+            
+            rule_applied_paths = []
+            rule_actions = [a.action_type for a in decision.actions]
             
             if decision.matched:
                 patch_index = 0
@@ -103,6 +114,16 @@ class RuleEngine:
                             rule_name=rule.name, rule_index=i, patch_index=patch_index,
                             path=path, old_value=old_value, new_value=new_value
                         ))
+                        rule_applied_paths.append(path)
                         patch_index += 1
-                        
-        return decisions
+            
+            if trace:
+                trace_entries.append(RuleTraceEntry(
+                    rule_name=rule.name,
+                    rule_index=i,
+                    matched=decision.matched,
+                    applied_patches=rule_applied_paths,
+                    actions=rule_actions
+                ))
+                    
+        return PipelineResult(decisions, applied_patches, working_context, trace_entries)

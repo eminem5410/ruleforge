@@ -8,8 +8,8 @@ SCHEMA = {"customer": {"age": "Integer", "active": "Boolean", "email": "String"}
 engine = RuleEngine(SCHEMA)
 
 def get_trace(code, ctx):
-    decisions = engine.evaluate(code, ctx, explain=True)
-    return decisions[0].trace[0]
+    pipeline_result = engine.evaluate(code, ctx, explain=True)
+    return pipeline_result.decisions[0].trace[0]
 
 def test_trace_001_simple_comparison():
     code = 'RULE r LANGUAGE 1 WHEN customer.age >= 18 THEN ALLOW END'

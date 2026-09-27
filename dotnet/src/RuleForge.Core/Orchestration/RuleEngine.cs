@@ -19,11 +19,21 @@ public class AppliedPatch
     public object? NewValue { get; set; }
 }
 
+public class RuleTraceEntry
+{
+    public string RuleName { get; set; } = "";
+    public int RuleIndex { get; set; }
+    public bool Matched { get; set; }
+    public List<string> AppliedPatches { get; set; } = new();
+    public List<string> Actions { get; set; } = new();
+}
+
 public class PipelineResult
 {
     public List<Decision> Decisions { get; set; } = new();
     public List<AppliedPatch> AppliedPatches { get; set; } = new();
     public Dictionary<string, object?> FinalContext { get; set; } = new();
+    public List<RuleTraceEntry>? Trace { get; set; }
 }
 
 public class RuleEngine
@@ -122,7 +132,7 @@ public class RuleEngine
         }
     }
 
-    public PipelineResult Execute(Dictionary<string, object?> context)
+    public PipelineResult Execute(Dictionary<string, object?> context, bool trace = false)
     {
         new SemanticAnalyzer(_schema).Analyze(_ast);
         
@@ -133,6 +143,7 @@ public class RuleEngine
         
         var result = new PipelineResult();
         result.FinalContext = workingContext;
+        List<RuleTraceEntry>? traceEntries = trace ? new List<RuleTraceEntry>() : null;
         
         for (int i = 0; i < _ast.Count; i++)
         {
@@ -145,6 +156,9 @@ public class RuleEngine
             
             result.Decisions.Add(decision);
             
+            var ruleAppliedPaths = new List<string>();
+            var ruleActions = decision.Actions.Select(a => a.ActionType).ToList();
+
             if (decision.Matched)
             {
                 int patchIndex = 0;
@@ -176,6 +190,7 @@ public class RuleEngine
                     
                     ((Dictionary<string, object?>)workingContext[objName]!)[propName] = newValue;
                     
+                    ruleAppliedPaths.Add(path);
                     result.AppliedPatches.Add(new AppliedPatch
                     {
                         RuleName = rule.Name,
@@ -187,8 +202,21 @@ public class RuleEngine
                     });
                 }
             }
+
+            if (trace)
+            {
+                traceEntries!.Add(new RuleTraceEntry
+                {
+                    RuleName = rule.Name,
+                    RuleIndex = i,
+                    Matched = decision.Matched,
+                    AppliedPatches = ruleAppliedPaths,
+                    Actions = ruleActions
+                });
+            }
         }
         
+        result.Trace = traceEntries;
         return result;
     }
     

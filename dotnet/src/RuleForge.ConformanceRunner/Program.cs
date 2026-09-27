@@ -30,7 +30,7 @@ try {
     // V10: Use RuleEngine to support SET patches
     var engine = new RuleEngine(ast, schema, useCompiler: false);
     var pipelineResult = engine.Execute(ctx);
-    var d = pipelineResult.Decisions.Last();
+    var d = pipelineResult.Decisions[pipelineResult.Decisions.Count - 1];
     
     var actions = d.Actions.Select(a => new { action_type = a.ActionType, value = a.Value, payload = a.Payload }).ToList();
     Console.WriteLine(JsonSerializer.Serialize(new { code = (string?)null, matched = d.Matched, actions }));

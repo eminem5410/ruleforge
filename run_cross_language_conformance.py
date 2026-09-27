@@ -17,7 +17,7 @@ def get_python_result(rule_path, data_path):
     try:
         ctx = data.get("context", {})
         engine = RuleEngine(SCHEMA, use_compiler=True)
-        decisions = engine.evaluate(source, ctx)
+        decisions = engine.evaluate(source, ctx).decisions
         d = decisions[-1]
         
         actions = [{"action_type": a.action_type, "value": a.value, "payload": a.payload} for a in d.actions]

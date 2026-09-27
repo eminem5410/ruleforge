@@ -34,7 +34,7 @@ def test_valid_conformance(rule_path, data_path):
     
     # V10: Use RuleEngine to support pipeline/SET patches
     engine = RuleEngine(SCHEMA)
-    decisions = engine.evaluate(source_code, ctx)
+    decisions = engine.evaluate(source_code, ctx).decisions
     
     # Pipeline might have multiple decisions, we check the last one for the vector
     d = decisions[-1]

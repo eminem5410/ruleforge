@@ -46,7 +46,8 @@ def evaluate_rule(request: EvaluateRequest):
         ctx_copy = copy.deepcopy(request.context)
         normalized_context = normalize_context(ctx_copy, request.context_schema)
         engine = RuleEngine(request.context_schema)
-        decisions = engine.evaluate(request.rules, normalized_context, explain=request.explain)
+        pipeline_result = engine.evaluate(request.rules, normalized_context, explain=request.explain)
+        decisions = pipeline_result.decisions
         output = {"decisions": [d.to_dict() for d in decisions]}
         
         duration = time.time() - start_time

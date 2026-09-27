@@ -35,7 +35,7 @@ def test_custom_adapter_shipping_express_rule():
     ELSE ALLOW
     END
     '''
-    decisions = engine.evaluate(rule, context)
+    decisions = engine.evaluate(rule, context).decisions
     
     assert decisions[0].matched == True
     assert decisions[0].actions[0].action_type == "APPLY"
@@ -52,5 +52,5 @@ def test_custom_adapter_missing_data_is_null():
     assert context["shipment"]["priority"] is None
     
     rule = 'RULE r LANGUAGE 1 WHEN shipment.priority IS NULL THEN ALLOW END'
-    decisions = engine.evaluate(rule, context)
+    decisions = engine.evaluate(rule, context).decisions
     assert decisions[0].matched == True
