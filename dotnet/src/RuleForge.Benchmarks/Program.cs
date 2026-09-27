@@ -6,9 +6,9 @@ using RuleForge.Core.Semantic;
 using RuleForge.Core.Evaluation;
 using RuleForge.Core.Compilation;
 
-var rule = "RULE r LANGUAGE 2 WHEN customer.age >= 18 AND customer.active == true THEN ALLOW END";
-var schema = new Dictionary<string, Dictionary<string, string>> { { "customer", new() { {"age", "Integer"}, {"active", "Boolean"} } } };
-var ctx = new Dictionary<string, object?> { { "customer", new Dictionary<string, object?> { {"age", 21}, {"active", true} } } };
+var rule = "RULE r LANGUAGE 2 WHEN customer.name == \"admin\" AND customer.active == true THEN ALLOW END";
+var schema = new Dictionary<string, Dictionary<string, string>> { { "customer", new() { {"name", "String"}, {"active", "Boolean"} } } };
+var ctx = new Dictionary<string, object?> { { "customer", new Dictionary<string, object?> { {"name", "admin"}, {"active", true} } } };
 
 var tokens = new Lexer(rule).Tokenize();
 var ast = new Parser(tokens).Parse();

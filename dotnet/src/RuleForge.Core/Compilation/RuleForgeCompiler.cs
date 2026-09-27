@@ -47,6 +47,8 @@ public class RuleForgeCompiler
                 return LinqExpr.Constant(int.Parse(lit.Value!.ToString()!), typeof(int));
             if (lit.Type == TokenType.DECIMAL)
                 return LinqExpr.Constant(decimal.Parse(lit.Value!.ToString()!, CultureInfo.InvariantCulture), typeof(decimal));
+            if (lit.Type == TokenType.STRING)
+                return LinqExpr.Constant(lit.Value?.ToString(), typeof(string));
             throw new NotImplementedException();
         }
         if (node is PropertyExpression prop)
