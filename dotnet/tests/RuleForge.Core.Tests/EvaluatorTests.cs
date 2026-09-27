@@ -107,4 +107,22 @@ public class EvaluatorTests
         var ex = Assert.Throws<EvaluatorException>(() => eval.EvaluateRules(ast));
         Assert.Equal("RF4002", ex.Code);
     }
+
+    [Fact]
+    public void EVAL_ERR_005_Chained_Array_Indexing_Throws_RF2004()
+    {
+        var rule = @"RULE r LANGUAGE 1 WHEN customer.tags[0][1] == 1 THEN ALLOW END";
+        var tokens = new Lexer(rule).Tokenize();
+        var ex = Assert.Throws<ParserException>(() => new Parser(tokens).Parse());
+        Assert.Equal("RF2004", ex.Code);
+    }
+
+    [Fact]
+    public void EVAL_ERR_006_Non_Literal_Array_Index_Throws_RF2004()
+    {
+        var rule = @"RULE r LANGUAGE 1 WHEN customer.tags[1 + 1] == 1 THEN ALLOW END";
+        var tokens = new Lexer(rule).Tokenize();
+        var ex = Assert.Throws<ParserException>(() => new Parser(tokens).Parse());
+        Assert.Equal("RF2004", ex.Code);
+    }
 }

@@ -246,8 +246,8 @@ public class Parser
                 Expect(TokenType.IDENTIFIER);
                 Expression propNode = new PropertyExpression(name, propToken.Value);
                 
-                // Array Indexing: customer.tags[0] - V7 strictly requires Integer literals
-                while (CurrentToken.Type == TokenType.LBRACKET)
+                // Array Indexing: customer.tags[0] - V7 strictly allows single integer literal index on properties
+                if (CurrentToken.Type == TokenType.LBRACKET)
                 {
                     Advance();
                     if (CurrentToken.Type != TokenType.INTEGER)
@@ -256,8 +256,17 @@ public class Parser
                     }
                     var indexToken = CurrentToken;
                     Expect(TokenType.INTEGER);
-                    Expect(TokenType.RBRACKET);
+                    if (CurrentToken.Type != TokenType.RBRACKET)
+                    {
+                        throw new ParserException("RF2004", "V7 array index must be a single integer literal", CurrentToken.Line, CurrentToken.Column);
+                    }
+                    Advance(); // Consumir RBRACKET
                     propNode = new ArrayIndexExpression(propNode, new LiteralExpression(indexToken.Value, indexToken.Type));
+                    
+                    if (CurrentToken.Type == TokenType.LBRACKET)
+                    {
+                        throw new ParserException("RF2004", "V7 does not allow chained array indexing", CurrentToken.Line, CurrentToken.Column);
+                    }
                 }
                 return propNode;
             }
