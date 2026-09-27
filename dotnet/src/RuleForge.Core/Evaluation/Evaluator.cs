@@ -83,18 +83,39 @@ public class Evaluator
             }
         }
         
+        if (expr is ArrayLiteralExpression arrLit)
+        {
+            var elements = arrLit.Elements.Select(EvaluateNode).ToList();
+            return new RuleValue(RuleValueType.Array, elements);
+        }
+        
+        if (expr is ArrayIndexExpression arrIdx)
+        {
+            var arr = EvaluateNode(arrIdx.Array);
+            CheckNull(arr, "ArrayIndex");
+            if (arr.Type != RuleValueType.Array) throw new EvaluatorException("RF4002", "Cannot index non-array");
+            
+            var indexVal = EvaluateNode(arrIdx.Index);
+            if (indexVal.Type != RuleValueType.Integer) throw new EvaluatorException("RF4002", "Array index must be integer");
+            
+            var list = (List<RuleValue>)arr.Value!;
+            int index = (int)indexVal.Value!;
+            if (index < 0 || index >= list.Count) throw new EvaluatorException("RF4002", $"Array index {index} out of bounds (0..{list.Count-1})");
+            return list[index];
+        }
+
         if (expr is FunctionCallExpression fc)
         {
             var args = fc.Arguments.Select(EvaluateNode).ToList();
             CheckNull(args[0], fc.Name); // Simplified null check for first arg
             
-            return fc.Name switch
+            return fc.Name.ToUpperInvariant() switch
             {
-                "contains" => new RuleValue(RuleValueType.Boolean, ((string)args[0].Value!).Contains((string)args[1].Value!)),
-                "length" => new RuleValue(RuleValueType.Integer, ((string)args[0].Value!).Length),
-                "starts_with" => new RuleValue(RuleValueType.Boolean, ((string)args[0].Value!).StartsWith((string)args[1].Value!)),
-                "ends_with" => new RuleValue(RuleValueType.Boolean, ((string)args[0].Value!).EndsWith((string)args[1].Value!)),
-                "abs" => new RuleValue(args[0].Type, Math.Abs(Convert.ToDecimal(args[0].Value, CultureInfo.InvariantCulture))),
+                "LENGTH" => GetLength(args),
+                "CONTAINS" => GetContains(args),
+                "STARTS_WITH" => new RuleValue(RuleValueType.Boolean, ((string)args[0].Value!).StartsWith((string)args[1].Value!)),
+                "ENDS_WITH" => new RuleValue(RuleValueType.Boolean, ((string)args[0].Value!).EndsWith((string)args[1].Value!)),
+                "ABS" => new RuleValue(args[0].Type, Math.Abs(Convert.ToDecimal(args[0].Value, CultureInfo.InvariantCulture))),
                 _ => throw new EvaluatorException("RF4001", $"Unknown function {fc.Name}")
             };
         }
@@ -141,7 +162,28 @@ public class Evaluator
         throw new EvaluatorException("RF4001", "Unknown AST node");
     }
 
-    private int Compare(RuleValue l, RuleValue r)
+    private RuleValue GetLength(List<RuleValue> args)
+        {
+            if (args[0].Type == RuleValueType.Array) return new RuleValue(RuleValueType.Integer, ((List<RuleValue>)args[0].Value!).Count);
+            if (args[0].Type == RuleValueType.String) return new RuleValue(RuleValueType.Integer, ((string)args[0].Value!).Length);
+            throw new EvaluatorException("RF4001", "LENGTH requires string or array");
+        }
+
+        private RuleValue GetContains(List<RuleValue> args)
+        {
+            if (args[0].Type == RuleValueType.Array)
+            {
+                var list = (List<RuleValue>)args[0].Value!;
+                return new RuleValue(RuleValueType.Boolean, list.Any(e => Equals(e.Value, args[1].Value)));
+            }
+            if (args[0].Type == RuleValueType.String)
+            {
+                return new RuleValue(RuleValueType.Boolean, ((string)args[0].Value!).Contains((string)args[1].Value!));
+            }
+            throw new EvaluatorException("RF4001", "CONTAINS requires string or array");
+        }
+
+        private int Compare(RuleValue l, RuleValue r)
     {
         if (l.Type == RuleValueType.String && r.Type == RuleValueType.String) return string.Compare((string)l.Value!, (string)r.Value!, StringComparison.Ordinal);
         if (l.Type == RuleValueType.Date && r.Type == RuleValueType.Date) return ((DateOnly)l.Value!).CompareTo((DateOnly)r.Value!);
@@ -161,6 +203,16 @@ public class Evaluator
         if (val is string s) return new RuleValue(RuleValueType.String, s);
         if (val is DateOnly dt) return new RuleValue(RuleValueType.Date, dt);
         if (val is double db) return new RuleValue(RuleValueType.Decimal, Convert.ToDecimal(db, CultureInfo.InvariantCulture));
+        if (val is List<object?> listObj)
+        {
+            var ruleList = listObj.Select(ToRuleValue).ToList();
+            return new RuleValue(RuleValueType.Array, ruleList);
+        }
+        if (val is object[] objArr)
+        {
+            var ruleList = objArr.Select(ToRuleValue).ToList();
+            return new RuleValue(RuleValueType.Array, ruleList);
+        }
         return new RuleValue(RuleValueType.String, val.ToString());
     }
 }

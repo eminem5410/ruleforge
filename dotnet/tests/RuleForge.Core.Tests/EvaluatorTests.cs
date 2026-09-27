@@ -63,4 +63,48 @@ public class EvaluatorTests
         var ex = Assert.Throws<EvaluatorException>(() => EvalCode("RULE r LANGUAGE 1 WHEN customer.age + 10 == 30 THEN ALLOW END", ctx));
         Assert.Equal("RF4002", ex.Code);
     }
+
+    [Fact]
+    public void EVAL_004_Array_Property_Index_Works()
+    {
+        var ctx = new Dictionary<string, object?> { { "customer", new Dictionary<string, object?> { { "tags", new List<object?> { 10, 20, 30 } } } } };
+        var rule = @"RULE r LANGUAGE 1 WHEN customer.tags[1] == 20 THEN ALLOW END";
+        var tokens = new Lexer(rule).Tokenize();
+        var ast = new Parser(tokens).Parse();
+        var decisions = new Evaluator(ctx).EvaluateRules(ast);
+        Assert.True(decisions[0].Matched);
+    }
+
+    [Fact]
+    public void EVAL_ERR_003_Array_Index_Out_Of_Bounds()
+    {
+        var ctx = new Dictionary<string, object?> { { "customer", new Dictionary<string, object?> { { "tags", new List<object?> { 1, 2 } } } } };
+        var rule = @"RULE r LANGUAGE 1 WHEN customer.tags[5] == 1 THEN ALLOW END";
+        var tokens = new Lexer(rule).Tokenize();
+        var ast = new Parser(tokens).Parse();
+        var ex = Assert.Throws<EvaluatorException>(() => new Evaluator(ctx).EvaluateRules(ast));
+        Assert.Equal("RF4002", ex.Code);
+    }
+
+    [Fact]
+    public void EVAL_006_Contains_Function_On_Array()
+    {
+        var rule = @"RULE r LANGUAGE 1 WHEN contains([""a"", ""b""], ""b"") THEN ALLOW END";
+        var tokens = new Lexer(rule).Tokenize();
+        var ast = new Parser(tokens).Parse();
+        var decisions = new Evaluator(new Dictionary<string, object?>()).EvaluateRules(ast);
+        Assert.True(decisions[0].Matched);
+    }
+
+    [Fact]
+    public void EVAL_ERR_004_Null_Array_Index()
+    {
+        var ctx = new Dictionary<string, object?> { { "customer", new Dictionary<string, object?> { { "tags", null } } } };
+        var rule = @"RULE r LANGUAGE 1 WHEN customer.tags[0] == ""x"" THEN ALLOW END";
+        var tokens = new Lexer(rule).Tokenize();
+        var ast = new Parser(tokens).Parse();
+        var eval = new Evaluator(ctx);
+        var ex = Assert.Throws<EvaluatorException>(() => eval.EvaluateRules(ast));
+        Assert.Equal("RF4002", ex.Code);
+    }
 }

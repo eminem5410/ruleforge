@@ -7,7 +7,8 @@ public enum RuleValueType
     Decimal,
     String,
     Boolean,
-    Date
+    Date,
+    Array
 }
 
 public readonly record struct RuleValue(RuleValueType Type, object? Value);
