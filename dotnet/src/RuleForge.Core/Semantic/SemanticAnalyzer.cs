@@ -194,8 +194,8 @@ public class SemanticAnalyzer
                 if (fc.Arguments.Count != 2) throw new SemanticException("RF3003", "Function 'EXTRACT' expects 2 arguments");
                 var arg1 = CheckNode(fc.Arguments[0]);
                 if (arg1 != "Date") throw new SemanticException("RF3003", $"Argument 1 of 'EXTRACT' must be Date, got {arg1}");
-                if (!(fc.Arguments[1] is LiteralExpression lit) || lit.Type != TokenType.STRING) throw new SemanticException("RF3003", "Argument 2 of 'EXTRACT' must be String literal");
-                var part = lit.Value?.ToString();
+                if (!(fc.Arguments[1] is LiteralExpression strLit) || strLit.Type != TokenType.STRING) throw new SemanticException("RF3003", "Argument 2 of 'EXTRACT' must be String literal");
+                var part = strLit.Value?.ToString();
                 if (part != "year" && part != "month" && part != "day") throw new SemanticException("RF3003", "Invalid part for EXTRACT. Expected 'year', 'month', or 'day'");
                 return "Integer";
             }

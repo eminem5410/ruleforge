@@ -20,10 +20,9 @@ public class Lexer
         { "APPLY", TokenType.APPLY }, { "AND", TokenType.AND },
         { "OR", TokenType.OR }, { "NOT", TokenType.NOT },
         { "IS", TokenType.IS }, { "NULL", TokenType.NULL },
+        { "DATE", TokenType.DATE },
         { "true", TokenType.BOOLEAN }, { "false", TokenType.BOOLEAN }
     };
-
-    private static readonly Regex DateRegex = new(@"\d{4}-\d{2}-\d{2}", RegexOptions.Compiled);
 
     public Lexer(string source)
     {
@@ -82,14 +81,6 @@ public class Lexer
     {
         int startLine = _line, startCol = _column;
         
-        var match = DateRegex.Match(_source, _pos);
-        if (match.Success && match.Index == _pos)
-        {
-            string dateStr = match.Value;
-            for (int i = 0; i < dateStr.Length; i++) Advance();
-            return new Token(TokenType.DATE, dateStr, startLine, startCol);
-        }
-
         string val = "";
         bool isDecimal = false;
         

@@ -21,8 +21,8 @@ def test_lex_003_string():
     assert get_types(tokens) == [TokenType.STRING, TokenType.EOF]
 
 def test_lex_004_date():
-    tokens = Lexer("customer.birth_date == 1990-05-20").tokenize()
-    assert get_types(tokens) == [TokenType.IDENTIFIER, TokenType.DOT, TokenType.IDENTIFIER, TokenType.EQ, TokenType.DATE, TokenType.EOF]
+    tokens = Lexer('DATE "1990-05-20"').tokenize()
+    assert get_types(tokens) == [TokenType.DATE, TokenType.STRING, TokenType.EOF]
 
 def test_lex_005_boolean_true():
     tokens = Lexer("customer.active == true").tokenize()
@@ -104,6 +104,7 @@ def test_lex_err_007_number_followed_by_letter():
     assert exc.value.code == "RF1001"
     assert "Invalid identifier" in exc.value.message
 
+@pytest.mark.skip(reason='Date regex removed in V7.3')
 def test_lex_err_008_date_followed_by_number():
     with pytest.raises(LexerError) as exc:
         Lexer("2026-09-25123").tokenize()

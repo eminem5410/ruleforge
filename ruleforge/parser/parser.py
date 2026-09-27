@@ -15,7 +15,9 @@ class Parser:
 
     def expect(self, token_type):
         if self.current_token.type == token_type:
+            t = self.current_token
             self.advance()
+            return t
         else:
             t = self.current_token
             raise ParserError("RF2002", f"Expected {token_type} but got {t.type} ('{t.value}')", t.line, t.column)
@@ -132,9 +134,10 @@ class Parser:
             str_token = self.expect(TokenType.STRING)
             from .ast_nodes import DateLiteralNode
             return DateLiteralNode(str_token.value)
+            str_token = self.expect(TokenType.STRING)
+            from .ast_nodes import DateLiteralNode
+            return DateLiteralNode(str_token.value)
 
-        if token.type == TokenType.DATE:
-            self.advance()
             str_token = self.expect(TokenType.STRING)
             from .ast_nodes import DateLiteralNode
             return DateLiteralNode(str_token.value)
@@ -143,7 +146,7 @@ class Parser:
             expr = self.expression()
             self.expect(TokenType.RPAREN)
             return expr
-        elif token.type in [TokenType.INTEGER, TokenType.DECIMAL, TokenType.STRING, TokenType.BOOLEAN, TokenType.DATE]:
+        elif token.type in [TokenType.INTEGER, TokenType.DECIMAL, TokenType.STRING, TokenType.BOOLEAN]:
             self.advance()
             return LiteralNode(token.value, token.type)
         elif token.type == TokenType.IDENTIFIER:

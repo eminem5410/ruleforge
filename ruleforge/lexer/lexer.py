@@ -8,10 +8,9 @@ KEYWORDS = {
     "ALLOW": TokenType.ALLOW, "DENY": TokenType.DENY, "NO_ACTION": TokenType.NO_ACTION,
     "ALERT": TokenType.ALERT, "APPLY": TokenType.APPLY, "AND": TokenType.AND,
     "OR": TokenType.OR, "NOT": TokenType.NOT, "IS": TokenType.IS, "NULL": TokenType.NULL,
+    "DATE": TokenType.DATE,
     "true": TokenType.BOOLEAN, "false": TokenType.BOOLEAN
 }
-
-DATE_REGEX = re.compile(r'\d{4}-\d{2}-\d{2}')
 
 class Lexer:
     def __init__(self, source):
@@ -73,14 +72,6 @@ class Lexer:
                 continue
                 
             if char.isdigit():
-                match = DATE_REGEX.match(self.source, self.pos)
-                if match:
-                    val = match.group(0)
-                    for _ in val: self.advance()
-                    if self.peek() and (self.peek().isdigit() or self.peek().isalpha() or self.peek() == '_'):
-                        raise LexerError("RF1001", "Invalid characters attached to date", start_line, start_col)
-                    tokens.append(Token(TokenType.DATE, val, start_line, start_col))
-                    continue
                     
                 val = ""
                 is_decimal = False

@@ -39,9 +39,10 @@ public class LexerTests
     [Fact]
     public void LEX_004_DateLiteral()
     {
-        var tokens = Tokenize("1990-05-20");
+        var tokens = Tokenize("DATE \"1990-05-20\"");
         Assert.Equal(TokenType.DATE, tokens[0].Type);
-        Assert.Equal("1990-05-20", tokens[0].Value);
+        Assert.Equal(TokenType.STRING, tokens[1].Type);
+        Assert.Equal("1990-05-20", tokens[1].Value);
     }
 
     [Fact]
