@@ -1,7 +1,7 @@
 from decimal import Decimal
 from ..evaluator import Evaluator
 from ..evaluator.errors import EvaluatorError
-from ..parser.ast_nodes import RuleNode, ActionNode, BinaryOpNode, UnaryOpNode, LiteralNode, PropertyAccessNode, EmitActionNode
+from ..parser.ast_nodes import RuleNode, ActionNode, BinaryOpNode, UnaryOpNode, LiteralNode, PropertyAccessNode, EmitActionNode, FunctionCallNode
 
 def _safe_get(ctx, obj, prop):
     val = ctx.get(obj)
@@ -30,6 +30,17 @@ class RuleForgeCompiler:
             
         elif isinstance(node, PropertyAccessNode):
             return f"_safe_get(ctx, '{node.obj}', '{node.prop}')"
+            
+        elif isinstance(node, FunctionCallNode):
+            name = node.name.lower()
+            if name == "length" and len(node.args) == 1:
+                arg = self._compile_node(node.args[0])
+                return f"len({arg})"
+            elif name == "contains" and len(node.args) == 2:
+                arg1 = self._compile_node(node.args[0])
+                arg2 = self._compile_node(node.args[1])
+                return f"({arg2} in {arg1})"
+            raise NotImplementedError
             
         elif isinstance(node, BinaryOpNode):
             if node.op in ["+", "-", "*", "/"]:

@@ -56,6 +56,28 @@ public class RuleForgeCompiler
             var call = LinqExpr.Call(typeof(RuleForgeCompiler), "GetProperty", null, param, LinqExpr.Constant(prop.ObjectName), LinqExpr.Constant(prop.PropertyName));
             return call;
         }
+        if (node is FunctionCallExpression fc)
+        {
+            if (fc.Name.ToUpper() == "LENGTH" && fc.Arguments.Count == 1)
+            {
+                var arg = CompileNode(fc.Arguments[0], param);
+                if (arg.Type == typeof(object)) arg = LinqExpr.Convert(arg, typeof(string));
+                if (arg.Type != typeof(string)) throw new NotImplementedException();
+                return LinqExpr.Property(arg, "Length");
+            }
+            if (fc.Name.ToUpper() == "CONTAINS" && fc.Arguments.Count == 2)
+            {
+                var arg1 = CompileNode(fc.Arguments[0], param);
+                var arg2 = CompileNode(fc.Arguments[1], param);
+                if (arg1.Type == typeof(object)) arg1 = LinqExpr.Convert(arg1, typeof(string));
+                if (arg2.Type == typeof(object)) arg2 = LinqExpr.Convert(arg2, typeof(string));
+                if (arg1.Type != typeof(string) || arg2.Type != typeof(string)) throw new NotImplementedException();
+                
+                var method = typeof(string).GetMethod("Contains", new[] { typeof(string) });
+                return LinqExpr.Call(arg1, method!, arg2);
+            }
+            throw new NotImplementedException();
+        }
         if (node is BinaryExpression bin)
         {
             if (bin.Operator == "AND") return LinqExpr.AndAlso(EnsureBool(CompileNode(bin.Left, param)), EnsureBool(CompileNode(bin.Right, param)));
