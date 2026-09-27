@@ -1,3 +1,4 @@
+from decimal import Decimal
 from ..evaluator import Evaluator
 from ..evaluator.errors import EvaluatorError
 from ..parser.ast_nodes import RuleNode, ActionNode, BinaryOpNode, UnaryOpNode, LiteralNode, PropertyAccessNode, EmitActionNode
@@ -23,6 +24,7 @@ class RuleForgeCompiler:
         if isinstance(node, LiteralNode):
             if node.type == "STRING": return repr(node.value)
             if node.type == "INTEGER": return str(node.value)
+            if node.type == "DECIMAL": return f"Decimal({repr(node.value)})"
             if node.type == "BOOLEAN": return "True" if node.value == "true" else "False"
             raise NotImplementedError
             
@@ -30,7 +32,11 @@ class RuleForgeCompiler:
             return f"_safe_get(ctx, '{node.obj}', '{node.prop}')"
             
         elif isinstance(node, BinaryOpNode):
-            if node.op in ["+", "-", "*", "/"]: raise NotImplementedError
+            if node.op in ["+", "-", "*", "/"]:
+                left = self._compile_node(node.left)
+                right = self._compile_node(node.right)
+                return f"({left} {node.op} {right})"
+                
             left = self._compile_node(node.left)
             right = self._compile_node(node.right)
             op = node.op
@@ -47,7 +53,7 @@ class RuleForgeCompiler:
     def execute(self, context):
         evaluator = Evaluator(context)
         decisions = []
-        globals_dict = {"__builtins__": {}, "_safe_get": _safe_get}
+        globals_dict = {"__builtins__": {}, "_safe_get": _safe_get, "Decimal": Decimal}
         locals_dict = {"ctx": context}
         
         for rule in self.ast:
@@ -57,12 +63,11 @@ class RuleForgeCompiler:
             else:
                 try:
                     condition_result = bool(eval(code, globals_dict, locals_dict))
-                except TypeError:
-                    raise EvaluatorError("RF4002", "Runtime Type Error on NULL or incompatible types.")
-                except ZeroDivisionError:
-                    raise EvaluatorError("RF4001", "Division by zero")
+                except Exception:
+                    # Fallback to interpreter for any runtime error (e.g. TypeError on float+Decimal, ZeroDivisionError)
+                    decisions.append(evaluator.eval_rule(rule))
+                    continue
                 
-                # Slice 2: Resolve actions directly without Evaluator
                 actions_to_resolve = rule.then_actions if condition_result else (rule.else_actions if rule.else_actions else [ActionNode("NO_ACTION")])
                 resolved_actions = []
                 
@@ -70,7 +75,6 @@ class RuleForgeCompiler:
                     if isinstance(a, EmitActionNode):
                         payload = None
                         if a.payload_node:
-                            # Fallback to interpreter only for payload evaluation
                             payload, _ = evaluator.eval_node(a.payload_node)
                         resolved_actions.append(ActionNode("EMIT", a.value, payload))
                     else:

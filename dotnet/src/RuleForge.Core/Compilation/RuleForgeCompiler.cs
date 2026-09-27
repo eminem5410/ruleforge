@@ -1,3 +1,4 @@
+using System.Globalization;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -44,6 +45,8 @@ public class RuleForgeCompiler
                 return LinqExpr.Constant(lit.Value?.ToString() == "true", typeof(bool));
             if (lit.Type == TokenType.INTEGER)
                 return LinqExpr.Constant(int.Parse(lit.Value!.ToString()!), typeof(int));
+            if (lit.Type == TokenType.DECIMAL)
+                return LinqExpr.Constant(decimal.Parse(lit.Value!.ToString()!, CultureInfo.InvariantCulture), typeof(decimal));
             throw new NotImplementedException();
         }
         if (node is PropertyExpression prop)
@@ -56,6 +59,33 @@ public class RuleForgeCompiler
             if (bin.Operator == "AND") return LinqExpr.AndAlso(EnsureBool(CompileNode(bin.Left, param)), EnsureBool(CompileNode(bin.Right, param)));
             if (bin.Operator == "OR") return LinqExpr.OrElse(EnsureBool(CompileNode(bin.Left, param)), EnsureBool(CompileNode(bin.Right, param)));
             
+            if (bin.Operator == "+" || bin.Operator == "-" || bin.Operator == "*" || bin.Operator == "/")
+            {
+                var left = CompileNode(bin.Left, param);
+                var right = CompileNode(bin.Right, param);
+                
+                if (left.Type == typeof(object) && right.Type != typeof(object))
+                    left = LinqExpr.Convert(left, right.Type);
+                else if (right.Type == typeof(object) && left.Type != typeof(object))
+                    right = LinqExpr.Convert(right, left.Type);
+                else if (left.Type == typeof(object) && right.Type == typeof(object))
+                    throw new NotImplementedException();
+
+                // Promote int to decimal if one side is decimal
+                if (left.Type == typeof(int) && right.Type == typeof(decimal))
+                    left = LinqExpr.Convert(left, typeof(decimal));
+                else if (right.Type == typeof(int) && left.Type == typeof(decimal))
+                    right = LinqExpr.Convert(right, typeof(decimal));
+
+                return bin.Operator switch
+                {
+                    "+" => LinqExpr.Add(left, right),
+                    "-" => LinqExpr.Subtract(left, right),
+                    "*" => LinqExpr.Multiply(left, right),
+                    "/" => LinqExpr.Divide(left, right),
+                    _ => throw new NotImplementedException()
+                };
+            }
             if (bin.Operator == "==" || bin.Operator == "!=" || bin.Operator == ">" || bin.Operator == "<" || bin.Operator == ">=" || bin.Operator == "<=")
             {
                 var left = CompileNode(bin.Left, param);
