@@ -3,13 +3,14 @@ using RuleForge.Core.Lexing;
 using RuleForge.Core.Parsing;
 using RuleForge.Core.Semantic;
 using RuleForge.Core.Evaluation;
+using RuleForge.Core.Compilation;
 
 var rulePath = args[0];
 var dataPath = args[1];
 
 var schema = new Dictionary<string, Dictionary<string, string>> {
-    { "customer", new Dictionary<string, string> { { "age", "Integer" }, { "name", "String" }, { "active", "Boolean" }, { "email", "String" }, { "tags", "Array<String>" }, { "birth_date", "Date" }, { "registration_date", "Date" }, { "id", "Integer" }, { "risk_score", "Integer" } } },
-    { "invoice", new Dictionary<string, string> { { "total", "Decimal" }, { "amount", "Integer" }, { "status", "String" }, { "issue_date", "Date" }, { "due_date", "Date" } } },
+    { "customer", new() { {"age", "Integer"}, {"name", "String"}, {"active", "Boolean"}, {"email", "String"}, {"tags", "Array<String>"}, {"birth_date", "Date"}, {"registration_date", "Date"}, {"id", "Integer"}, {"risk_score", "Integer"} } },
+    { "invoice", new() { {"total", "Decimal"}, {"amount", "Integer"}, {"status", "String"}, {"issue_date", "Date"}, {"due_date", "Date"} } },
     { "observation", new() { {"code", "String"}, {"value", "Decimal"}, {"unit", "String"} } }
 };
 
@@ -27,8 +28,9 @@ try {
         ctx = DeserializeContext(ctxEl);
     }
 
-    var eval = new Evaluator(ctx);
-    var decisions = eval.EvaluateRules(ast);
+    // V9: Use the compiler instead of the evaluator directly
+    var compiler = new RuleForgeCompiler(ast);
+    var decisions = compiler.Execute(ctx);
     var d = decisions[0];
     
     var actions = d.Actions.Select(a => new { action_type = a.ActionType, value = a.Value, payload = a.Payload }).ToList();
