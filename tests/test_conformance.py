@@ -7,7 +7,7 @@ from ruleforge.engine import RuleEngine
 from ruleforge.evaluator import EvaluatorError
 
 SCHEMA = {
-    "customer": {"age": "Integer", "name": "String", "active": "Boolean", "email": "String", "tags": "Array<String>", "birth_date": "Date", "registration_date": "Date", "id": "Integer", "risk_score": "Integer", "status": "String"},
+    "customer": {"age": "Integer", "name": "String", "active": "Boolean", "email": "String", "tags": "Array<String>", "birth_date": "Date", "registration_date": "Date", "id": "Integer", "risk_score": "Integer", "status": "String", "items": "Array<Object>"},
     "invoice": {"total": "Decimal", "amount": "Decimal", "status": "String", "issue_date": "Date", "due_date": "Date"},
     "observation": {"code": "String", "value": "Decimal", "unit": "String"}
 }

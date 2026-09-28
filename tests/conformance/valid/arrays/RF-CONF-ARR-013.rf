@@ -1,0 +1,5 @@
+RULE MapTypeChange
+LANGUAGE 4
+WHEN LENGTH(MAP customer.items USING it.price) == 2
+THEN ALLOW
+END

@@ -51,7 +51,7 @@ public class RuleForgeCompiler
                 return LinqExpr.Constant(lit.Value?.ToString(), typeof(string));
             throw new NotImplementedException();
         }
-        if (node is ItExpression || node is AnyAllExpression)
+        if (node is AnyAllExpression || node is FilterMapExpression)
         {
             throw new NotImplementedException(); // Fallback to interpreter
         }

@@ -1,0 +1,5 @@
+RULE FilterObjects
+LANGUAGE 4
+WHEN LENGTH(FILTER customer.items WHERE it.price > 15.0) == 1
+THEN ALLOW
+END

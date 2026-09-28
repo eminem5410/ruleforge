@@ -62,6 +62,13 @@ public class SemanticAnalyzer
             throw new SemanticException("RF3002", $"WHEN condition must evaluate to Boolean, got {exprType}");
     }
 
+    private void CheckActions(List<ActionNode> actions)
+    {
+        int terminalCount = actions.Count(a => a.ActionType == "ALLOW" || a.ActionType == "DENY" || a.ActionType == "NO_ACTION");
+        if (terminalCount > 1)
+            throw new SemanticException("RF3002", "A block can have at most ONE terminal decision");
+    }
+
     private void CheckAstLimits(Expression expr, int currentDepth, ref int maxDepth, ref int count)
     {
         count++;
@@ -75,10 +82,6 @@ public class SemanticAnalyzer
         else if (expr is UnaryExpression un)
         {
             CheckAstLimits(un.Operand, currentDepth + 1, ref maxDepth, ref count);
-        }
-        else if (expr is NullCheckExpression nc)
-        {
-            CheckAstLimits(nc.Left, currentDepth + 1, ref maxDepth, ref count);
         }
         else if (expr is FunctionCallExpression fc)
         {
@@ -95,13 +98,6 @@ public class SemanticAnalyzer
         }
     }
 
-    private void CheckActions(List<ActionNode> actions)
-    {
-        int terminalCount = actions.Count(a => a.ActionType == "ALLOW" || a.ActionType == "DENY" || a.ActionType == "NO_ACTION");
-        if (terminalCount > 1)
-            throw new SemanticException("RF3002", "A block can have at most ONE terminal decision");
-    }
-
     private string CheckNode(Expression expr)
     {
         if (expr is DateLiteralExpression dlit)
@@ -110,6 +106,8 @@ public class SemanticAnalyzer
         }
         if (expr is LiteralExpression lit)
         {
+            if (lit.Value?.ToString() == "it" && _itType != null)
+                return _itType;
             return lit.Type switch
             {
                 TokenType.INTEGER => "Integer",
@@ -122,11 +120,15 @@ public class SemanticAnalyzer
         }
         if (expr is PropertyExpression prop)
         {
-            if (!_schema.TryGetValue(prop.ObjectName, out var props))
-                throw new SemanticException("RF3002", $"Context object '{prop.ObjectName}' not defined");
-            if (!props.TryGetValue(prop.PropertyName, out var type))
-                throw new SemanticException("RF3002", $"Property '{prop.PropertyName}' not found in '{prop.ObjectName}'");
-            return type;
+            if (prop.ObjectName == "it" && _itType != null)
+            {
+                if (_itType == "Object") return "Unknown";
+                throw new SemanticException("RF3003", $"Cannot access property '{prop.PropertyName}' on type '{_itType}'");
+            }
+            var objSchema = _schema.ContainsKey(prop.ObjectName) ? _schema[prop.ObjectName] : null;
+            if (objSchema == null) throw new SemanticException("RF3002", $"Context object '{prop.ObjectName}' not defined");
+            if (!objSchema.TryGetValue(prop.PropertyName, out var propType)) throw new SemanticException("RF3002", $"Property '{prop.PropertyName}' not found in '{prop.ObjectName}'");
+            return propType;
         }
         if (expr is NullCheckExpression)
         {
@@ -158,29 +160,27 @@ public class SemanticAnalyzer
             }
             if (op == "==" || op == "!=")
             {
+                if (l == "Unknown" || r == "Unknown") return "Boolean";
                 if (validNumerics.Contains(l) && validNumerics.Contains(r)) return "Boolean";
-                if (l != r)
-                    throw new SemanticException("RF3001", $"Cannot compare {l} with {r}");
+                if (l != r) throw new SemanticException("RF3001", $"Cannot compare {l} with {r}");
                 return "Boolean";
             }
             if (op == ">" || op == "<" || op == ">=" || op == "<=")
             {
+                if (l == "Unknown" || r == "Unknown") return "Boolean";
                 if (!validComparison.Contains(l) || !validComparison.Contains(r))
                     throw new SemanticException("RF3001", $"Operator '{op}' requires numeric/date");
                 return "Boolean";
             }
             if (op == "+" || op == "-" || op == "*" || op == "/")
             {
+                if (l == "Unknown" || r == "Unknown") return "Unknown";
                 if (op == "+" && l == "String" && r == "String")
                     return "String";
                 if (!validNumerics.Contains(l) || !validNumerics.Contains(r))
                     throw new SemanticException("RF3001", $"Operator '{op}' requires numeric or String operands");
                 return "Decimal";
             }
-        }
-        if (expr is ItExpression)
-        {
-            return _itType ?? "Unknown";
         }
         if (expr is AnyAllExpression aa)
         {
@@ -194,6 +194,26 @@ public class SemanticAnalyzer
             
             if (whereType != "Boolean") throw new SemanticException("RF3003", "WHERE clause must be Boolean");
             return "Boolean";
+        }
+        if (expr is FilterMapExpression fm)
+        {
+            var arrType = CheckNode(fm.ArrayExpr);
+            if (!arrType.StartsWith("Array<") || arrType == "Array<Null>") throw new SemanticException("RF3003", "Invalid array operation type");
+            var innerType = arrType.Substring(6, arrType.Length - 7);
+            
+            _itType = innerType;
+            var subType = CheckNode(fm.SubExpr);
+            _itType = null;
+            
+            if (fm.IsMap)
+            {
+                return $"Array<{subType}>";
+            }
+            else
+            {
+                if (subType != "Boolean") throw new SemanticException("RF3003", "Invalid array operation type");
+                return arrType;
+            }
         }
         if (expr is ArrayLiteralExpression arrLit)
         {
@@ -222,71 +242,68 @@ public class SemanticAnalyzer
         }
         if (expr is FunctionCallExpression fc)
         {
+            if (fc.Name.ToUpper() == "LENGTH")
+            {
+                if (fc.Arguments.Count != 1) throw new SemanticException("RF3003", "Function 'length' expects 1 argument");
+                var argType = CheckNode(fc.Arguments[0]);
+                if (argType != "String" && !argType.StartsWith("Array<")) throw new SemanticException("RF3003", $"Function 'length' expects a String or Array, got {argType}");
+                return "Integer";
+            }
             if (fc.Name.ToUpper() == "DATE_ADD")
             {
-                if (fc.Arguments.Count != 2) throw new SemanticException("RF3003", "Function 'DATE_ADD' expects 2 arguments");
+                if (fc.Arguments.Count != 2) throw new SemanticException("RF3003", "Function 'date_add' expects 2 arguments");
                 var arg1 = CheckNode(fc.Arguments[0]);
                 var arg2 = CheckNode(fc.Arguments[1]);
-                if (arg1 != "Date") throw new SemanticException("RF3003", $"Argument 1 of 'DATE_ADD' must be Date, got {arg1}");
-                if (arg2 != "Integer") throw new SemanticException("RF3003", $"Argument 2 of 'DATE_ADD' must be Integer, got {arg2}");
+                if (arg1 != "Date") throw new SemanticException("RF3003", $"Argument 1 of 'date_add' must be Date, got {arg1}");
+                if (arg2 != "Integer") throw new SemanticException("RF3003", $"Argument 2 of 'date_add' must be Integer, got {arg2}");
                 return "Date";
             }
             if (fc.Name.ToUpper() == "DATE_DIFF")
             {
-                if (fc.Arguments.Count != 2) throw new SemanticException("RF3003", "Function 'DATE_DIFF' expects 2 arguments");
+                if (fc.Arguments.Count != 2) throw new SemanticException("RF3003", "Function 'date_diff' expects 2 arguments");
                 var arg1 = CheckNode(fc.Arguments[0]);
                 var arg2 = CheckNode(fc.Arguments[1]);
-                if (arg1 != "Date" || arg2 != "Date") throw new SemanticException("RF3003", "Function 'DATE_DIFF' requires Date arguments");
+                if (arg1 != "Date" || arg2 != "Date") throw new SemanticException("RF3003", "Function 'date_diff' requires Date arguments");
                 return "Integer";
             }
             if (fc.Name.ToUpper() == "EXTRACT")
             {
-                if (fc.Arguments.Count != 2) throw new SemanticException("RF3003", "Function 'EXTRACT' expects 2 arguments");
+                if (fc.Arguments.Count != 2) throw new SemanticException("RF3003", "Function 'extract' expects 2 arguments");
                 var arg1 = CheckNode(fc.Arguments[0]);
-                if (arg1 != "Date") throw new SemanticException("RF3003", $"Argument 1 of 'EXTRACT' must be Date, got {arg1}");
-                if (!(fc.Arguments[1] is LiteralExpression strLit) || strLit.Type != TokenType.STRING) throw new SemanticException("RF3003", "Argument 2 of 'EXTRACT' must be String literal");
-                var part = strLit.Value?.ToString();
+                if (arg1 != "Date") throw new SemanticException("RF3003", $"Argument 1 of 'extract' must be Date, got {arg1}");
+                if (!(fc.Arguments[1] is LiteralExpression lit2) || lit2.Type != TokenType.STRING) throw new SemanticException("RF3003", "Argument 2 of 'extract' must be String literal");
+                var part = lit2.Value?.ToString();
                 if (part != "year" && part != "month" && part != "day") throw new SemanticException("RF3003", "Invalid part for EXTRACT. Expected 'year', 'month', or 'day'");
                 return "Integer";
             }
-            if (fc.Name.ToLower() == "length")
-            {
-                if (fc.Arguments.Count != 1) throw new SemanticException("RF3003", "Function 'length' expects 1 argument");
-                var argType = CheckNode(fc.Arguments[0]);
-                if (argType != "String" && !argType.StartsWith("Array<"))
-                    throw new SemanticException("RF3003", $"Function 'length' expects a String or Array, got {argType}");
-                return "Integer";
-            }
-            if (fc.Name.ToLower() == "contains")
+            if (fc.Name.ToUpper() == "CONTAINS")
             {
                 if (fc.Arguments.Count != 2) throw new SemanticException("RF3003", "Function 'contains' expects 2 arguments");
                 var arg1Type = CheckNode(fc.Arguments[0]);
                 var arg2Type = CheckNode(fc.Arguments[1]);
-                
+
                 if (arg1Type == "String")
                 {
-                    if (arg2Type != "String") throw new SemanticException("RF3003", "CONTAINS expects String, got " + arg2Type);
+                    if (arg2Type != "String") throw new SemanticException("RF3003", $"Argument 2 of 'contains' must be String, got {arg2Type}");
                 }
                 else if (arg1Type.StartsWith("Array<"))
                 {
                     var innerType = arg1Type.Substring(6, arg1Type.Length - 7);
                     if (innerType == "Null") throw new SemanticException("RF3003", "Cannot infer array type from empty array literal in 'contains'");
-                    if (innerType != arg2Type) throw new SemanticException("RF3003", $"Argument 2 of 'contains' must be {innerType}, got {arg2Type}");
+                    if (innerType != arg2Type && innerType != "Unknown") throw new SemanticException("RF3003", $"Argument 2 of 'contains' must be {innerType}, got {arg2Type}");
                 }
-                else
-                {
-                    throw new SemanticException("RF3003", $"Function 'contains' expects a String or Array as first argument, got {arg1Type}");
-                }
+                else throw new SemanticException("RF3003", $"Function 'contains' expects a String or Array as first argument, got {arg1Type}");
                 return "Boolean";
             }
-            if (fc.Name.ToLower() == "starts_with" || fc.Name.ToLower() == "ends_with")
+            if (fc.Name.ToUpper() == "STARTS_WITH" || fc.Name.ToUpper() == "ENDS_WITH")
             {
                 if (fc.Arguments.Count != 2) throw new SemanticException("RF3003", $"Function '{fc.Name}' expects 2 arguments");
-                if (CheckNode(fc.Arguments[0]) != "String" || CheckNode(fc.Arguments[1]) != "String")
-                    throw new SemanticException("RF3003", $"Function '{fc.Name}' requires String arguments");
+                var t1 = CheckNode(fc.Arguments[0]);
+                var t2 = CheckNode(fc.Arguments[1]);
+                if (t1 != "String" || t2 != "String") throw new SemanticException("RF3003", $"Function '{fc.Name}' requires String arguments");
                 return "Boolean";
             }
-            if (fc.Name.ToLower() == "abs")
+            if (fc.Name.ToUpper() == "ABS")
             {
                 if (fc.Arguments.Count != 1) throw new SemanticException("RF3003", "Function 'abs' expects 1 argument");
                 var t = CheckNode(fc.Arguments[0]);

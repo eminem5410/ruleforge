@@ -104,7 +104,15 @@ public class Evaluator
         
         if (expr is PropertyExpression prop)
         {
-            if (_context.TryGetValue(prop.ObjectName, out var objVal) && objVal is Dictionary<string, object?> dict)
+            if (prop.ObjectName == "it" && _context.ContainsKey("it"))
+            {
+                var itVal = _context["it"];
+                if (itVal is Dictionary<string, object?> itDict && itDict.TryGetValue(prop.PropertyName, out var val))
+                {
+                    return ToRuleValue(val);
+                }
+            }
+            else if (_context.TryGetValue(prop.ObjectName, out var objVal) && objVal is Dictionary<string, object?> dict)
             {
                 if (dict.TryGetValue(prop.PropertyName, out var val)) return ToRuleValue(val);
             }
@@ -128,10 +136,6 @@ public class Evaluator
             }
         }
         
-        if (expr is ItExpression)
-        {
-            return ToRuleValue(_context["it"]);
-        }
         if (expr is AnyAllExpression aa)
         {
             var arrVal = EvaluateNode(aa.ArrayExpr);
@@ -154,6 +158,29 @@ public class Evaluator
                 }
             }
             return new RuleValue(RuleValueType.Boolean, aa.IsAll);
+        }
+        if (expr is FilterMapExpression fm)
+        {
+            var arrVal = EvaluateNode(fm.ArrayExpr);
+            if (arrVal.Type != RuleValueType.Array) throw new EvaluatorException("RF4002", "Cannot iterate non-array");
+            var list = (List<RuleValue>)arrVal.Value!;
+            var result = new List<RuleValue>();
+            
+            foreach (var item in list)
+            {
+                _context["it"] = item.Value;
+                var res = EvaluateNode(fm.SubExpr);
+                
+                if (fm.IsMap)
+                {
+                    result.Add(res);
+                }
+                else
+                {
+                    if (res.Type == RuleValueType.Boolean && (bool)res.Value!) result.Add(item);
+                }
+            }
+            return new RuleValue(RuleValueType.Array, result);
         }
         if (expr is ArrayLiteralExpression arrLit)
         {
@@ -298,6 +325,7 @@ public class Evaluator
         if (val is string s) return new RuleValue(RuleValueType.String, s);
         if (val is DateOnly dt) return new RuleValue(RuleValueType.Date, dt);
         if (val is double db) return new RuleValue(RuleValueType.Decimal, Convert.ToDecimal(db, CultureInfo.InvariantCulture));
+        if (val is Dictionary<string, object?> dict) return new RuleValue(RuleValueType.Object, dict);
         if (val is List<object?> listObj)
         {
             var ruleList = listObj.Select(ToRuleValue).ToList();

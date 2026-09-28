@@ -223,6 +223,15 @@ public class Parser
             var whereExpr = Expression();
             return new AnyAllExpression(isAll, arrayExpr, whereExpr);
         }
+        if (t.Type == TokenType.FILTER || t.Type == TokenType.MAP)
+        {
+            bool isMap = t.Type == TokenType.MAP;
+            Advance();
+            var arrayExpr = Factor();
+            Expect(isMap ? TokenType.USING : TokenType.WHERE);
+            var subExpr = Expression();
+            return new FilterMapExpression(isMap, arrayExpr, subExpr);
+        }
         if (t.Type == TokenType.DATE)
         {
             Advance();
@@ -264,11 +273,6 @@ public class Parser
         }
         if (t.Type == TokenType.IDENTIFIER)
         {
-            if (t.Value == "it")
-            {
-                Advance();
-                return new ItExpression();
-            }
             var name = t.Value;
             Advance();
             

@@ -2,7 +2,7 @@ from decimal import Decimal
 from datetime import date, timedelta
 from ..evaluator import Evaluator
 from ..evaluator.errors import EvaluatorError
-from ..parser.ast_nodes import RuleNode, ActionNode, BinaryOpNode, UnaryOpNode, LiteralNode, PropertyAccessNode, EmitActionNode, FunctionCallNode, NullCheckNode, DateLiteralNode, ArrayLiteralNode, ArrayIndexNode, SetActionNode, AnyAllNode
+from ..parser.ast_nodes import RuleNode, ActionNode, BinaryOpNode, UnaryOpNode, LiteralNode, PropertyAccessNode, EmitActionNode, FunctionCallNode, NullCheckNode, DateLiteralNode, ArrayLiteralNode, ArrayIndexNode, SetActionNode, AnyAllNode, FilterMapNode
 
 def _safe_index(arr, idx):
     if arr is None or not isinstance(arr, list): raise TypeError("Not an array")

@@ -13,6 +13,9 @@ KEYWORDS = {
     "ANY": TokenType.ANY,
     "ALL": TokenType.ALL,
     "WHERE": TokenType.WHERE,
+    "FILTER": TokenType.FILTER,
+    "MAP": TokenType.MAP,
+    "USING": TokenType.USING,
     "EMIT": TokenType.EMIT,
     "WITH": TokenType.WITH,
     "true": TokenType.BOOLEAN, "false": TokenType.BOOLEAN

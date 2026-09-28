@@ -22,7 +22,8 @@ public sealed record ArrayIndexExpression(Expression Array, Expression Index) : 
 
 public sealed record AnyAllExpression(bool IsAll, Expression ArrayExpr, Expression WhereExpr) : Expression;
 
-public sealed record ItExpression() : Expression;
+public sealed record FilterMapExpression(bool IsMap, Expression ArrayExpr, Expression SubExpr) : Expression;
+
 
 public record ActionNode(string ActionType, string? Value = null, object? Payload = null);
 

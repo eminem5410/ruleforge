@@ -85,3 +85,10 @@ class AnyAllNode:
         self.array_node = array_node
         self.where_node = where_node
     def __repr__(self): return f"AnyAll({'ALL' if self.is_all else 'ANY'} {self.array_node} WHERE {self.where_node})"
+
+class FilterMapNode:
+    def __init__(self, is_map, array_node, expr_node):
+        self.is_map = is_map
+        self.array_node = array_node
+        self.expr_node = expr_node
+    def __repr__(self): return f"FilterMap({'MAP' if self.is_map else 'FILTER'} {self.array_node} {'USING' if self.is_map else 'WHERE'} {self.expr_node})"

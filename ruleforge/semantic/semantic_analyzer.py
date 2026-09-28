@@ -1,4 +1,4 @@
-from ..parser.ast_nodes import RuleNode, ActionNode, BinaryOpNode, UnaryOpNode, NullCheckNode, LiteralNode, IdentifierNode, PropertyAccessNode, FunctionCallNode, ArrayLiteralNode, ArrayIndexNode, DateLiteralNode, EmitActionNode, SetActionNode, AnyAllNode
+from ..parser.ast_nodes import RuleNode, ActionNode, BinaryOpNode, UnaryOpNode, NullCheckNode, LiteralNode, IdentifierNode, PropertyAccessNode, FunctionCallNode, ArrayLiteralNode, ArrayIndexNode, DateLiteralNode, EmitActionNode, SetActionNode, AnyAllNode, FilterMapNode
 from .errors import SemanticError
 
 MAX_AST_DEPTH = 50
@@ -81,6 +81,10 @@ class SemanticAnalyzer:
             raise SemanticError("RF3002", f"Unknown context property '{node.name}'")
             
         elif isinstance(node, PropertyAccessNode):
+            if node.obj == "it" and getattr(self, "_it_type", None):
+                if self._it_type == "Object":
+                    return "Unknown"
+                raise SemanticError("RF3003", f"Cannot access property '{node.prop}' on type '{self._it_type}'")
             obj_schema = self.schema.get(node.obj)
             if not obj_schema: raise SemanticError("RF3002", f"Context object '{node.obj}' not defined")
             prop_type = obj_schema.get(node.prop)
@@ -109,15 +113,18 @@ class SemanticAnalyzer:
                 if left_type != "Boolean" or right_type != "Boolean": raise SemanticError("RF3001", f"Operator '{op}' requires Boolean operands")
                 return "Boolean"
             elif op in ["==", "!="]:
+                if left_type == "Unknown" or right_type == "Unknown": return "Boolean"
                 # Allow comparison between Integer and Decimal (Numeric types)
                 if left_type in valid_numerics and right_type in valid_numerics:
                     return "Boolean"
                 if left_type != right_type: raise SemanticError("RF3001", f"Cannot compare {left_type} with {right_type}")
                 return "Boolean"
             elif op in [">", "<", ">=", "<="]:
+                if left_type == "Unknown" or right_type == "Unknown": return "Boolean"
                 if left_type not in valid_comparison or right_type not in valid_comparison: raise SemanticError("RF3001", f"Operator '{op}' requires numeric/date")
                 return "Boolean"
             elif op in ["+", "-", "*", "/"]:
+                if left_type == "Unknown" or right_type == "Unknown": return "Unknown"
                 if op == "+" and left_type == "String" and right_type == "String":
                     return "String"
                 if left_type not in valid_numerics or right_type not in valid_numerics: raise SemanticError("RF3001", f"Operator '{op}' requires numeric or String operands")
@@ -189,7 +196,7 @@ class SemanticAnalyzer:
                     inner_type = arg1_type[6:-1]
                     if inner_type == "Null":
                         raise SemanticError("RF3003", "Cannot infer array type from empty array literal in 'contains'")
-                    if inner_type != arg2_type:
+                    if inner_type != arg2_type and inner_type != "Unknown":
                         raise SemanticError("RF3003", f"Argument 2 of 'contains' must be {inner_type}, got {arg2_type}")
                 else:
                     raise SemanticError("RF3003", f"Function 'contains' expects a String or Array as first argument, got {arg1_type}")
@@ -207,6 +214,23 @@ class SemanticAnalyzer:
                 if t not in ["Integer", "Decimal"]: raise SemanticError("RF3003", "Function 'abs' requires Numeric argument")
                 return t
 
+        if isinstance(node, FilterMapNode):
+            arr_type = self.check_node(node.array_node)
+            if not arr_type.startswith("Array<") or arr_type == "Array<Null>":
+                raise SemanticError("RF3003", "Invalid array operation type")
+            inner_type = arr_type[6:-1]
+            
+            self._it_type = inner_type
+            expr_type = self.check_node(node.expr_node)
+            self._it_type = None
+            
+            if node.is_map:
+                return f"Array<{expr_type}>"
+            else:
+                if expr_type != "Boolean":
+                    raise SemanticError("RF3003", "Invalid array operation type")
+                return arr_type
+                
         if isinstance(node, AnyAllNode):
             arr_type = self.check_node(node.array_node)
             if not arr_type.startswith("Array<"):

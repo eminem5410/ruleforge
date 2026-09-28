@@ -155,6 +155,14 @@ class Parser:
 
     def factor(self):
         token = self.current_token
+        if token.type == TokenType.FILTER or token.type == TokenType.MAP:
+            is_map = token.type == TokenType.MAP
+            self.advance()
+            array_node = self.factor()
+            self.expect(TokenType.USING if is_map else TokenType.WHERE)
+            expr_node = self.expression()
+            from .ast_nodes import FilterMapNode
+            return FilterMapNode(is_map, array_node, expr_node)
         if token.type == TokenType.ANY or token.type == TokenType.ALL:
             is_all = token.type == TokenType.ALL
             self.advance()

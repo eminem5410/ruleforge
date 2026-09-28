@@ -1,0 +1,1 @@
+{"context": {"customer": {"items": [{"price": 10.5}, {"price": 20.0}]}}, "expected": {"matched": true, "actions": [{"action_type": "ALLOW"}]}}

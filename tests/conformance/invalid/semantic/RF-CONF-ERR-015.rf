@@ -1,0 +1,5 @@
+RULE FilterNonArray
+LANGUAGE 4
+WHEN LENGTH(FILTER customer.name WHERE it == "x") == 0
+THEN ALLOW
+END
