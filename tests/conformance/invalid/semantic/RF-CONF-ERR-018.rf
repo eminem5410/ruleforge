@@ -1,0 +1,5 @@
+RULE NestedMap
+LANGUAGE 4
+WHEN LENGTH(MAP customer.items USING MAP it.children USING it.id) == 0
+THEN ALLOW
+END

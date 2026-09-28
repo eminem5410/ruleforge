@@ -1,0 +1,5 @@
+RULE NestedFilter
+LANGUAGE 4
+WHEN LENGTH(FILTER customer.items WHERE FILTER it.children WHERE it.active == true) == 0
+THEN ALLOW
+END

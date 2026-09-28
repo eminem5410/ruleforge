@@ -197,6 +197,9 @@ public class SemanticAnalyzer
         }
         if (expr is FilterMapExpression fm)
         {
+            // V11.1: Reject nested FILTER/MAP
+            if (fm.SubExpr is FilterMapExpression || fm.SubExpr is AnyAllExpression)
+                throw new SemanticException("RF3003", "Nested FILTER or MAP is not supported in V11.1");
             var arrType = CheckNode(fm.ArrayExpr);
             if (!arrType.StartsWith("Array<") || arrType == "Array<Null>") throw new SemanticException("RF3003", "Invalid array operation type");
             var innerType = arrType.Substring(6, arrType.Length - 7);

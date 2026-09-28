@@ -215,6 +215,9 @@ class SemanticAnalyzer:
                 return t
 
         if isinstance(node, FilterMapNode):
+            # V11.1: Reject nested FILTER/MAP
+            if isinstance(node.expr_node, (FilterMapNode, AnyAllNode)):
+                raise SemanticError("RF3003", "Nested FILTER or MAP is not supported in V11.1")
             arr_type = self.check_node(node.array_node)
             if not arr_type.startswith("Array<") or arr_type == "Array<Null>":
                 raise SemanticError("RF3003", "Invalid array operation type")
