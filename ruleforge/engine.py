@@ -18,12 +18,13 @@ class AppliedPatch:
         self.new_value = new_value
 
 class RuleTraceEntry:
-    def __init__(self, rule_name, rule_index, matched, applied_patches, actions):
+    def __init__(self, rule_name, rule_index, matched, applied_patches, actions, evaluation_trace=None):
         self.rule_name = rule_name
         self.rule_index = rule_index
         self.matched = matched
         self.applied_patches = applied_patches
         self.actions = actions
+        self.evaluation_trace = evaluation_trace
 
 class PipelineResult:
     def __init__(self, decisions, applied_patches, final_context, trace):
@@ -82,7 +83,7 @@ class RuleEngine:
         self._validate_context(context)
         working_context = copy.deepcopy(context)
         
-        evaluator = Evaluator(working_context, explain_mode=explain)
+        evaluator = Evaluator(working_context, deep_trace=(explain or trace))
         compiler = RuleForgeCompiler(ast) if (self.use_compiler and not explain) else None
         
         decisions = []
@@ -123,7 +124,8 @@ class RuleEngine:
                     rule_index=i,
                     matched=decision.matched,
                     applied_patches=rule_applied_paths,
-                    actions=rule_actions
+                    actions=rule_actions,
+                    evaluation_trace=decision.trace[0] if decision.trace else None
                 ))
                     
         return PipelineResult(decisions, applied_patches, working_context, trace_entries)

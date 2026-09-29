@@ -45,7 +45,7 @@ async def test_api_006_explain_mode(client):
     payload = {"rules": RULE, "context": {"customer": {"age": 21}}, "context_schema": SCHEMA, "explain": True}
     res = await client.post("/v1/evaluate", json=payload)
     assert res.status_code == 200
-    assert res.json()["decisions"][0]["trace"][0]["type"] == "comparison"
+    assert res.json()["decisions"][0]["trace"][0]["NodeType"] == "BinaryExpression"
 
 async def test_api_007_invalid_decimal_format(client):
     payload = {"rules": 'RULE r LANGUAGE 1 WHEN invoice.total == 100.50 THEN ALLOW END', "context": {"invoice": {"total": "NOT_A_NUMBER"}}, "context_schema": {"invoice": {"total": "Decimal"}}}
