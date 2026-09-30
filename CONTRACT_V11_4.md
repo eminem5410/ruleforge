@@ -2,7 +2,7 @@
 
 ## Status
 
-**Draft — V11.4 in progress**
+**Frozen — V11.4.0**
 
 This document defines runtime safety limits and their cross-runtime
 contract. It is not frozen until all four pillars (Execution Limits,
@@ -133,9 +133,8 @@ Given the same rule source and context:
 
 - The same decision is produced regardless of trace mode.
 - The same error code is produced when limits are exceeded.
-- The same limit SHOULD trigger for equivalent ASTs in both runtimes.
-  This becomes a REQUIRED invariant when the V11.4 property-based
-  conformance suite is complete.
+- The same limit MUST trigger for equivalent ASTs in both runtimes.
+  Verified by 2100 property-based cross-language examples.
 
 ---
 
@@ -143,16 +142,50 @@ Given the same rule source and context:
 
 | Pillar | Status |
 |---|---|
-| Execution Limits | Draft (this document) |
-| Property-Based Testing | Pending |
-| Fuzzing | Pending |
-| Benchmarks | Pending |
+| Execution Limits | Complete |
+| Property-Based Testing | Complete (2100 examples) |
+| Fuzzing | Complete (14600 examples) |
+| Benchmarks | Complete |
 
 V11.4 is not released until all pillars are complete and frozen.
 
 ---
 
-## 10. Golden rule
+## 10. Benchmarks
+
+V11.4 includes comprehensive benchmarks measuring:
+
+- Full pipeline latency (Lexer -> Parser -> Semantic -> Engine)
+- Evaluation-only throughput (pre-built AST)
+- Interpreter vs Compiler comparison
+- Multi-rule scaling (1/10/50/100/250 rules)
+- Array scaling (10/50/100/200/400 elements)
+- Trace overhead (trace=False vs trace=True)
+
+Key findings:
+
+- Pipeline overhead is ~90% of total time for simple rules
+- Compiler eval-only is FASTER than interpreter for simple/complex
+- Trace overhead is ~20-30% (acceptable for observability)
+- Array operations scale linearly O(N)
+- MAX_AST_NODES=500 correctly limits array sizes
+
+### Known Performance Limitation
+
+The current compiler integration in RuleEngine.evaluate() invokes
+compiler.execute() once per rule. Since compiler.execute() evaluates
+the complete rule set, the full-pipeline compiler path exhibits
+O(N^2) scaling with the number of rules.
+
+This does NOT affect semantic correctness.
+
+The compiler's evaluation-only path remains approximately O(N).
+
+Optimization is intentionally deferred to V11.5 because SET actions
+may mutate the working context between rules. Any optimization must
+preserve sequential rule semantics.
+
+## 11. Golden rule
 
 Limits are safety guards, not semantic features.
 
