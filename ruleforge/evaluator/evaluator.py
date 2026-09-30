@@ -119,18 +119,23 @@ class Evaluator:
             self.trace = [root_trace]
 
         actions = node.then_actions if condition_result else (node.else_actions if node.else_actions else [ActionNode("NO_ACTION")])
-        resolved_actions = []
-        for a in actions:
-            if isinstance(a, SetActionNode):
-                val, _ = self.eval_node(a.value_node)
-                resolved_actions.append(ActionNode("SET", a.value, val))
-            elif isinstance(a, EmitActionNode):
-                payload = None
-                if a.payload_node:
-                    payload, _ = self.eval_node(a.payload_node)
-                resolved_actions.append(ActionNode("EMIT", a.value, payload))
-            else:
-                resolved_actions.append(a)
+        try:
+            resolved_actions = []
+            for a in actions:
+                if isinstance(a, SetActionNode):
+                    val, _ = self.eval_node(a.value_node)
+                    resolved_actions.append(ActionNode("SET", a.value, val))
+                elif isinstance(a, EmitActionNode):
+                    payload = None
+                    if a.payload_node:
+                        payload, _ = self.eval_node(a.payload_node)
+                    resolved_actions.append(ActionNode("EMIT", a.value, payload))
+                else:
+                    resolved_actions.append(a)
+        except EvaluatorError:
+            raise
+        except Exception as e:
+            raise EvaluatorError("RF4001", f"Unexpected runtime error in action: {e}")
         actions = resolved_actions
         return Decision(node.name, 1, node.lang_version, condition_result, actions, self.trace)
 
