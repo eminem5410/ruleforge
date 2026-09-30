@@ -75,6 +75,8 @@ public class SemanticAnalyzer
     {
         count++;
         if (currentDepth > maxDepth) maxDepth = currentDepth;
+        if (maxDepth > MaxAstDepth) throw new SemanticException("RF5001", $"Security Limit: AST depth exceeds maximum of {MaxAstDepth}");
+        if (count > MaxAstNodes) throw new SemanticException("RF5002", $"Security Limit: AST node count exceeds maximum of {MaxAstNodes}");
 
         if (expr is BinaryExpression bin)
         {
