@@ -23,6 +23,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+dev = ["hypothesis"]
 test = ["pytest", "pytest-asyncio", "httpx", "aiosqlite"]
 
 [project.scripts]
