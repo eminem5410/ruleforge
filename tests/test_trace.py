@@ -124,3 +124,46 @@ def test_trace_008_any_short_circuit():
     assert len(root["Children"]) == 4
     assert root["Children"][3]["ShortCircuited"] is True
     assert root["Children"][3]["Value"] is None
+
+def test_trace_009_error_capture_at_failing_node():
+    """V11.3: Error captured at the node that failed (BinaryExpression /), not at root."""
+    from ruleforge.evaluator.evaluator import Evaluator, EvaluatorError
+    from ruleforge.lexer import Lexer
+    from ruleforge.parser import Parser
+    from ruleforge.semantic import SemanticAnalyzer
+
+    code = 'RULE r LANGUAGE 1 WHEN customer.age / 0 > 1 THEN ALLOW END'
+    tokens = Lexer(code).tokenize()
+    ast = Parser(tokens).parse()
+    SemanticAnalyzer(SCHEMA).analyze(ast)
+
+    evaluator = Evaluator({"customer": {"age": 20}}, deep_trace=True)
+
+    with pytest.raises(EvaluatorError) as exc:
+        evaluator.eval_rule(ast[0])
+
+    assert exc.value.code == "RF4001"
+    assert len(evaluator.trace) == 1
+    trace = evaluator.trace[0]
+    assert trace["NodeType"] == "BinaryExpression"
+    assert trace["Operator"] == "/"
+    assert trace["ErrorCode"] == "RF4001"
+    assert trace["Value"] is None
+    assert trace["ErrorMessage"] is not None
+
+def test_trace_010_trace_false_isolation():
+    """V11.3: trace=False produces no trace structures."""
+    code = 'RULE r LANGUAGE 1 WHEN customer.age >= 18 THEN ALLOW END'
+    result = engine.evaluate(code, {"customer": {"age": 20}}, trace=False)
+
+    assert result.trace is None
+    assert len(result.decisions[0].trace) == 0
+    assert result.decisions[0].matched is True
+
+def test_trace_011_trace_false_complex_isolation():
+    """V11.3: trace=False with complex rule also produces no trace."""
+    code = 'RULE r LANGUAGE 2 WHEN ANY customer.tags WHERE it == "vip" THEN ALLOW END'
+    result = engine.evaluate(code, {"customer": {"tags": ["admin", "vip"]}}, trace=False)
+
+    assert result.trace is None
+    assert len(result.decisions[0].trace) == 0

@@ -377,4 +377,37 @@ public class TraceFunctionalTests
         Assert.Equal("Literal", rightChild.NodeType);
         Assert.Equal("Decimal", rightChild.Type);
     }
+
+    [Fact]
+    public void TraceFalse_DoesNotProduceEvaluationTrace()
+    {
+        var schema = new Dictionary<string, Dictionary<string, string>>
+        {
+            ["customer"] = new Dictionary<string, string>
+            {
+                ["age"] = "Integer"
+            }
+        };
+
+        var tokens = new Lexer(
+            "RULE r LANGUAGE 1 WHEN customer.age >= 18 THEN ALLOW END"
+        ).Tokenize();
+
+        var ast = new Parser(tokens).Parse();
+        var engine = new RuleEngine(ast, schema);
+
+        var context = new Dictionary<string, object?>
+        {
+            ["customer"] = new Dictionary<string, object?>
+            {
+                ["age"] = 20
+            }
+        };
+
+        var result = engine.Execute(context, trace: false);
+
+        Assert.NotEmpty(result.Decisions);
+        Assert.Null(result.Trace);
+    }
+
 }

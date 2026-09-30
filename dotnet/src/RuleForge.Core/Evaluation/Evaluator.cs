@@ -142,7 +142,7 @@ public class Evaluator
         if (val.Type == RuleValueType.Null) return null;
         if (val.Type == RuleValueType.Date) return ((DateOnly)val.Value!).ToString("yyyy-MM-dd");
         if (val.Type == RuleValueType.Decimal && val.Value is decimal decimalValue)
-            return Convert.ToDouble(decimalValue, CultureInfo.InvariantCulture);
+            return decimalValue.ToString(CultureInfo.InvariantCulture);
         if (val.Type == RuleValueType.Array && val.Value is List<RuleValue> list)
         {
             return list.Select(SerializeTraceValue).ToList();
@@ -475,7 +475,8 @@ public class Evaluator
         {
             if (_traceEnabled && _errorTrace == null)
             {
-                _errorTrace = BuildTrace(expr, new RuleValue(RuleValueType.Null, null), error: ex);
+                string? op = expr is BinaryExpression bin ? bin.Operator : null;
+                _errorTrace = BuildTrace(expr, new RuleValue(RuleValueType.Null, null), op: op, error: ex);
             }
             throw;
         }

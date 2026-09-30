@@ -42,6 +42,7 @@ class Evaluator:
         self.deep_trace = deep_trace
         self.trace = []
         self.step_count = 0
+        self._error_trace = None
 
     def eval_rules(self, ast_list):
         return [self.eval_rule(rule) for rule in ast_list]
@@ -70,7 +71,7 @@ class Evaluator:
 
     def _serialize_value(self, val):
         if isinstance(val, date): return val.isoformat()
-        if isinstance(val, Decimal): return float(val)
+        if isinstance(val, Decimal): return str(val)
         return val
 
     def _mk_trace(self, node, val, op=None, children=None, short_circuited=False, error=None):
@@ -104,11 +105,12 @@ class Evaluator:
     def eval_rule(self, node: RuleNode):
         self.step_count = 0
         self.trace = []
+        self._error_trace = None
         try:
             condition_result, root_trace = self.eval_node(node.when_expr)
-        except EvaluatorError as e:
-            if self.deep_trace:
-                self.trace = [self._mk_trace(node.when_expr, None, error=e)]
+        except EvaluatorError:
+            if self.deep_trace and self._error_trace is not None:
+                self.trace = [self._error_trace]
             raise
         except Exception as e:
             raise EvaluatorError("RF4001", f"Unexpected runtime error: {e}")
@@ -150,6 +152,15 @@ class Evaluator:
         if self.step_count > MAX_EXECUTION_STEPS:
             raise EvaluatorError("RF5003", f"Security Limit: Execution exceeded {MAX_EXECUTION_STEPS} steps")
 
+        try:
+            return self._eval_node_impl(node)
+        except EvaluatorError as e:
+            if self.deep_trace and self._error_trace is None:
+                op = getattr(node, 'op', None)
+                self._error_trace = self._mk_trace(node, None, op=op, error=e)
+            raise
+
+    def _eval_node_impl(self, node):
         if isinstance(node, DateLiteralNode):
             val = node.value
             return val, self._mk_trace(node, val)
