@@ -41,3 +41,9 @@ def test_engine_explain_mode():
     ctx = {"customer": {"age": 20}}
     pipeline_result = engine.evaluate(code, ctx, explain=True)
     assert len(pipeline_result.decisions[0].trace) > 0
+
+
+def test_engine_empty_source():
+    with pytest.raises(ParserError) as exc:
+        engine.evaluate("", {"customer": {"age": 20}})
+    assert exc.value.code == "RF2003"

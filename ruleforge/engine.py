@@ -2,7 +2,7 @@ import copy
 from datetime import date, datetime
 from decimal import Decimal
 from .lexer import Lexer
-from .parser import Parser
+from .parser import Parser, ParserError
 from .semantic import SemanticAnalyzer
 from .evaluator import Evaluator, EvaluatorError
 from .compiler import RuleForgeCompiler
@@ -78,6 +78,10 @@ class RuleEngine:
     def evaluate(self, source_code, context, explain=False, trace=False):
         tokens = Lexer(source_code).tokenize()
         ast = Parser(tokens).parse()
+
+        if not ast:
+            raise ParserError("RF2003", "No rules found in source", 1, 1)
+
         SemanticAnalyzer(self.schema).analyze(ast)
         
         self._validate_context(context)
