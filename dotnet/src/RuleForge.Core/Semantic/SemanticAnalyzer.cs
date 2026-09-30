@@ -8,6 +8,8 @@ public class SemanticAnalyzer
 {
     private readonly Dictionary<string, Dictionary<string, string>> _schema;
     private string? _itType = null;
+    private const int MaxAstDepth = 50;
+    private const int MaxAstNodes = 500;
 
     public SemanticAnalyzer(Dictionary<string, Dictionary<string, string>> schema)
     {
@@ -54,8 +56,8 @@ public class SemanticAnalyzer
         
         int depth = 0, count = 0;
         CheckAstLimits(rule.WhenExpr, 1, ref depth, ref count);
-        if (depth > 50) throw new SemanticException("RF5001", $"Security Limit: AST depth exceeds maximum of 50");
-        if (count > 500) throw new SemanticException("RF5002", $"Security Limit: AST node count exceeds maximum of 500");
+        if (depth > MaxAstDepth) throw new SemanticException("RF5001", $"Security Limit: AST depth exceeds maximum of {MaxAstDepth}");
+        if (count > MaxAstNodes) throw new SemanticException("RF5002", $"Security Limit: AST node count exceeds maximum of {MaxAstNodes}");
 
         var exprType = CheckNode(rule.WhenExpr);
         if (exprType != "Boolean")
@@ -83,6 +85,10 @@ public class SemanticAnalyzer
         {
             CheckAstLimits(un.Operand, currentDepth + 1, ref maxDepth, ref count);
         }
+        else if (expr is NullCheckExpression nc)
+        {
+            CheckAstLimits(nc.Left, currentDepth + 1, ref maxDepth, ref count);
+        }
         else if (expr is FunctionCallExpression fc)
         {
             foreach (var arg in fc.Arguments) CheckAstLimits(arg, currentDepth + 1, ref maxDepth, ref count);
@@ -95,6 +101,16 @@ public class SemanticAnalyzer
         {
             CheckAstLimits(arrIdx.Array, currentDepth + 1, ref maxDepth, ref count);
             CheckAstLimits(arrIdx.Index, currentDepth + 1, ref maxDepth, ref count);
+        }
+        else if (expr is AnyAllExpression aa)
+        {
+            CheckAstLimits(aa.ArrayExpr, currentDepth + 1, ref maxDepth, ref count);
+            CheckAstLimits(aa.WhereExpr, currentDepth + 1, ref maxDepth, ref count);
+        }
+        else if (expr is FilterMapExpression fm)
+        {
+            CheckAstLimits(fm.ArrayExpr, currentDepth + 1, ref maxDepth, ref count);
+            CheckAstLimits(fm.SubExpr, currentDepth + 1, ref maxDepth, ref count);
         }
     }
 

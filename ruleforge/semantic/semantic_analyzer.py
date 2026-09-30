@@ -32,7 +32,7 @@ class SemanticAnalyzer:
         self.check_actions(node.else_actions)
         
         depth, count = 0, 0
-        self.check_ast_limits(node.when_expr, 1, depth, count)
+        depth, count = self.check_ast_limits(node.when_expr, 1, depth, count)
         
         expr_type = self.check_node(node.when_expr)
         if expr_type != "Boolean":
@@ -45,21 +45,29 @@ class SemanticAnalyzer:
         if count > MAX_AST_NODES: raise SemanticError("RF5002", f"Security Limit: AST node count exceeds maximum of {MAX_AST_NODES}")
 
         if isinstance(node, BinaryOpNode):
-            self.check_ast_limits(node.left, current_depth + 1, max_depth, count)
-            self.check_ast_limits(node.right, current_depth + 1, max_depth, count)
+            max_depth, count = self.check_ast_limits(node.left, current_depth + 1, max_depth, count)
+            max_depth, count = self.check_ast_limits(node.right, current_depth + 1, max_depth, count)
         elif isinstance(node, UnaryOpNode):
-            self.check_ast_limits(node.operand, current_depth + 1, max_depth, count)
+            max_depth, count = self.check_ast_limits(node.operand, current_depth + 1, max_depth, count)
         elif isinstance(node, NullCheckNode):
-            self.check_ast_limits(node.left, current_depth + 1, max_depth, count)
+            max_depth, count = self.check_ast_limits(node.left, current_depth + 1, max_depth, count)
         elif isinstance(node, FunctionCallNode):
             for arg in node.args:
-                self.check_ast_limits(arg, current_depth + 1, max_depth, count)
+                max_depth, count = self.check_ast_limits(arg, current_depth + 1, max_depth, count)
         elif isinstance(node, ArrayLiteralNode):
             for el in node.elements:
-                self.check_ast_limits(el, current_depth + 1, max_depth, count)
+                max_depth, count = self.check_ast_limits(el, current_depth + 1, max_depth, count)
         elif isinstance(node, ArrayIndexNode):
-            self.check_ast_limits(node.array, current_depth + 1, max_depth, count)
-            self.check_ast_limits(node.index, current_depth + 1, max_depth, count)
+            max_depth, count = self.check_ast_limits(node.array, current_depth + 1, max_depth, count)
+            max_depth, count = self.check_ast_limits(node.index, current_depth + 1, max_depth, count)
+        elif isinstance(node, AnyAllNode):
+            max_depth, count = self.check_ast_limits(node.array_node, current_depth + 1, max_depth, count)
+            max_depth, count = self.check_ast_limits(node.where_node, current_depth + 1, max_depth, count)
+        elif isinstance(node, FilterMapNode):
+            max_depth, count = self.check_ast_limits(node.array_node, current_depth + 1, max_depth, count)
+            max_depth, count = self.check_ast_limits(node.expr_node, current_depth + 1, max_depth, count)
+
+        return max_depth, count
 
     def check_actions(self, actions):
         terminal_count = sum(1 for a in actions if a.action_type in ["ALLOW", "DENY", "NO_ACTION"])
