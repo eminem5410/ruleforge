@@ -95,7 +95,10 @@ class RuleEngine:
         trace_entries = [] if trace else None
         
         for i, rule in enumerate(ast):
-            decision = evaluator.eval_rule(rule) if not compiler or not compiler.compiled_conditions.get(id(rule)) else compiler.execute(working_context)[i]
+            if not compiler or not compiler.compiled_conditions.get(id(rule)):
+                decision = evaluator.eval_rule(rule)
+            else:
+                decision = compiler.execute_single(rule, working_context)
             decisions.append(decision)
             
             rule_applied_paths = []

@@ -100,6 +100,42 @@ class RuleForgeCompiler:
 
         raise NotImplementedError
 
+    def execute_single(self, rule, context):
+        """Evalúa una sola regla sin reevaluar el pipeline completo."""
+        evaluator = Evaluator(context)
+        globals_dict = {"__builtins__": {}, "_safe_get": _safe_get, "_safe_index": _safe_index, "Decimal": Decimal, "date": date, "timedelta": timedelta, "_get_date": _get_date}
+        locals_dict = {"ctx": context}
+
+        code = self.compiled_conditions.get(id(rule))
+        if code is None:
+            return evaluator.eval_rule(rule)
+
+        try:
+            condition_result = bool(eval(code, globals_dict, locals_dict))
+        except Exception:
+            return evaluator.eval_rule(rule)
+
+        try:
+            actions_to_resolve = rule.then_actions if condition_result else (rule.else_actions if rule.else_actions else [ActionNode("NO_ACTION")])
+            resolved_actions = []
+            for a in actions_to_resolve:
+                if isinstance(a, SetActionNode):
+                    val, _ = evaluator.eval_node(a.value_node)
+                    resolved_actions.append(ActionNode("SET", a.value, val))
+                elif isinstance(a, EmitActionNode):
+                    payload = None
+                    if a.payload_node:
+                        payload, _ = evaluator.eval_node(a.payload_node)
+                    resolved_actions.append(ActionNode("EMIT", a.value, payload))
+                else:
+                    resolved_actions.append(a)
+        except EvaluatorError:
+            raise
+        except Exception as e:
+            raise EvaluatorError("RF4001", f"Unexpected runtime error in action: {e}")
+
+        return evaluator.build_decision(rule, condition_result, resolved_actions)
+
     def execute(self, context):
         evaluator = Evaluator(context)
         decisions = []
