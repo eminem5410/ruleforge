@@ -74,8 +74,8 @@ class TestTermination:
 
     def test_10_compiled_rules(self):
         """10 compiled rules: must terminate without hang."""
-        # Note: compiler.execute() is called once per rule and
-        # re-traverses the full AST each time (O(N^2) behavior).
+        # V11.5: O(N^2) eliminated. execute_single() called per rule.
+        # V11.6: refactored to shared _execute_compiled_rule().
         # This is a known performance issue for Block 4, not a crash.
         rules = '\n'.join([
             f'RULE r{i} LANGUAGE 1 WHEN customer.age >= 18 THEN ALLOW END'
