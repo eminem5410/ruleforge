@@ -4,30 +4,76 @@
 
 RuleForge is a domain-independent rule engine and declarative DSL designed to express business decisions independently from application code.
 
-It provides a deterministic execution model, strict typing, sandboxed actions, schema-aware semantic validation, structured evaluation traces, and a contract-driven architecture designed for cross-language conformance.
+It provides a deterministic execution model, strict typing, sandboxed actions, schema-aware semantic validation, structured evaluation traces, compiler support, runtime safety limits, and contract-driven cross-language conformance between Python and C# implementations.
 
 ---
 
 ## Current Status
 
-**V11.2 - Deep AST Trace**
+**V11.5.0 - Compiler Performance & Runtime Semantics**
 
-The V11.2 contract introduces a canonical deep evaluation trace that makes rule evaluation structurally observable and auditable.
+V11.5.0 eliminates a quadratic evaluation bottleneck in the compiled execution pipeline while preserving RuleForge's sequential rule semantics.
 
-### Python Implementation
-- [x] V11.2 Deep AST Trace implemented
-- [x] Canonical NodeType mapping
-- [x] AND / OR short-circuit tracing
-- [x] Short-circuit phantom nodes
-- [x] ANY / ALL tracing
-- [x] FILTER / MAP tracing
-- [x] Runtime error capture in trace nodes
-- [x] RuleTraceEntry.EvaluationTrace
-- [x] deep_trace evaluation mode
-- [x] 221 tests passing
-- [ ] C# V11.2 implementation in progress
+### V11.5.0
 
-The V11.2 contract is defined in CONTRACT_V11_2.md.
+- [x] Sequential SET semantics frozen with regression tests
+- [x] Compiler pipeline quadratic evaluation identified
+- [x] RuleForgeCompiler.execute_single() implemented
+- [x] Engine no longer re-evaluates the complete rule set for every rule
+- [x] Sequential context mutation preserved
+- [x] Compiler/interpreter semantic equivalence validated
+- [x] Cross-language conformance validated
+- [x] Compiler conformance validated
+- [x] Runtime and regression suite validated
+- [x] V11.5.0 release tagged
+
+### Current test baseline
+
+| Suite | Result |
+|---|---|
+| Python | 288 passed, 1 skipped |
+| C# Core | 150 passed |
+| C# API | 18 passed |
+| Cross-language conformance | 61/61 MATCH |
+| Compiler conformance | 61/61 MATCH |
+| Compiler invariant testing | 1000 examples |
+| V11.5 sequential SET regression | 12/12 passed |
+
+### Compiler scaling
+
+The V11.4 compiler pipeline could re-evaluate the complete rule set once per rule.
+
+For N rules:
+
+```
+rule 1 -> evaluate all N rules
+rule 2 -> evaluate all N rules
+...
+rule N -> evaluate all N rules
+
+Total: O(N^2)
+```
+
+V11.5 evaluates each rule directly:
+
+```
+rule 1 -> execute_single(rule 1)
+rule 2 -> execute_single(rule 2)
+...
+rule N -> execute_single(rule N)
+
+Total pipeline rule evaluation: O(N)
+```
+
+Observed scaling:
+
+| Rules | V11.4 | V11.5 |
+|---|---|---|
+| 250 | ~76 ms | ~17 ms |
+| 500 | ~300 ms | ~34 ms |
+| 1000 | - | ~69 ms |
+
+The benchmark demonstrates linear scaling of the affected compiler pipeline with respect to rule count.
 
 ---
 
@@ -36,22 +82,20 @@ The V11.2 contract is defined in CONTRACT_V11_2.md.
 RuleForge is not a general-purpose programming language. It is a declarative DSL designed around four core principles:
 
 ### Deterministic
-Given the same rule, context, schema, and language version, RuleForge produces the same decision.
+Given the same rules, context, schema, and language version, RuleForge produces the same decision.
 
 ### Typed
-RuleForge uses a strict type system. Type mismatches and invalid operations are detected before execution whenever possible, while runtime type errors are represented through defined evaluator error codes.
+RuleForge uses a strict type system. Type mismatches and invalid operations are detected before execution whenever possible.
 
 ### Sandboxed
-Rules do not perform external side effects. Actions such as ALLOW, DENY, NO_ACTION, ALERT, APPLY, SET, and EMIT represent declared intent. The host application decides what those actions actually mean.
+Rules do not perform external side effects. Actions such as ALLOW, DENY, NO_ACTION, ALERT, APPLY, SET, and EMIT represent declared intent.
 
 ### Auditable
-Rule evaluation can produce a structured Deep AST Trace describing evaluated expressions, operators, values, types, child expressions, short-circuit decisions, and runtime errors. This allows applications to inspect how a decision was reached without embedding business logic into application code.
+Rule evaluation can produce structured traces describing evaluated expressions, operators, values, types, child expressions, short-circuit decisions, and runtime errors.
 
 ---
 
 ## Architecture
-
-RuleForge follows a layered execution pipeline:
 
 ```
 Rule Source
@@ -78,137 +122,78 @@ Rule Source
           |
           +--> Decision
           |
-          +--> Deep AST Trace
+          +--> Evaluation Trace
+          |
+          +--> Applied Patches
 ```
+
+The compiler provides an optimized execution path for supported expressions while preserving the same observable semantics as the interpreter.
 
 ### Components
 
 **Lexer** - Tokenizes RuleForge source code.
-
 **Parser** - Builds an Abstract Syntax Tree using recursive descent parsing.
-
 **Semantic Analyzer** - Validates rule structure, types, operators, functions, and context properties against an external schema.
-
 **Evaluator** - Walks the AST and produces deterministic decisions without performing external side effects.
-
-**Engine** - Coordinates parsing, semantic validation, evaluation, action application, and rule-level execution tracing.
-
----
-
-## V11.2 Deep AST Trace
-
-V11.2 defines a canonical trace representation shared across implementations.
-
-Each trace node contains:
-
-| Field | Type | Description |
-|---|---|---|
-| NodeType | string | Canonical AST node type |
-| Operator | string, optional | Operator or function name |
-| Value | any | Serialized result of the node |
-| Type | string | RuleForge type of the result |
-| Children | list | Traces of evaluated sub-expressions |
-| ShortCircuited | bool | True if node was not evaluated due to short-circuit |
-| ErrorCode | string, optional | Error code if node failed |
-| ErrorMessage | string, optional | Error message if node failed |
-
-### Example: AND short-circuit
-
-Rule:
-
-```
-RULE r LANGUAGE 1 WHEN customer.active == true AND customer.age / 0 == 1 THEN ALLOW END
-```
-
-Context:
-
-```json
-{"customer": {"active": false, "age": 20}}
-```
-
-Trace:
-
-```json
-{
-  "NodeType": "BinaryExpression",
-  "Operator": "AND",
-  "Value": false,
-  "Type": "Boolean",
-  "ShortCircuited": false,
-  "Children": [
-    {
-      "NodeType": "BinaryExpression",
-      "Operator": "==",
-      "Value": false,
-      "Type": "Boolean",
-      "ShortCircuited": false,
-      "Children": []
-    },
-    {
-      "NodeType": "BinaryExpression",
-      "Operator": "==",
-      "Value": null,
-      "Type": "Null",
-      "ShortCircuited": true,
-      "Children": []
-    }
-  ]
-}
-```
-
-When a logical expression short-circuits, the expression that was not evaluated is represented explicitly as a **phantom trace node**:
-
-```
-ShortCircuited = true
-Value = null
-Children = []
-```
-
-This makes the trace deterministic while preserving the distinction between an expression that evaluated to null and an expression that was never evaluated.
-
-### Activation
-
-Deep AST Trace is opt-in:
-
-```python
-from ruleforge import RuleEngine
-
-engine = RuleEngine(schema)
-result = engine.evaluate(source_code, context, trace=True)
-
-# V11.2 contractual path:
-# result.trace[0].evaluation_trace
-#
-# Backward compatible:
-# result.decisions[0].trace[0]
-```
-
-When trace=False (default), no trace structures are constructed and no tracing overhead is incurred.
-
-When trace=True is requested on a compiled rule, the engine falls back to the interpreted evaluator to produce the trace. The compiler does not instrument the AST.
+**Compiler** - Compiles supported condition expressions into a sandboxed executable representation and provides optimized rule execution.
+**Engine** - Coordinates parsing, semantic validation, evaluation, action application, sequential context updates, tracing, and rule-level execution.
 
 ---
 
-## Canonical AST Node Types
+## Sequential Rule Semantics
 
-RuleForge maintains a canonical NodeType vocabulary so Python and C# implementations produce equivalent traces.
+RuleForge evaluates rules sequentially. This is particularly important for SET, because a rule may modify the working context that subsequent rules observe.
 
-| AST concept | Canonical NodeType |
-|---|---|
-| Binary operation | BinaryExpression |
-| Unary operation | UnaryExpression |
-| Null check | NullCheck |
-| Literal | Literal |
-| Identifier | Identifier |
-| Property access | PropertyExpression |
-| Function call | FunctionCall |
-| Array literal | ArrayLiteral |
-| Array index | ArrayIndex |
-| Date literal | DateLiteral |
-| ANY / ALL | AnyAll |
-| FILTER / MAP | FilterMap |
+Example:
 
-The canonical vocabulary is independent from the internal class names used by each implementation. Unmapped node types raise RF5004 during development to prevent silent divergence.
+```
+RULE first LANGUAGE 1
+WHEN customer.active == true
+THEN
+    SET customer.status = "blocked"
+END
+
+RULE second LANGUAGE 1
+WHEN customer.status == "blocked"
+THEN
+    DENY
+END
+```
+
+The second rule sees the context produced by the first rule.
+
+V11.5 explicitly freezes this behavior with regression tests covering:
+
+- basic SET visibility
+- non-matching rules
+- chained SET operations
+- prevention of future-state leakage
+- multiple SET operations
+- SET followed by DENY
+
+The same semantics are validated through both interpreter and compiler execution.
+
+---
+
+## Compiler Execution
+
+The compiler supports optimized condition evaluation while preserving the interpreter's observable behavior.
+
+Prior to V11.5, the engine could effectively execute the complete compiled rule pipeline for every individual rule:
+
+```
+compiler.execute(working_context)[i]
+```
+
+This caused unnecessary repeated evaluation.
+
+V11.5 introduces:
+
+```
+compiler.execute_single(rule, working_context)
+```
+
+The engine now evaluates the current rule directly and continues with the updated working context. This removes the quadratic pipeline re-evaluation without changing sequential rule semantics.
 
 ---
 
@@ -227,95 +212,141 @@ The canonical vocabulary is independent from the internal class names used by ea
 - Array literals and indexing
 - ANY (short-circuits on first true)
 - ALL (short-circuits on first false)
-- FILTER (returns matching elements)
-- MAP (transforms elements)
-- SET (context patching)
-- EMIT (intent declaration)
+- FILTER / MAP
+- SET / EMIT
 - Structured evaluation traces
-- Execution-step limits (MAX_EXECUTION_STEPS = 10000)
-- Runtime error codes (RF4001, RF4002, RF4003, RF5003)
+- Deep AST tracing
+- Execution-step limits
+- Runtime error codes
+- Schema-aware context validation
+
+---
+
+## Deep AST Trace
+
+Each trace node contains:
+
+| Field | Type | Description |
+|---|---|---|
+| NodeType | string | Canonical AST node type |
+| Operator | string, optional | Operator or function name |
+| Value | any | Serialized result |
+| Type | string | RuleForge type |
+| Children | list | Traces of evaluated sub-expressions |
+| ShortCircuited | bool | Whether evaluation was skipped |
+| ErrorCode | string, optional | Runtime error code |
+| ErrorMessage | string, optional | Runtime error message |
+
+### Short-circuit tracing
+
+For A AND B where A is false, B is represented as a phantom trace node:
+
+```
+{
+  "ShortCircuited": true,
+  "Value": null,
+  "Children": []
+}
+```
+
+### Activation
+
+```
+from ruleforge import RuleEngine
+
+engine = RuleEngine(schema)
+result = engine.evaluate(source_code, context, trace=True)
+```
+
+---
+
+## Canonical AST Node Types
+
+| AST concept | Canonical NodeType |
+|---|---|
+| Binary operation | BinaryExpression |
+| Unary operation | UnaryExpression |
+| Null check | NullCheck |
+| Literal | Literal |
+| Identifier | Identifier |
+| Property access | PropertyExpression |
+| Function call | FunctionCall |
+| Array literal | ArrayLiteral |
+| Array index | ArrayIndex |
+| Date literal | DateLiteral |
+| ANY / ALL | AnyAll |
+| FILTER / MAP | FilterMap |
+
+Unmapped node types raise RF5004 during development to prevent silent divergence.
 
 ---
 
 ## Execution Safety
 
-RuleForge enforces an execution step limit of 10000 steps. This provides a runtime guard against pathological or unexpectedly expensive rule evaluation.
+```
+MAX_EXECUTION_STEPS = 10000
+```
 
-Rule actions are declarative and do not directly perform external I/O or application side effects.
+Rules do not perform external I/O or application side effects directly.
 
 ---
 
 ## Contract-Driven Development
 
-RuleForge development is organized around explicit versioned contracts treated as implementation boundaries rather than informal documentation.
-
-### Version contracts
-
 ```
-CONTRACT_V8.md          - Initial language contract
-CONTRACT_V9.md          - Compiler introduction
-CONTRACT_V10.md         - Pipeline and patches
-CONTRACT_V10_1.md       - Rule registry
-CONTRACT_V10_2.md       - Pipeline trace
-CONTRACT_V10_STABLE.md  - V10 stabilization
-CONTRACT_V11.md         - Advanced array operations (ANY, ALL)
-CONTRACT_V11_1.md       - FILTER and MAP
-CONTRACT_V11_2.md       - Deep AST Trace
+CONTRACT_V8.md       - Initial language contract
+CONTRACT_V9.md       - Compiler introduction
+CONTRACT_V10.md      - Pipeline and patches
+CONTRACT_V10_1.md    - Rule registry
+CONTRACT_V10_2.md    - Pipeline trace
+CONTRACT_V10_STABLE  - V10 stabilization
+CONTRACT_V11.md      - ANY / ALL
+CONTRACT_V11_1.md    - FILTER and MAP
+CONTRACT_V11_2.md    - Deep AST Trace
+CONTRACT_V11_3.md    - Trace contract hardening
+CONTRACT_V11_4.md    - Runtime safety and determinism
 ```
 
-### Subsystem specifications
-
-```
-LANGUAGE-SPEC.md
-LEXER-SPEC.md
-PARSER-SPEC.md
-ARRAY-SPEC.md
-STRUCTURED-TRACE-SPEC.md
-REST-API-SPEC.md
-RULE-REGISTRY-SPEC.md
-AUTH-SPEC.md
-API-HARDENING-SPEC.md
-OBSERVABILITY-SPEC.md
-ADAPTER-CONTRACT.md
-ADAPTER-SPEC.md
-ERP-ADAPTER-SPEC.md
-FHIR-ADAPTER-SPEC.md
-```
+V11.5 focuses on implementation-level compiler performance while preserving the previously frozen language and runtime contracts.
 
 ---
 
 ## Testing
 
-The project uses automated conformance and regression testing across the language pipeline.
+### Current V11.5.0 baseline
 
-Current Python baseline: **221 passed, 1 skipped**.
+```
+Python:     288 passed, 1 skipped
+C# Core:    150 passed
+C# API:     18 passed
+Cross-language: 61/61 MATCH
+Compiler:   61/61 MATCH
+```
 
-The test suite covers lexer, parser, semantic analysis, evaluator, rule engine, arrays, functions, dates, runtime errors, API behavior, CLI behavior, adapters, runtime context validation, security limits, structured tracing, short-circuit semantics, and Deep AST Trace.
+### Compiler invariant testing
 
-### V11.2 trace tests
+1000 examples: Interpreter == Compiler
 
-- test_trace_001: simple comparison trace structure
-- test_trace_002: logical AND with both children evaluated
-- test_trace_003: AND short-circuit with phantom right child
-- test_trace_004: null check trace structure
-- test_trace_005: AND short-circuit avoids division by zero
-- test_trace_006: OR short-circuit with phantom right child
-- test_trace_007: FILTER trace with per-item sub-expressions
-- test_trace_008: ANY short-circuit with phantom remaining items
+### Sequential semantics
+
+12 tests: 6 scenarios x 2 execution modes (interpreter + compiler)
+
+### Full validation
+
+```
+Python tests -> C# Core -> C# API -> Cross-language -> Compiler conformance
+```
 
 ---
 
 ## Multi-Language Architecture
 
-RuleForge is being developed with Python and C# implementations that conform to the same language and execution contracts.
+RuleForge is developed with Python and C# implementations that conform to the same language and execution contracts.
 
-The goal is not merely to provide two implementations, but to maintain behavioral equivalence between them.
-
-Cross-language validation covers language semantics, evaluation results, error behavior, trace structure, canonical node types, and compiler behavior.
-
-The project includes 61 cross-language conformance vectors covering the shared language and evaluation contracts. The V11.2 trace changes must preserve conformance across Python, C#, and the compiler.
-
-The Python V11.2 Deep AST Trace implementation is complete. The equivalent C# implementation is the next stage of the V11.2 rollout.
+```
+61 / 61 cross-language vectors: MATCH
+61 / 61 compiler vectors: MATCH
+```
 
 ---
 
@@ -342,15 +373,13 @@ ruleforge/
 |
 +-- tests/
 |   +-- conformance/
-|   |   +-- valid/
-|   |   +-- invalid/
+|   +-- property/
 |   +-- test_evaluator.py
 |   +-- test_engine.py
 |   +-- test_trace.py
-|   +-- test_conformance.py
-|   +-- test_api.py
+|   +-- test_sequential_semantics.py
 |
-+-- CONTRACT_V8.md to CONTRACT_V11_2.md
++-- CONTRACT_V8.md to CONTRACT_V11_4.md
 +-- *-SPEC.md
 +-- README.md
 ```
@@ -359,39 +388,39 @@ ruleforge/
 
 ## Design Principle
 
-RuleForge follows a simple separation of responsibilities:
-
 ```
 Rules declare intent.
 The engine evaluates intent.
+The engine produces decisions and patches.
 The host application performs effects.
 ```
-
-This keeps business rules portable, testable, deterministic, and independent from the application that consumes them.
 
 ---
 
 ## Roadmap
 
-### V11.2 - Deep AST Trace
+### Completed
 
-- [x] Deep AST Trace contract (CONTRACT_V11_2.md)
-- [x] Canonical Python NodeType mapping
-- [x] Python deep trace implementation
-- [x] Logical short-circuit tracing (AND, OR)
-- [x] ANY / ALL tracing with short-circuit phantoms
-- [x] FILTER / MAP tracing with per-element traces
-- [x] Runtime error trace metadata
-- [x] Python trace test suite (8 tests)
-- [x] Engine integration (trace=True activates deep_trace)
-- [x] RuleTraceEntry.EvaluationTrace
-- [ ] C# TraceNode class
-- [ ] C# deep trace evaluator instrumentation
-- [ ] C# short-circuit tracing
-- [ ] C# ANY / ALL / FILTER / MAP tracing
-- [ ] C# trace tests
-- [ ] Cross-language V11.2 conformance
-- [ ] V11.2.0 release tag
+- [x] V11.0 - ANY / ALL
+- [x] V11.1 - FILTER / MAP
+- [x] V11.2 - Deep AST Trace
+- [x] V11.3 - Trace Contract Hardening
+- [x] V11.4 - Runtime Safety & Determinism
+- [x] V11.5 - Compiler Performance
+
+### Next
+
+- Compiler execution architecture refinement
+- Shared execution logic between execute() and execute_single()
+- Additional performance profiling
+- Broader property-based compiler testing
+- Continued Python/C# conformance expansion
+
+---
+
+## Release
+
+Current release: v11.5.0
 
 ---
 
