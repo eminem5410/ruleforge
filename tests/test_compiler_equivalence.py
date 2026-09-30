@@ -92,3 +92,84 @@ def test_set_chain_interp_eq_compiler(chain):
     for i, exp in enumerate(expected):
         assert ri.decisions[i].matched == rc.decisions[i].matched == exp
     assert ri.final_context["customer"]["status"] == rc.final_context["customer"]["status"] == final_val
+
+
+@st.composite
+def sequential_set_pipeline(draw):
+    """Generate valid sequential SET pipelines with an optional final observer."""
+    n = draw(st.integers(min_value=2, max_value=8))
+    initial = draw(st.sampled_from(["initial", "seed", "start"]))
+    values = draw(
+        st.lists(
+            st.sampled_from(["v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "final"]),
+            min_size=n - 1,
+            max_size=n - 1,
+            unique=True,
+        )
+    )
+
+    rules = [
+        f'RULE r1 LANGUAGE 1 WHEN true '
+        f'THEN SET customer.status = "{values[0]}" END'
+    ]
+
+    for i in range(1, n - 1):
+        rules.append(
+            f'RULE r{i + 1} LANGUAGE 1 '
+            f'WHEN customer.status == "{values[i - 1]}" '
+            f'THEN SET customer.status = "{values[i]}" END'
+        )
+
+    rules.append(
+        f'RULE r{n} LANGUAGE 1 '
+        f'WHEN customer.status == "{values[-1]}" '
+        f'THEN ALLOW END'
+    )
+
+    return "\n".join(rules), initial, values
+
+
+@given(sequential_set_pipeline())
+@settings(
+    max_examples=1000,
+    deadline=None,
+    suppress_health_check=[HealthCheck.too_slow],
+)
+def test_sequential_set_property(pipeline):
+    """Compiler preserves interpreter semantics for generated SET pipelines."""
+    source, initial_status, values = pipeline
+
+    context = {
+        "customer": {
+            "age": 25,
+            "status": initial_status,
+            "tags": [],
+        }
+    }
+
+    interpreter = RuleEngine(SCHEMA, use_compiler=False).evaluate(
+        source,
+        copy.deepcopy(context),
+    )
+    compiler = RuleEngine(SCHEMA, use_compiler=True).evaluate(
+        source,
+        copy.deepcopy(context),
+    )
+
+    assert len(interpreter.decisions) == len(compiler.decisions)
+
+    for interp_decision, comp_decision in zip(
+        interpreter.decisions,
+        compiler.decisions,
+    ):
+        assert interp_decision.matched == comp_decision.matched
+        assert [
+            (a.action_type, a.value, a.payload)
+            for a in interp_decision.actions
+        ] == [
+            (a.action_type, a.value, a.payload)
+            for a in comp_decision.actions
+        ]
+
+    assert interpreter.final_context == compiler.final_context
+    assert compiler.final_context["customer"]["status"] == values[-1]
