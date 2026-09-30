@@ -6,6 +6,9 @@ class Parser:
     def __init__(self, tokens):
         self.tokens = tokens
         self.pos = 0
+        if not tokens:
+            from .errors import ParserError
+            raise ParserError("RF2003", "Empty token list", 0, 0)
         self.current_token = self.tokens[self.pos]
 
     def advance(self):
@@ -26,7 +29,11 @@ class Parser:
         # Soporta múltiples reglas por archivo: { rule }
         rules = []
         while self.current_token.type != TokenType.EOF:
-            rules.append(self.parse_rule())
+            try:
+                rules.append(self.parse_rule())
+            except RecursionError:
+                t = self.current_token
+                raise ParserError("RF2004", "Expression nesting too deep", t.line, t.column)
         return rules
 
     def parse_rule(self):
@@ -34,8 +41,11 @@ class Parser:
         rule_name = self.current_token.value
         self.expect(TokenType.IDENTIFIER)
         self.expect(TokenType.LANGUAGE)
-        lang_version = int(self.current_token.value)
-        self.expect(TokenType.INTEGER)
+        int_token = self.expect(TokenType.INTEGER)
+        try:
+            lang_version = int(int_token.value)
+        except ValueError:
+            raise ParserError("RF2002", f"Language version number too large", int_token.line, int_token.column)
         self.expect(TokenType.WHEN)
         when_expr = self.expression()
         self.expect(TokenType.THEN)
@@ -174,6 +184,19 @@ class Parser:
         if token.type == TokenType.DATE:
             self.advance()
             str_token = self.expect(TokenType.STRING)
+            from datetime import date
+
+            try:
+                parts = str_token.value.split("-")
+                date(int(parts[0]), int(parts[1]), int(parts[2]))
+            except (ValueError, IndexError):
+                raise ParserError(
+                    "RF2004",
+                    f"Invalid date literal: {str_token.value!r}",
+                    str_token.line,
+                    str_token.column,
+                )
+
             from .ast_nodes import DateLiteralNode
             return DateLiteralNode(str_token.value)
             str_token = self.expect(TokenType.STRING)

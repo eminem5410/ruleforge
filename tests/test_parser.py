@@ -87,3 +87,43 @@ def test_parse_err_003_heterogeneous_array():
     # The parser should parse this fine, the semantic analyzer will reject it later
     ast = parse_code(code)
     assert isinstance(ast[0].when_expr, BinaryOpNode)
+
+def test_parse_err_003_language_without_version():
+    """Fuzz discovery: RULE x LANGUAGE sin INTEGER → RF2002."""
+    from ruleforge.lexer import Lexer
+    tokens = Lexer('RULE fuzz LANGUAGE').tokenize()
+    with pytest.raises(ParserError) as exc:
+        Parser(tokens).parse()
+    assert exc.value.code == "RF2002"
+
+def test_parse_err_004_huge_language_version():
+    """Fuzz discovery: LANGUAGE con >4300 digitos → RF2002."""
+    from ruleforge.lexer import Lexer
+    source = f'RULE fuzz LANGUAGE {"9"*5000} WHEN true THEN ALLOW END'
+    tokens = Lexer(source).tokenize()
+    with pytest.raises(ParserError) as exc:
+        Parser(tokens).parse()
+    assert exc.value.code == "RF2002"
+
+def test_parse_err_005_invalid_date_literal():
+    """Fuzz discovery: DATE "9999-99-99" → RF2004."""
+    from ruleforge.lexer import Lexer
+    tokens = Lexer('RULE r LANGUAGE 1 WHEN DATE "9999-99-99" THEN ALLOW END').tokenize()
+    with pytest.raises(ParserError) as exc:
+        Parser(tokens).parse()
+    assert exc.value.code == "RF2004"
+
+def test_parse_err_006_empty_token_list():
+    """Fuzz discovery: Parser([]) → RF2003."""
+    with pytest.raises(ParserError) as exc:
+        Parser([]).parse()
+    assert exc.value.code == "RF2003"
+
+def test_parse_err_007_deep_nesting():
+    """Fuzz discovery: 200 parentesis anidados → RF2004."""
+    from ruleforge.lexer import Lexer
+    expr = "(" * 200 + "true" + ")" * 200
+    tokens = Lexer(f'RULE r LANGUAGE 1 WHEN {expr} THEN ALLOW END').tokenize()
+    with pytest.raises(ParserError) as exc:
+        Parser(tokens).parse()
+    assert exc.value.code == "RF2004"
