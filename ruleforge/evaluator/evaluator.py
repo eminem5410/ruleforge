@@ -75,28 +75,28 @@ class Evaluator:
 
     def _mk_trace(self, node, val, op=None, children=None, short_circuited=False, error=None):
         if not self.deep_trace: return None
-        return {
+        trace = {
             "NodeType": self._node_type(node),
-            "Operator": op,
             "Value": None if short_circuited else self._serialize_value(val),
             "Type": "Null" if short_circuited else self._value_type(val),
             "Children": children or [],
             "ShortCircuited": short_circuited,
-            "ErrorCode": error.code if error else None,
-            "ErrorMessage": error.message if error and hasattr(error, 'message') else (str(error) if error else None),
         }
+        if op is not None:
+            trace["Operator"] = op
+        if error:
+            trace["ErrorCode"] = error.code
+            trace["ErrorMessage"] = error.message if hasattr(error, 'message') else str(error)
+        return trace
 
     def _phantom_trace(self, node):
         if not self.deep_trace: return None
         return {
             "NodeType": self._node_type(node),
-            "Operator": None,
             "Value": None,
             "Type": "Null",
             "Children": [],
             "ShortCircuited": True,
-            "ErrorCode": None,
-            "ErrorMessage": None,
         }
 
     # ─── End V11.2 Trace Helpers ──────────────────────────────

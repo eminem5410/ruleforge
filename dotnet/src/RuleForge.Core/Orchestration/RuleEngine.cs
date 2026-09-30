@@ -26,6 +26,7 @@ public class RuleTraceEntry
     public bool Matched { get; set; }
     public List<string> AppliedPatches { get; set; } = new();
     public List<string> Actions { get; set; } = new();
+    public TraceNode? EvaluationTrace { get; set; }
 }
 
 public class PipelineResult
@@ -139,7 +140,7 @@ public class RuleEngine
         var workingContext = DeepCopyContext(context);
         NormalizeAndValidateContext(workingContext);
         
-        var evaluator = new Evaluator(workingContext);
+        var evaluator = new Evaluator(workingContext, deepTrace: trace);
         
         var result = new PipelineResult();
         result.FinalContext = workingContext;
@@ -211,7 +212,8 @@ public class RuleEngine
                     RuleIndex = i,
                     Matched = decision.Matched,
                     AppliedPatches = ruleAppliedPaths,
-                    Actions = ruleActions
+                    Actions = ruleActions,
+                    EvaluationTrace = evaluator.LastTrace
                 });
             }
         }
