@@ -38,6 +38,7 @@ class PipelineResult:
 class RuleEngine:
     def __init__(self, schema, use_compiler=False, max_cache_size=100):
         self.schema = schema
+        self._schema_fingerprint = repr(sorted(self.schema.items()))
         self.use_compiler = use_compiler
         self._max_cache_size = max_cache_size
         self._ast_cache = OrderedDict()
