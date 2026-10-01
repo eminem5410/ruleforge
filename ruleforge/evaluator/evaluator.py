@@ -42,6 +42,8 @@ class Evaluator:
         self.deep_trace = deep_trace
         self.trace = []
         self.step_count = 0
+        import operator as _op
+        self._bin_ops = {'==': _op.eq, '!=': _op.ne, '>': _op.gt, '<': _op.lt, '>=': _op.ge, '<=': _op.le, '+': _op.add, '-': _op.sub, '*': _op.mul, '/': _op.truediv}
         self._error_trace = None
 
     def eval_rules(self, ast_list):
@@ -104,6 +106,8 @@ class Evaluator:
 
     def eval_rule(self, node: RuleNode):
         self.step_count = 0
+        import operator as _op
+        self._bin_ops = {'==': _op.eq, '!=': _op.ne, '>': _op.gt, '<': _op.lt, '>=': _op.ge, '<=': _op.le, '+': _op.add, '-': _op.sub, '*': _op.mul, '/': _op.truediv}
         self.trace = []
         self._error_trace = None
         try:
@@ -270,20 +274,14 @@ class Evaluator:
 
             left_val, left_trace = self.eval_node(node.left)
             right_val, right_trace = self.eval_node(node.right)
-            self.check_null(left_val, op); self.check_null(right_val, op)
+            
+            if left_val is None or right_val is None:
+                raise EvaluatorError("RF4002", f"Runtime Type Error: Cannot perform '{op}' on NULL. Use IS NULL / IS NOT NULL.")
+                
             try:
-                if op == "==": res = left_val == right_val
-                elif op == "!=": res = left_val != right_val
-                elif op == ">": res = left_val > right_val
-                elif op == "<": res = left_val < right_val
-                elif op == ">=": res = left_val >= right_val
-                elif op == "<=": res = left_val <= right_val
-                elif op == "+": res = left_val + right_val
-                elif op == "-": res = left_val - right_val
-                elif op == "*": res = left_val * right_val
-                elif op == "/":
+                if op == "/":
                     if right_val == 0: raise EvaluatorError("RF4001", "Division by zero")
-                    res = left_val / right_val
+                res = self._bin_ops[op](left_val, right_val)
             except TypeError as e: raise EvaluatorError("RF4002", f"Runtime Type Error: {e}")
             except InvalidOperation as e: raise EvaluatorError("RF4002", f"Decimal Runtime Error: {e}")
             return res, self._mk_trace(node, res, op=op, children=[left_trace, right_trace])
