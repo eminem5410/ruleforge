@@ -1,4 +1,6 @@
 import copy
+import hashlib
+from collections import OrderedDict
 from datetime import date, datetime
 from decimal import Decimal
 from .lexer import Lexer
@@ -34,9 +36,49 @@ class PipelineResult:
         self.trace = trace
 
 class RuleEngine:
-    def __init__(self, schema, use_compiler=False):
+    def __init__(self, schema, use_compiler=False, max_cache_size=100):
         self.schema = schema
         self.use_compiler = use_compiler
+        self._max_cache_size = max_cache_size
+        self._ast_cache = OrderedDict()
+        self._cache_hits = 0
+        self._cache_misses = 0
+
+    def _cache_key(self, source_code):
+        schema_repr = repr(sorted(self.schema.items()))
+        return hashlib.sha256(f"{source_code}::{schema_repr}".encode()).hexdigest()
+
+    def _get_or_parse(self, source_code):
+        if self._max_cache_size <= 0:
+            self._cache_misses += 1
+            return self._parse_and_compile(source_code)
+
+        key = self._cache_key(source_code)
+
+        if key in self._ast_cache:
+            self._cache_hits += 1
+            self._ast_cache.move_to_end(key)
+            return self._ast_cache[key]
+
+        self._cache_misses += 1
+        result = self._parse_and_compile(source_code)
+
+        self._ast_cache[key] = result
+        if len(self._ast_cache) > self._max_cache_size:
+            self._ast_cache.popitem(last=False)
+
+        return result
+
+    def _parse_and_compile(self, source_code):
+        tokens = Lexer(source_code).tokenize()
+        ast = Parser(tokens).parse()
+
+        if not ast:
+            raise ParserError("RF2003", "No rules found in source", 1, 1)
+
+        SemanticAnalyzer(self.schema).analyze(ast)
+        compiler = RuleForgeCompiler(ast) if self.use_compiler else None
+        return (ast, compiler)
 
     def _validate_context(self, context):
         if not isinstance(context, dict):
@@ -76,19 +118,13 @@ class RuleEngine:
                             raise EvaluatorError("RF4003", f"expected {prop_type} but got {type(val).__name__}")
 
     def evaluate(self, source_code, context, explain=False, trace=False):
-        tokens = Lexer(source_code).tokenize()
-        ast = Parser(tokens).parse()
+        ast, cached_compiler = self._get_or_parse(source_code)
 
-        if not ast:
-            raise ParserError("RF2003", "No rules found in source", 1, 1)
-
-        SemanticAnalyzer(self.schema).analyze(ast)
-        
         self._validate_context(context)
         working_context = copy.deepcopy(context)
         
         evaluator = Evaluator(working_context, deep_trace=(explain or trace))
-        compiler = RuleForgeCompiler(ast) if (self.use_compiler and not explain) else None
+        compiler = cached_compiler if (cached_compiler and not explain) else None
         
         decisions = []
         applied_patches = []
