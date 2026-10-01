@@ -43,6 +43,7 @@ class Evaluator:
         self.deep_trace = deep_trace
         self.trace = []
         self.step_count = 0
+        self._it_stack = []
         self._bin_ops = {'==': _op.eq, '!=': _op.ne, '>': _op.gt, '<': _op.lt, '>=': _op.ge, '<=': _op.le, '+': _op.add, '-': _op.sub, '*': _op.mul, '/': _op.truediv}
         self._dispatchers = {DateLiteralNode: self._eval_date_literal, LiteralNode: self._eval_literal, PropertyAccessNode: self._eval_property_access, IdentifierNode: self._eval_identifier, FilterMapNode: self._eval_filter_map, AnyAllNode: self._eval_any_all, NullCheckNode: self._eval_null_check, UnaryOpNode: self._eval_unary_op, BinaryOpNode: self._eval_binary_op, FunctionCallNode: self._eval_function_call, ArrayLiteralNode: self._eval_array_literal, ArrayIndexNode: self._eval_array_index}
         self._error_trace = None
@@ -110,6 +111,7 @@ class Evaluator:
 
     def eval_rule(self, node: RuleNode):
         self.step_count = 0
+        self._it_stack = []
         self.trace = []
         self._error_trace = None
         try:
@@ -182,8 +184,8 @@ class Evaluator:
         return val, self._mk_trace(node, val)
 
     def _eval_literal(self, node):
-        if node.type == "IDENTIFIER" and node.value == "it" and "it" in self.context:
-            val = self.context["it"]
+        if node.type == "IDENTIFIER" and node.value == "it" and self._it_stack:
+            val = self._it_stack[-1]
             return val, self._mk_trace(node, val)
         val = None
         if node.type == "BOOLEAN": val = node.value == "true"
@@ -196,13 +198,19 @@ class Evaluator:
         return val, self._mk_trace(node, val)
 
     def _eval_property_access(self, node):
-        obj = self.context.get(node.obj)
+        if node.obj == "it" and self._it_stack:
+            obj = self._it_stack[-1]
+        else:
+            obj = self.context.get(node.obj)
         val = normalize_value(obj.get(node.prop)) if obj else None
         return val, self._mk_trace(node, val)
 
     def _eval_identifier(self, node):
-        val = normalize_value(self.context.get(node.name))
-        return val, self._mk_trace(node, val)
+        if node.name == "it" and self._it_stack:
+            val = self._it_stack[-1]
+        else:
+            val = self.context.get(node.name)
+        return normalize_value(val), self._mk_trace(node, val)
 
     def _eval_filter_map(self, node):
         arr_val, arr_trace = self.eval_node(node.array_node)
@@ -211,8 +219,11 @@ class Evaluator:
         result = []
         child_traces = [arr_trace]
         for item in arr_val:
-            self.context["it"] = item
-            res, sub_trace = self.eval_node(node.expr_node)
+            self._it_stack.append(item)
+            try:
+                res, sub_trace = self.eval_node(node.expr_node)
+            finally:
+                self._it_stack.pop()
             child_traces.append(sub_trace)
             if node.is_map:
                 result.append(res)
@@ -228,8 +239,11 @@ class Evaluator:
         child_traces = [arr_trace]
         final_result = node.is_all
         for idx, item in enumerate(arr_val):
-            self.context["it"] = item
-            res, sub_trace = self.eval_node(node.where_node)
+            self._it_stack.append(item)
+            try:
+                res, sub_trace = self.eval_node(node.where_node)
+            finally:
+                self._it_stack.pop()
             child_traces.append(sub_trace)
             if node.is_all:
                 if not res:
