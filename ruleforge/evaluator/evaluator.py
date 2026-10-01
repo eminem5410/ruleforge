@@ -1,5 +1,6 @@
 from decimal import Decimal, InvalidOperation
 from datetime import date, timedelta
+import operator as _op
 from ..parser.ast_nodes import (RuleNode, ActionNode, BinaryOpNode, UnaryOpNode,
     NullCheckNode, LiteralNode, IdentifierNode, PropertyAccessNode,
     FunctionCallNode, ArrayLiteralNode, ArrayIndexNode, DateLiteralNode,
@@ -42,9 +43,11 @@ class Evaluator:
         self.deep_trace = deep_trace
         self.trace = []
         self.step_count = 0
-        import operator as _op
         self._bin_ops = {'==': _op.eq, '!=': _op.ne, '>': _op.gt, '<': _op.lt, '>=': _op.ge, '<=': _op.le, '+': _op.add, '-': _op.sub, '*': _op.mul, '/': _op.truediv}
         self._error_trace = None
+        if not self.deep_trace:
+            self._mk_trace = lambda *args, **kwargs: None
+            self._phantom_trace = lambda *args, **kwargs: None
 
     def eval_rules(self, ast_list):
         return [self.eval_rule(rule) for rule in ast_list]
@@ -106,8 +109,6 @@ class Evaluator:
 
     def eval_rule(self, node: RuleNode):
         self.step_count = 0
-        import operator as _op
-        self._bin_ops = {'==': _op.eq, '!=': _op.ne, '>': _op.gt, '<': _op.lt, '>=': _op.ge, '<=': _op.le, '+': _op.add, '-': _op.sub, '*': _op.mul, '/': _op.truediv}
         self.trace = []
         self._error_trace = None
         try:
