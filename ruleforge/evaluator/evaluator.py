@@ -44,6 +44,7 @@ class Evaluator:
         self.trace = []
         self.step_count = 0
         self._bin_ops = {'==': _op.eq, '!=': _op.ne, '>': _op.gt, '<': _op.lt, '>=': _op.ge, '<=': _op.le, '+': _op.add, '-': _op.sub, '*': _op.mul, '/': _op.truediv}
+        self._dispatchers = {DateLiteralNode: self._eval_date_literal, LiteralNode: self._eval_literal, PropertyAccessNode: self._eval_property_access, IdentifierNode: self._eval_identifier, FilterMapNode: self._eval_filter_map, AnyAllNode: self._eval_any_all, NullCheckNode: self._eval_null_check, UnaryOpNode: self._eval_unary_op, BinaryOpNode: self._eval_binary_op, FunctionCallNode: self._eval_function_call, ArrayLiteralNode: self._eval_array_literal, ArrayIndexNode: self._eval_array_index}
         self._error_trace = None
         if not self.deep_trace:
             self._mk_trace = lambda *args, **kwargs: None
@@ -171,161 +172,164 @@ class Evaluator:
             raise
 
     def _eval_node_impl(self, node):
-        if isinstance(node, DateLiteralNode):
-            val = node.value
+        handler = self._dispatchers.get(type(node))
+        if handler is None:
+            raise EvaluatorError("RF4001", f"Unknown AST node {type(node)}")
+        return handler(node)
+
+    def _eval_date_literal(self, node):
+        val = node.value
+        return val, self._mk_trace(node, val)
+
+    def _eval_literal(self, node):
+        if node.type == "IDENTIFIER" and node.value == "it" and "it" in self.context:
+            val = self.context["it"]
             return val, self._mk_trace(node, val)
+        val = None
+        if node.type == "BOOLEAN": val = node.value == "true"
+        elif node.type == "INTEGER": val = int(node.value)
+        elif node.type == "DECIMAL": val = Decimal(node.value)
+        elif node.type == "DATE":
+            y, m, d = map(int, node.value.split('-'))
+            val = date(y, m, d)
+        else: val = node.value
+        return val, self._mk_trace(node, val)
 
-        if isinstance(node, LiteralNode):
-            if node.type == "IDENTIFIER" and node.value == "it" and "it" in self.context:
-                val = self.context["it"]
-                return val, self._mk_trace(node, val)
-            val = None
-            if node.type == "BOOLEAN": val = node.value == "true"
-            elif node.type == "INTEGER": val = int(node.value)
-            elif node.type == "DECIMAL": val = Decimal(node.value)
-            elif node.type == "DATE":
-                y, m, d = map(int, node.value.split('-'))
-                val = date(y, m, d)
-            else: val = node.value
-            return val, self._mk_trace(node, val)
+    def _eval_property_access(self, node):
+        obj = self.context.get(node.obj)
+        val = normalize_value(obj.get(node.prop)) if obj else None
+        return val, self._mk_trace(node, val)
 
-        elif isinstance(node, PropertyAccessNode):
-            obj = self.context.get(node.obj)
-            val = normalize_value(obj.get(node.prop)) if obj else None
-            return val, self._mk_trace(node, val)
+    def _eval_identifier(self, node):
+        val = normalize_value(self.context.get(node.name))
+        return val, self._mk_trace(node, val)
 
-        elif isinstance(node, IdentifierNode):
-            val = normalize_value(self.context.get(node.name))
-            return val, self._mk_trace(node, val)
+    def _eval_filter_map(self, node):
+        arr_val, arr_trace = self.eval_node(node.array_node)
+        if not isinstance(arr_val, list):
+            raise EvaluatorError("RF4002", "Cannot iterate non-array")
+        result = []
+        child_traces = [arr_trace]
+        for item in arr_val:
+            self.context["it"] = item
+            res, sub_trace = self.eval_node(node.expr_node)
+            child_traces.append(sub_trace)
+            if node.is_map:
+                result.append(res)
+            else:
+                if res: result.append(item)
+        op = "MAP" if node.is_map else "FILTER"
+        return result, self._mk_trace(node, result, op=op, children=child_traces)
 
-        elif isinstance(node, FilterMapNode):
-            arr_val, arr_trace = self.eval_node(node.array_node)
-            if not isinstance(arr_val, list):
-                raise EvaluatorError("RF4002", "Cannot iterate non-array")
-            result = []
-            child_traces = [arr_trace]
-            for item in arr_val:
-                self.context["it"] = item
-                res, sub_trace = self.eval_node(node.expr_node)
-                child_traces.append(sub_trace)
-                if node.is_map:
-                    result.append(res)
-                else:
-                    if res: result.append(item)
-            op = "MAP" if node.is_map else "FILTER"
-            return result, self._mk_trace(node, result, op=op, children=child_traces)
+    def _eval_any_all(self, node):
+        arr_val, arr_trace = self.eval_node(node.array_node)
+        if not isinstance(arr_val, list):
+            raise EvaluatorError("RF4002", "Cannot iterate non-array")
+        child_traces = [arr_trace]
+        final_result = node.is_all
+        for idx, item in enumerate(arr_val):
+            self.context["it"] = item
+            res, sub_trace = self.eval_node(node.where_node)
+            child_traces.append(sub_trace)
+            if node.is_all:
+                if not res:
+                    final_result = False
+                    for _ in arr_val[idx+1:]:
+                        child_traces.append(self._phantom_trace(node.where_node))
+                    break
+            else:
+                if res:
+                    final_result = True
+                    for _ in arr_val[idx+1:]:
+                        child_traces.append(self._phantom_trace(node.where_node))
+                    break
+        op = "ALL" if node.is_all else "ANY"
+        return final_result, self._mk_trace(node, final_result, op=op, children=child_traces)
 
-        elif isinstance(node, AnyAllNode):
-            arr_val, arr_trace = self.eval_node(node.array_node)
-            if not isinstance(arr_val, list):
-                raise EvaluatorError("RF4002", "Cannot iterate non-array")
-            child_traces = [arr_trace]
-            final_result = node.is_all
-            for idx, item in enumerate(arr_val):
-                self.context["it"] = item
-                res, sub_trace = self.eval_node(node.where_node)
-                child_traces.append(sub_trace)
-                if node.is_all:
-                    if not res:
-                        final_result = False
-                        for _ in arr_val[idx+1:]:
-                            child_traces.append(self._phantom_trace(node.where_node))
-                        break
-                else:
-                    if res:
-                        final_result = True
-                        for _ in arr_val[idx+1:]:
-                            child_traces.append(self._phantom_trace(node.where_node))
-                        break
-            op = "ALL" if node.is_all else "ANY"
-            return final_result, self._mk_trace(node, final_result, op=op, children=child_traces)
+    def _eval_null_check(self, node):
+        val, left_trace = self.eval_node(node.left)
+        result = val is not None if node.is_not else val is None
+        op_str = "IS NOT NULL" if node.is_not else "IS NULL"
+        return result, self._mk_trace(node, result, op=op_str, children=[left_trace])
 
-        elif isinstance(node, NullCheckNode):
-            val, left_trace = self.eval_node(node.left)
-            result = val is not None if node.is_not else val is None
-            op_str = "IS NOT NULL" if node.is_not else "IS NULL"
-            return result, self._mk_trace(node, result, op=op_str, children=[left_trace])
+    def _eval_unary_op(self, node):
+        val, operand_trace = self.eval_node(node.operand)
+        if node.op == "NOT":
+            self.check_null(val, "NOT")
+            result = not val
+            return result, self._mk_trace(node, result, op="NOT", children=[operand_trace])
 
-        elif isinstance(node, UnaryOpNode):
-            val, operand_trace = self.eval_node(node.operand)
-            if node.op == "NOT":
-                self.check_null(val, "NOT")
-                result = not val
-                return result, self._mk_trace(node, result, op="NOT", children=[operand_trace])
-
-        elif isinstance(node, BinaryOpNode):
-            op = node.op
-            if op == "AND":
-                left_val, left_trace = self.eval_node(node.left)
-                if not left_val:
-                    right_trace = self._phantom_trace(node.right)
-                    return False, self._mk_trace(node, False, op="AND", children=[left_trace, right_trace])
-                right_val, right_trace = self.eval_node(node.right)
-                result = bool(right_val)
-                return result, self._mk_trace(node, result, op="AND", children=[left_trace, right_trace])
-
-            elif op == "OR":
-                left_val, left_trace = self.eval_node(node.left)
-                if left_val:
-                    right_trace = self._phantom_trace(node.right)
-                    return True, self._mk_trace(node, True, op="OR", children=[left_trace, right_trace])
-                right_val, right_trace = self.eval_node(node.right)
-                result = True if right_val else False
-                return result, self._mk_trace(node, result, op="OR", children=[left_trace, right_trace])
-
+    def _eval_binary_op(self, node):
+        op = node.op
+        if op == "AND":
             left_val, left_trace = self.eval_node(node.left)
+            if not left_val:
+                right_trace = self._phantom_trace(node.right)
+                return False, self._mk_trace(node, False, op="AND", children=[left_trace, right_trace])
             right_val, right_trace = self.eval_node(node.right)
+            result = bool(right_val)
+            return result, self._mk_trace(node, result, op="AND", children=[left_trace, right_trace])
+
+        elif op == "OR":
+            left_val, left_trace = self.eval_node(node.left)
+            if left_val:
+                right_trace = self._phantom_trace(node.right)
+                return True, self._mk_trace(node, True, op="OR", children=[left_trace, right_trace])
+            right_val, right_trace = self.eval_node(node.right)
+            result = True if right_val else False
+            return result, self._mk_trace(node, result, op="OR", children=[left_trace, right_trace])
+
+        left_val, left_trace = self.eval_node(node.left)
+        right_val, right_trace = self.eval_node(node.right)
+        
+        if left_val is None or right_val is None:
+            raise EvaluatorError("RF4002", f"Runtime Type Error: Cannot perform '{op}' on NULL. Use IS NULL / IS NOT NULL.")
             
-            if left_val is None or right_val is None:
-                raise EvaluatorError("RF4002", f"Runtime Type Error: Cannot perform '{op}' on NULL. Use IS NULL / IS NOT NULL.")
-                
-            try:
-                if op == "/":
-                    if right_val == 0: raise EvaluatorError("RF4001", "Division by zero")
-                res = self._bin_ops[op](left_val, right_val)
-            except TypeError as e: raise EvaluatorError("RF4002", f"Runtime Type Error: {e}")
-            except InvalidOperation as e: raise EvaluatorError("RF4002", f"Decimal Runtime Error: {e}")
-            return res, self._mk_trace(node, res, op=op, children=[left_trace, right_trace])
+        try:
+            if op == "/":
+                if right_val == 0: raise EvaluatorError("RF4001", "Division by zero")
+            res = self._bin_ops[op](left_val, right_val)
+        except TypeError as e: raise EvaluatorError("RF4002", f"Runtime Type Error: {e}")
+        except InvalidOperation as e: raise EvaluatorError("RF4002", f"Decimal Runtime Error: {e}")
+        return res, self._mk_trace(node, res, op=op, children=[left_trace, right_trace])
 
-        elif isinstance(node, FunctionCallNode):
-            arg_vals = []
-            arg_traces = []
-            for a in node.args:
-                v, t = self.eval_node(a)
-                arg_vals.append(v)
-                arg_traces.append(t)
-            try:
-                if node.name.lower() == "contains": self.check_null(arg_vals[0], "contains"); res = arg_vals[1] in arg_vals[0]
-                elif node.name.lower() == "length": self.check_null(arg_vals[0], "length"); res = len(arg_vals[0])
-                elif node.name.lower() == "starts_with": self.check_null(arg_vals[0], "starts_with"); res = arg_vals[0].startswith(arg_vals[1])
-                elif node.name.lower() == "ends_with": self.check_null(arg_vals[0], "ends_with"); res = arg_vals[0].endswith(arg_vals[1])
-                elif node.name.lower() == "abs": self.check_null(arg_vals[0], "abs"); res = abs(arg_vals[0])
-                elif node.name.lower() == "date_add": self.check_null(arg_vals[0], "date_add"); res = self._get_date(arg_vals[0]) + timedelta(days=arg_vals[1])
-                elif node.name.lower() == "date_diff": self.check_null(arg_vals[0], "date_diff"); self.check_null(arg_vals[1], "date_diff"); res = (self._get_date(arg_vals[1]) - self._get_date(arg_vals[0])).days
-                elif node.name.lower() == "extract": self.check_null(arg_vals[0], "extract"); d = self._get_date(arg_vals[0]); res = getattr(d, arg_vals[1])
-                else: raise EvaluatorError("RF4001", f"Unknown function {node.name}")
-            except TypeError as e: raise EvaluatorError("RF4002", f"Runtime Type Error in '{node.name}': {e}")
-            return res, self._mk_trace(node, res, op=node.name, children=arg_traces)
+    def _eval_function_call(self, node):
+        arg_vals = []
+        arg_traces = []
+        for a in node.args:
+            v, t = self.eval_node(a)
+            arg_vals.append(v)
+            arg_traces.append(t)
+        try:
+            if node.name.lower() == "contains": self.check_null(arg_vals[0], "contains"); res = arg_vals[1] in arg_vals[0]
+            elif node.name.lower() == "length": self.check_null(arg_vals[0], "length"); res = len(arg_vals[0])
+            elif node.name.lower() == "starts_with": self.check_null(arg_vals[0], "starts_with"); res = arg_vals[0].startswith(arg_vals[1])
+            elif node.name.lower() == "ends_with": self.check_null(arg_vals[0], "ends_with"); res = arg_vals[0].endswith(arg_vals[1])
+            elif node.name.lower() == "abs": self.check_null(arg_vals[0], "abs"); res = abs(arg_vals[0])
+            elif node.name.lower() == "date_add": self.check_null(arg_vals[0], "date_add"); res = self._get_date(arg_vals[0]) + timedelta(days=arg_vals[1])
+            elif node.name.lower() == "date_diff": self.check_null(arg_vals[0], "date_diff"); self.check_null(arg_vals[1], "date_diff"); res = (self._get_date(arg_vals[1]) - self._get_date(arg_vals[0])).days
+            elif node.name.lower() == "extract": self.check_null(arg_vals[0], "extract"); d = self._get_date(arg_vals[0]); res = getattr(d, arg_vals[1])
+            else: raise EvaluatorError("RF4001", f"Unknown function {node.name}")
+        except TypeError as e: raise EvaluatorError("RF4002", f"Runtime Type Error in '{node.name}': {e}")
+        return res, self._mk_trace(node, res, op=node.name, children=arg_traces)
 
-        elif isinstance(node, ArrayLiteralNode):
-            arr = []
-            child_traces = []
-            for el in node.elements:
-                v, t = self.eval_node(el)
-                arr.append(v)
-                child_traces.append(t)
-            return arr, self._mk_trace(node, arr, children=child_traces)
+    def _eval_array_literal(self, node):
+        arr = []
+        child_traces = []
+        for el in node.elements:
+            v, t = self.eval_node(el)
+            arr.append(v)
+            child_traces.append(t)
+        return arr, self._mk_trace(node, arr, children=child_traces)
 
-        elif isinstance(node, ArrayIndexNode):
-            arr_val, arr_trace = self.eval_node(node.array)
-            idx_val, idx_trace = self.eval_node(node.index)
-            self.check_null(arr_val, "INDEXING")
-            self.check_null(idx_val, "INDEX")
-            if not isinstance(arr_val, list):
-                raise EvaluatorError("RF4002", f"Cannot index non-array type {type(arr_val).__name__}")
-            if idx_val < 0 or idx_val >= len(arr_val):
-                raise EvaluatorError("RF4002", f"Array index out of bounds: {idx_val} (length: {len(arr_val)})")
-            result = arr_val[idx_val]
-            return result, self._mk_trace(node, result, op="[]", children=[arr_trace, idx_trace])
-
-        raise EvaluatorError("RF4001", f"Unknown AST node {type(node)}")
+    def _eval_array_index(self, node):
+        arr_val, arr_trace = self.eval_node(node.array)
+        idx_val, idx_trace = self.eval_node(node.index)
+        self.check_null(arr_val, "INDEXING")
+        self.check_null(idx_val, "INDEX")
+        if not isinstance(arr_val, list):
+            raise EvaluatorError("RF4002", f"Cannot index non-array type {type(arr_val).__name__}")
+        if idx_val < 0 or idx_val >= len(arr_val):
+            raise EvaluatorError("RF4002", f"Array index out of bounds: {idx_val} (length: {len(arr_val)})")
+        result = arr_val[idx_val]
+        return result, self._mk_trace(node, result, op="[]", children=[arr_trace, idx_trace])
