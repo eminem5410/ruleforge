@@ -174,10 +174,10 @@ class Evaluator:
             raise
 
     def _eval_node_impl(self, node):
-        handler = self._dispatchers.get(type(node))
+        handler = _DISPATCHERS.get(type(node))
         if handler is None:
-            raise EvaluatorError("RF4001", f"Unknown AST node {type(node)}")
-        return handler(node)
+            raise EvaluatorError("RF5004", f"V11.2: Unmapped AST node type {type(node).__name__}")
+        return handler(self, node)
 
     def _eval_date_literal(self, node):
         val = node.value
@@ -347,3 +347,19 @@ class Evaluator:
             raise EvaluatorError("RF4002", f"Array index out of bounds: {idx_val} (length: {len(arr_val)})")
         result = arr_val[idx_val]
         return result, self._mk_trace(node, result, op="[]", children=[arr_trace, idx_trace])
+
+# V11.8.6: Static dispatcher table (no bound methods created per lookup)
+_DISPATCHERS = {
+    DateLiteralNode: Evaluator._eval_date_literal,
+    LiteralNode: Evaluator._eval_literal,
+    PropertyAccessNode: Evaluator._eval_property_access,
+    IdentifierNode: Evaluator._eval_identifier,
+    FilterMapNode: Evaluator._eval_filter_map,
+    AnyAllNode: Evaluator._eval_any_all,
+    NullCheckNode: Evaluator._eval_null_check,
+    UnaryOpNode: Evaluator._eval_unary_op,
+    BinaryOpNode: Evaluator._eval_binary_op,
+    FunctionCallNode: Evaluator._eval_function_call,
+    ArrayLiteralNode: Evaluator._eval_array_literal,
+    ArrayIndexNode: Evaluator._eval_array_index,
+}
