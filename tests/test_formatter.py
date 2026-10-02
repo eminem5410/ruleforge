@@ -1,5 +1,5 @@
 import pytest
-from tools.repl_formatter import format_context, format_decision, format_trace, format_error
+from tools.formatter import format_context, format_decision, format_trace, format_error
 
 # Mocks basados en la estructura real del motor
 class MockAction:

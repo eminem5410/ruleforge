@@ -1,5 +1,18 @@
 import json
 
+def infer_type(val):
+    if isinstance(val, bool): return "Boolean"
+    if isinstance(val, int): return "Integer"
+    if isinstance(val, float): return "Decimal"
+    if isinstance(val, str): return "String"
+    if isinstance(val, dict): return infer_schema(val)
+    if isinstance(val, list): return f"Array<{infer_type(val[0]) if val else 'Unknown'}>"
+    return "Unknown"
+
+def infer_schema(obj):
+    if not isinstance(obj, dict): return {}
+    return {k: infer_type(v) for k, v in obj.items()}
+
 def format_context(context, schema):
     if schema is None:
         return "✓ Context loaded\n  Schema: auto-inferred"

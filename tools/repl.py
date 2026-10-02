@@ -6,7 +6,7 @@ import sys
 # Asegurar que el paquete ruleforge sea importable sin instalarlo globalmente
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from ruleforge.engine import RuleEngine
-from tools.repl_formatter import format_context, format_decision, format_trace, format_error
+from tools.formatter import infer_schema, format_context, format_decision, format_trace, format_error
 
 class RuleForgeREPL(cmd.Cmd):
     intro = "RuleForge REPL v11.9.0. Type '.help' for commands. Type '.exit' to quit."
@@ -20,22 +20,6 @@ class RuleForgeREPL(cmd.Cmd):
         self.engine = RuleEngine({"fields": {}}, use_compiler=False, max_cache_size=100)
         self._in_rule = False
         self._rule_buffer = []
-
-    def _infer_type(self, val):
-        if isinstance(val, bool): return "Boolean"
-        if isinstance(val, int): return "Integer"
-        if isinstance(val, float): return "Decimal"
-        if isinstance(val, str): return "String"
-        if isinstance(val, dict): return self._infer_schema(val)
-        if isinstance(val, list): return f"Array<{self._infer_type(val[0]) if val else 'Unknown'}>"
-        return "Unknown"
-
-    def _infer_schema(self, obj):
-        if not isinstance(obj, dict): return {}
-        schema = {}
-        for k, v in obj.items():
-            schema[k] = self._infer_type(v)
-        return schema
 
     def emptyline(self):
         if self._in_rule:
@@ -105,7 +89,7 @@ class RuleForgeREPL(cmd.Cmd):
             self.context = json.loads(arg)
             if self.schema is None:
                 # Auto-infer schema if no explicit schema was set
-                inferred = self._infer_schema(self.context)
+                inferred = infer_schema(self.context)
                 self.engine = RuleEngine(inferred, use_compiler=False, max_cache_size=100)
                 print(format_context(self.context, None))
             else:
