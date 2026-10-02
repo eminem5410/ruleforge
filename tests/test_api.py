@@ -4,7 +4,11 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 import pytest
 import httpx
 import ruleforge
-from ruleforge import app
+app = None
+try:
+    from ruleforge.api import app
+except ImportError:
+    pass
 
 transport = httpx.ASGITransport(app=app)
 

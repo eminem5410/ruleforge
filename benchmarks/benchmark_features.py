@@ -56,7 +56,7 @@ END''',
     "SET": "RULE R LANGUAGE 1\nWHEN customer.age >= 18\nTHEN SET customer.age = 30\nEND"
 }
 
-print("=== RuleForge Feature Benchmark V11.8.2 ===\n")
+print("=== RuleForge Feature Benchmark V11.8.5 ===\n")
 for name, code in rules.items():
     engine = RuleEngine(schema, max_cache_size=100)
     stats = run_benchmark(lambda: engine.evaluate(code, context))

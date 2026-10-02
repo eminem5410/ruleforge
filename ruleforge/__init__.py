@@ -3,4 +3,4 @@ from .parser import Parser, ParserError
 from .semantic import SemanticAnalyzer, SemanticError
 from .evaluator import Evaluator, Decision, EvaluatorError
 from .engine import RuleEngine, AppliedPatch
-from .api import app
+# API is imported explicitly via 'from ruleforge.api import app' when needed

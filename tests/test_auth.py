@@ -3,7 +3,11 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 import pytest
 import httpx
-from ruleforge import app
+app = None
+try:
+    from ruleforge.api import app
+except ImportError:
+    pass
 from ruleforge.auth.dependencies import get_api_key_test, _repo_instance
 
 transport = httpx.ASGITransport(app=app)
