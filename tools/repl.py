@@ -6,6 +6,7 @@ import sys
 # Asegurar que el paquete ruleforge sea importable sin instalarlo globalmente
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from ruleforge.engine import RuleEngine
+from tools.repl_formatter import format_context, format_decision, format_trace, format_error
 
 class RuleForgeREPL(cmd.Cmd):
     intro = "RuleForge REPL v11.9.0. Type '.help' for commands. Type '.exit' to quit."
@@ -20,15 +21,20 @@ class RuleForgeREPL(cmd.Cmd):
         self._in_rule = False
         self._rule_buffer = []
 
+    def _infer_type(self, val):
+        if isinstance(val, bool): return "Boolean"
+        if isinstance(val, int): return "Integer"
+        if isinstance(val, float): return "Decimal"
+        if isinstance(val, str): return "String"
+        if isinstance(val, dict): return self._infer_schema(val)
+        if isinstance(val, list): return f"Array<{self._infer_type(val[0]) if val else 'Unknown'}>"
+        return "Unknown"
+
     def _infer_schema(self, obj):
+        if not isinstance(obj, dict): return {}
         schema = {}
         for k, v in obj.items():
-            if isinstance(v, bool): schema[k] = "Boolean"
-            elif isinstance(v, int): schema[k] = "Integer"
-            elif isinstance(v, float): schema[k] = "Decimal"
-            elif isinstance(v, str): schema[k] = "String"
-            elif isinstance(v, dict): schema[k] = self._infer_schema(v)
-            elif isinstance(v, list) and v: schema[k] = f"Array<{self._infer_schema(v[0])}>"
+            schema[k] = self._infer_type(v)
         return schema
 
     def emptyline(self):
@@ -76,14 +82,14 @@ class RuleForgeREPL(cmd.Cmd):
             result = self.engine.evaluate(arg, self.context, trace=self.trace)
             if result.decisions:
                 for d in result.decisions:
-                    print(f"✅ MATCH: {d.matched} | Actions: {[a.to_dict() for a in d.actions]}")
-                    if self.trace and d.trace:
-                        print("   Trace:")
-                        print(json.dumps(d.trace, indent=2))
+                    print(format_decision(d))
+                    if self.trace and result.trace:
+                        # result.trace es una lista de RuleTraceEntry, tomamos el primero
+                        print(format_trace(result.trace[0]))
             else:
                 print("⚪ No decisions returned.")
         except Exception as e:
-            print(f"❌ Evaluation Error: {e}")
+            print(format_error(e))
 
     def do_empty(self, arg):
         pass
@@ -101,9 +107,9 @@ class RuleForgeREPL(cmd.Cmd):
                 # Auto-infer schema if no explicit schema was set
                 inferred = self._infer_schema(self.context)
                 self.engine = RuleEngine(inferred, use_compiler=False, max_cache_size=100)
-                print("✅ Context updated. Schema: auto-inferred")
+                print(format_context(self.context, None))
             else:
-                print("✅ Context updated. Schema: explicit")
+                print(format_context(self.context, self.schema))
         except json.JSONDecodeError as e:
             print(f"❌ Invalid JSON: {e}")
 

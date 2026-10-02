@@ -73,8 +73,8 @@ def test_multiline_rule_allow():
         for call in mocked_print.call_args_list
     )
 
-    assert "MATCH: True" in output
-    assert "'ALLOW'" in output
+    assert "✓ MATCH" in output
+    assert "Actions: ALLOW" in output
     assert repl._in_rule is False
     assert repl.prompt == "rf> "
 
@@ -108,8 +108,8 @@ def test_multiline_rule_else_deny():
         for call in mocked_print.call_args_list
     )
 
-    assert "MATCH: False" in output
-    assert "'DENY'" in output
+    assert "✗ NO MATCH" in output
+    assert "Actions: DENY" in output
     assert "Minor" in output
 
 
@@ -135,8 +135,8 @@ def test_inline_rule():
         for call in mocked_print.call_args_list
     )
 
-    assert "MATCH: True" in output
-    assert "'ALLOW'" in output
+    assert "✓ MATCH" in output
+    assert "Actions: ALLOW" in output
 
 
 def test_trace_toggle():
