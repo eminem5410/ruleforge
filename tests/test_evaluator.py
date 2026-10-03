@@ -269,3 +269,152 @@ def test_eval_match_strict_type_equality():
     # It should fall back to NO_ACTION.
     assert decision.matched == True
     assert decision.actions[0].action_type == "NO_ACTION"
+
+SCHEMA_MATCH = {"customer": {"status": "String", "age": "Integer"}}
+
+def test_match_trace_first_case():
+    from ruleforge.lexer import Lexer
+    from ruleforge.parser import Parser
+    from ruleforge.semantic import SemanticAnalyzer
+    from ruleforge.evaluator import Evaluator
+
+    code = 'RULE r LANGUAGE 1 MATCH customer.status CASE "ACTIVE": ALLOW CASE "BLOCKED": DENY "B" DEFAULT: NO_ACTION END'
+    tokens = Lexer(code).tokenize()
+    ast = Parser(tokens).parse()
+    SemanticAnalyzer(SCHEMA_MATCH).analyze(ast)
+
+    evaluator = Evaluator({"customer": {"status": "ACTIVE"}}, deep_trace=True)
+    decision = evaluator.eval_rule(ast[0])
+
+    assert decision.matched == True
+    assert len(evaluator.trace) == 1
+    root = evaluator.trace[0]
+    assert root["NodeType"] == "MatchExpression"
+    assert root["Value"] == "ACTIVE"
+    assert len(root["Children"]) == 3 # 2 cases + 1 default
+
+    assert root["Children"][0]["NodeType"] == "Case"
+    assert root["Children"][0]["Value"] == "ACTIVE"
+    assert root["Children"][0]["Matched"] == True
+    assert root["Children"][0]["ShortCircuited"] == False
+
+    assert root["Children"][1]["NodeType"] == "Case"
+    assert root["Children"][1]["Value"] is None
+    assert root["Children"][1]["ShortCircuited"] == True
+
+    assert root["Children"][2]["NodeType"] == "Default"
+    assert root["Children"][2]["ShortCircuited"] == True
+    assert root["Children"][2]["Matched"] == False
+
+def test_match_trace_second_case():
+    from ruleforge.lexer import Lexer
+    from ruleforge.parser import Parser
+    from ruleforge.semantic import SemanticAnalyzer
+    from ruleforge.evaluator import Evaluator
+
+    code = 'RULE r LANGUAGE 1 MATCH customer.status CASE "ACTIVE": ALLOW CASE "BLOCKED": DENY "B" DEFAULT: NO_ACTION END'
+    tokens = Lexer(code).tokenize()
+    ast = Parser(tokens).parse()
+    SemanticAnalyzer(SCHEMA_MATCH).analyze(ast)
+
+    evaluator = Evaluator({"customer": {"status": "BLOCKED"}}, deep_trace=True)
+    decision = evaluator.eval_rule(ast[0])
+
+    root = evaluator.trace[0]
+    assert root["Children"][0]["Matched"] == False
+    assert root["Children"][0]["ShortCircuited"] == False
+    assert root["Children"][0]["Value"] == "ACTIVE"
+
+    assert root["Children"][1]["Matched"] == True
+    assert root["Children"][1]["ShortCircuited"] == False
+    assert root["Children"][1]["Value"] == "BLOCKED"
+
+    assert root["Children"][2]["ShortCircuited"] == True
+
+def test_match_trace_default():
+    from ruleforge.lexer import Lexer
+    from ruleforge.parser import Parser
+    from ruleforge.semantic import SemanticAnalyzer
+    from ruleforge.evaluator import Evaluator
+
+    code = 'RULE r LANGUAGE 1 MATCH customer.status CASE "ACTIVE": ALLOW DEFAULT: NO_ACTION END'
+    tokens = Lexer(code).tokenize()
+    ast = Parser(tokens).parse()
+    SemanticAnalyzer(SCHEMA_MATCH).analyze(ast)
+
+    evaluator = Evaluator({"customer": {"status": "PENDING"}}, deep_trace=True)
+    decision = evaluator.eval_rule(ast[0])
+
+    root = evaluator.trace[0]
+    assert root["Children"][0]["Matched"] == False
+    assert root["Children"][0]["ShortCircuited"] == False
+
+    assert root["Children"][1]["NodeType"] == "Default"
+    assert root["Children"][1]["Matched"] == True
+    assert root["Children"][1]["ShortCircuited"] == False
+
+def test_match_trace_no_default():
+    from ruleforge.lexer import Lexer
+    from ruleforge.parser import Parser
+    from ruleforge.semantic import SemanticAnalyzer
+    from ruleforge.evaluator import Evaluator
+
+    code = 'RULE r LANGUAGE 1 MATCH customer.status CASE "ACTIVE": ALLOW END'
+    tokens = Lexer(code).tokenize()
+    ast = Parser(tokens).parse()
+    SemanticAnalyzer(SCHEMA_MATCH).analyze(ast)
+
+    evaluator = Evaluator({"customer": {"status": "PENDING"}}, deep_trace=True)
+    decision = evaluator.eval_rule(ast[0])
+
+    root = evaluator.trace[0]
+    assert len(root["Children"]) == 1
+    assert root["Children"][0]["Matched"] == False
+
+def test_match_trace_error():
+    from ruleforge.lexer import Lexer
+    from ruleforge.parser import Parser
+    from ruleforge.semantic import SemanticAnalyzer
+    from ruleforge.evaluator import Evaluator, EvaluatorError
+    import pytest
+
+    code_err = 'RULE r LANGUAGE 1 MATCH 1/0 CASE 1.0: ALLOW END'
+    tokens_err = Lexer(code_err).tokenize()
+    ast_err = Parser(tokens_err).parse()
+    SemanticAnalyzer(SCHEMA_MATCH).analyze(ast_err)
+
+    evaluator_err = Evaluator({}, deep_trace=True)
+    with pytest.raises(EvaluatorError) as exc_err:
+        evaluator_err.eval_rule(ast_err[0])
+
+    assert exc_err.value.code == "RF4001"
+    assert len(evaluator_err.trace) == 1
+    assert evaluator_err.trace[0]["NodeType"] == "BinaryExpression"
+    assert evaluator_err.trace[0]["Operator"] == "/"
+
+def test_match_trace_set():
+    from ruleforge.lexer import Lexer
+    from ruleforge.parser import Parser
+    from ruleforge.semantic import SemanticAnalyzer
+    from ruleforge.evaluator import Evaluator
+
+    code = 'RULE r LANGUAGE 1 MATCH customer.status CASE "ACTIVE": SET customer.status = "VIP" END'
+    tokens = Lexer(code).tokenize()
+    ast = Parser(tokens).parse()
+    SemanticAnalyzer(SCHEMA_MATCH).analyze(ast)
+
+    evaluator = Evaluator({"customer": {"status": "ACTIVE"}}, deep_trace=True)
+    decision = evaluator.eval_rule(ast[0])
+
+    # 1. Trace shows the correct CASE matched
+    root = evaluator.trace[0]
+    assert root["NodeType"] == "MatchExpression"
+    assert root["Value"] == "ACTIVE"
+    assert root["Children"][0]["Matched"] == True
+    assert root["Children"][0]["Value"] == "ACTIVE"
+
+    # 2. Decision contains the resolved SET action (V11.3 contract)
+    assert len(decision.actions) == 1
+    assert decision.actions[0].action_type == "SET"
+    assert decision.actions[0].value == "customer.status"
+    assert decision.actions[0].payload == "VIP"

@@ -22,6 +22,8 @@ public class TraceNode
     public List<TraceNode> Children { get; set; } = new();
 
     public bool ShortCircuited { get; set; }
+    public bool? Matched { get; set; }
+    public string? Reason { get; set; }
 
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? ErrorCode { get; set; }

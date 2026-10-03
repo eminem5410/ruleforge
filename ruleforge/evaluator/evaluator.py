@@ -120,53 +120,82 @@ class Evaluator:
                 # RFC-001: MATCH expression is evaluated exactly once.
                 match_val, _ = self.eval_node(node.match_node.expression)
 
-                # A MATCH rule itself is considered matched when it executes.
-                # Whether a CASE matched is separate from decision.matched.
                 matched = True
                 case_matched = False
                 actions = [ActionNode("NO_ACTION")]
+                case_traces = []
 
-                # CASE selection: first matching CASE wins.
                 for case in node.match_node.cases:
-                    case_val, _ = self.eval_node(case.value)
+                    if case_matched:
+                        if self.deep_trace:
+                            case_traces.append({
+                                "NodeType": "Case",
+                                "Value": None,
+                                "Type": "Null",
+                                "Children": [],
+                                "ShortCircuited": True,
+                                "Reason": "short_circuit"
+                            })
+                    else:
+                        case_val, _ = self.eval_node(case.value)
+                        is_match = (
+                            type(match_val) is type(case_val)
+                            and match_val == case_val
+                        )
 
-                    # Strict runtime equality.
-                    if (
-                        type(match_val) is type(case_val)
-                        and match_val == case_val
-                    ):
-                        case_matched = True
-                        actions = case.actions
-                        break
+                        if self.deep_trace:
+                            case_traces.append({
+                                "NodeType": "Case",
+                                "Value": self._serialize_value(case_val),
+                                "Type": self._value_type(case_val),
+                                "Children": [],
+                                "ShortCircuited": False,
+                                "Matched": is_match
+                            })
 
-                # No CASE matched -> DEFAULT if present.
+                        if is_match:
+                            case_matched = True
+                            actions = case.actions
+
                 if not case_matched:
                     if node.match_node.default_actions:
                         actions = node.match_node.default_actions
                     else:
                         actions = [ActionNode("NO_ACTION")]
 
-                # Resolve dynamic actions exactly like the normal V11 path.
                 resolved_actions = []
-
                 for a in actions:
                     if isinstance(a, SetActionNode):
                         val, _ = self.eval_node(a.value_node)
-                        resolved_actions.append(
-                            ActionNode("SET", a.value, val)
-                        )
-
+                        resolved_actions.append(ActionNode("SET", a.value, val))
                     elif isinstance(a, EmitActionNode):
                         payload = None
                         if a.payload_node:
                             payload, _ = self.eval_node(a.payload_node)
-
-                        resolved_actions.append(
-                            ActionNode("EMIT", a.value, payload)
-                        )
-
+                        resolved_actions.append(ActionNode("EMIT", a.value, payload))
                     else:
                         resolved_actions.append(a)
+
+                if self.deep_trace:
+                    default_trace = None
+                    if node.match_node.default_actions is not None:
+                        default_trace = {
+                            "NodeType": "Default",
+                            "Value": None,
+                            "Type": "Null",
+                            "Children": [],
+                            "ShortCircuited": case_matched,
+                            "Matched": not case_matched
+                        }
+                    
+                    root_match_trace = {
+                        "NodeType": "MatchExpression",
+                        "Value": self._serialize_value(match_val),
+                        "Type": self._value_type(match_val),
+                        "Children": case_traces + ([default_trace] if default_trace else []),
+                        "ShortCircuited": False
+                    }
+                    self.trace = [root_match_trace]
 
                 return Decision(
                     node.name,
@@ -178,12 +207,11 @@ class Evaluator:
                 )
 
             except EvaluatorError:
+                if self.deep_trace and self._error_trace is not None:
+                    self.trace = [self._error_trace]
                 raise
             except Exception as e:
-                raise EvaluatorError(
-                    "RF4001",
-                    f"Unexpected runtime error: {e}"
-                )
+                raise EvaluatorError("RF4001", f"Unexpected runtime error: {e}")
 
         self.step_count = 0
         self._it_stack = []

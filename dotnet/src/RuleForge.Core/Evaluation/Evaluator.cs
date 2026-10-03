@@ -59,17 +59,32 @@ public class Evaluator
                 bool matched = true;
                 bool caseMatched = false;
                 var matchRawActions = new List<ActionNode> { new ActionNode("NO_ACTION") };
+                var caseTraces = new List<TraceNode>();
                 
                 foreach (var caseNode in node.MatchNode.Cases)
                 {
-                    var caseRes = EvaluateNodeInternal(caseNode.Value);
-                    
-                    if (matchRes.Value.Type == caseRes.Value.Type && 
-                        object.Equals(matchRes.Value.Value, caseRes.Value.Value))
+                    if (caseMatched)
                     {
-                        caseMatched = true;
-                        matchRawActions = caseNode.Actions;
-                        break;
+                        if (_traceEnabled)
+                        {
+                            caseTraces.Add(new TraceNode { NodeType = "Case", Value = null, Type = "Null", Children = new List<TraceNode>(), ShortCircuited = true, Reason = "short_circuit" });
+                        }
+                    }
+                    else
+                    {
+                        var caseRes = EvaluateNodeInternal(caseNode.Value);
+                        bool isMatch = (matchRes.Value.Type == caseRes.Value.Type && object.Equals(matchRes.Value.Value, caseRes.Value.Value));
+                        
+                        if (_traceEnabled)
+                        {
+                            caseTraces.Add(new TraceNode { NodeType = "Case", Value = SerializeTraceValue(caseRes.Value), Type = GetTypeName(caseRes.Value), Children = new List<TraceNode>(), ShortCircuited = false, Matched = isMatch });
+                        }
+                        
+                        if (isMatch)
+                        {
+                            caseMatched = true;
+                            matchRawActions = caseNode.Actions;
+                        }
                     }
                 }
                 
@@ -107,6 +122,27 @@ public class Evaluator
                     {
                         matchResolvedActions.Add(matchAction);
                     }
+                }
+                
+                if (_traceEnabled)
+                {
+                    TraceNode? defaultTrace = null;
+                    if (node.MatchNode.DefaultActions != null)
+                    {
+                        defaultTrace = new TraceNode { NodeType = "Default", Value = null, Type = "Null", Children = new List<TraceNode>(), ShortCircuited = caseMatched, Matched = !caseMatched };
+                    }
+                    
+                    var rootMatchTrace = new TraceNode
+                    {
+                        NodeType = "MatchExpression",
+                        Value = SerializeTraceValue(matchRes.Value),
+                        Type = GetTypeName(matchRes.Value),
+                        Children = caseTraces,
+                        ShortCircuited = false
+                    };
+                    if (defaultTrace != null) rootMatchTrace.Children.Add(defaultTrace);
+                    
+                    LastTrace = rootMatchTrace;
                 }
                 
                 return new Decision(node.Name, 1, node.LanguageVersion, matched, matchResolvedActions);
