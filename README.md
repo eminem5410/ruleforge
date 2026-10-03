@@ -427,3 +427,21 @@ Current release: v11.5.0
 ## License
 
 See the repository for current licensing terms.
+
+## Tooling
+
+RuleForge provides a command-line interface for validating, evaluating,
+and diagnosing rule files.
+
+### Evaluate
+Get the business decision for a given context.
+```bash
+ruleforge eval rules.rf --context '{"customer":{"age":25}}'
+Validate (Check)
+Validate syntax and semantics without evaluating.
+ruleforge check rules.rf --schema '{"customer":{"age":"Integer"}}'
+ruleforge check rules.rf --schema '{"customer":{"age":"Integer"}}'
+ruleforge trace rules.rf --context '{"customer":{"age":25}}'
+Exit Codes
+0: Operation successful.
+1: Validation/evaluation/input error.
