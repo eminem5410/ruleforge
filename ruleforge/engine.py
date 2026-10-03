@@ -118,6 +118,11 @@ class RuleEngine:
                         except (ValueError, TypeError):
                             raise EvaluatorError("RF4003", f"expected {prop_type} but got {type(val).__name__}")
 
+    def check(self, source_code):
+        """Parses and semantically validates rules without evaluating them."""
+        ast_list, _ = self._get_or_parse(source_code)
+        return ast_list
+
     def evaluate(self, source_code, context, explain=False, trace=False):
         ast, cached_compiler = self._get_or_parse(source_code)
 

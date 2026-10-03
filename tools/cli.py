@@ -6,6 +6,9 @@ import sys
 # Asegurar que el paquete ruleforge sea importable sin instalarlo globalmente
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from ruleforge.engine import RuleEngine
+from ruleforge.parser import ParserError
+from ruleforge.semantic import SemanticError
+from ruleforge.lexer import LexerError
 from tools.formatter import infer_schema, format_decision, format_trace, format_error
 
 def main():
@@ -18,9 +21,14 @@ def main():
     eval_parser.add_argument("--context", help="JSON string representing the context", required=True)
     eval_parser.add_argument("--schema", help="JSON string representing the schema (optional)", required=False)
     eval_parser.add_argument("--trace", action="store_true", help="Enable deep trace output")
-    
+
+    # Comando: check
+    check_parser = subparsers.add_parser("check", help="Validate rule syntax and semantics without evaluating")
+    check_parser.add_argument("rule_file", help="Path to the .rf rule file")
+    check_parser.add_argument("--schema", help="JSON string representing the schema (optional)", required=False)
+
     args = parser.parse_args()
-    
+
     if args.command == "eval":
         try:
             with open(args.rule_file, 'r') as f:
@@ -28,7 +36,7 @@ def main():
         except FileNotFoundError:
             print(f"❌ File not found: {args.rule_file}")
             sys.exit(1)
-            
+
         try:
             context = json.loads(args.context)
         except json.JSONDecodeError as e:
@@ -46,18 +54,48 @@ def main():
             schema = infer_schema(context)
 
         engine = RuleEngine(schema, use_compiler=False, max_cache_size=100)
-        
+
         try:
             result = engine.evaluate(code, context, trace=args.trace)
             if result.decisions:
                 for i, d in enumerate(result.decisions):
                     print(format_decision(d))
                     if args.trace and result.trace:
-                        # Asociar la decisión actual con su trace_entry correspondiente
                         if i < len(result.trace):
                             print(format_trace(result.trace[i]))
             else:
                 print("⚪ No decisions returned.")
+        except Exception as e:
+            print(format_error(e))
+            sys.exit(1)
+
+    elif args.command == "check":
+        try:
+            with open(args.rule_file, 'r') as f:
+                code = f.read()
+        except FileNotFoundError:
+            print(f"❌ File not found: {args.rule_file}")
+            sys.exit(1)
+
+        schema = {}
+        if args.schema:
+            try:
+                schema = json.loads(args.schema)
+            except json.JSONDecodeError as e:
+                print(f"❌ Invalid schema JSON: {e}")
+                sys.exit(1)
+
+        engine = RuleEngine(schema, use_compiler=False, max_cache_size=100)
+
+        try:
+            ast_list = engine.check(code)
+            print(f"✓ Valid")
+            print(f"  Rules: {len(ast_list)}")
+            if ast_list:
+                print(f"  Language: {ast_list[0].lang_version}")
+        except (LexerError, ParserError, SemanticError) as e:
+            print(format_error(e))
+            sys.exit(1)
         except Exception as e:
             print(format_error(e))
             sys.exit(1)
