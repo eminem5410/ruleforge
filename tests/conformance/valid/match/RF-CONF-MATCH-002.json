@@ -1,0 +1,4 @@
+{
+    "context": {"customer": {"status": "BLOCKED"}},
+    "expected": {"matched": true, "actions": [{"action_type": "DENY", "value": "Blocked"}]}
+}

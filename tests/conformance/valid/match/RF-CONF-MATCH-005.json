@@ -1,0 +1,4 @@
+{
+    "context": {"customer": {"name": "Pablo"}},
+    "expected": {"matched": true, "actions": [{"action_type": "NO_ACTION", "value": null}]}
+}

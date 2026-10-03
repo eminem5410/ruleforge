@@ -1,0 +1,7 @@
+RULE duplicate_case LANGUAGE 1
+MATCH customer.status
+CASE "ACTIVE":
+    ALLOW
+CASE "ACTIVE":
+    DENY "Duplicate"
+END

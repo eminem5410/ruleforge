@@ -1,0 +1,7 @@
+RULE customer_status_no_default LANGUAGE 1
+MATCH customer.status
+CASE "ACTIVE":
+    ALLOW
+CASE "BLOCKED":
+    DENY "Blocked"
+END

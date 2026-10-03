@@ -1,0 +1,5 @@
+RULE invalid_match_type LANGUAGE 1
+MATCH customer.age
+CASE "ACTIVE":
+    ALLOW
+END

@@ -1,0 +1,4 @@
+{
+    "context": {"customer": {"status": "PENDING"}},
+    "expected": {"matched": true, "actions": [{"action_type": "NO_ACTION", "value": null}]}
+}

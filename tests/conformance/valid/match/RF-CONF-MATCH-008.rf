@@ -1,0 +1,10 @@
+RULE set_in_case LANGUAGE 1
+MATCH customer.status
+CASE "ACTIVE":
+    SET customer.status = "VIP"
+END
+
+RULE check_vip LANGUAGE 1
+WHEN customer.status == "VIP"
+THEN ALLOW
+END
