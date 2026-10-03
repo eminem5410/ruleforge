@@ -72,3 +72,44 @@ RF-CONF-MATCH-005: Match donde Expression evalúa a NULL (va a DEFAULT/NO_ACTION
 RF-CONF-MATCH-006: Error semántico: tipos incompatibles (String vs Integer).
 RF-CONF-MATCH-007: Error semántico: CASE duplicado.
 RF-CONF-MATCH-008: Match con SET en el CASE, afecta a la siguiente regla en el pipeline.
+
+## 8. MATCH Trace Contract (V12.0.0 Layer 5)
+
+El trace de `MATCH` debe respetar la semántica de evaluación lazy (short-circuit) y no inventar estados de ejecución artificiales (Phantoms) para los `CASEs` que no fueron evaluados.
+
+### 8.1. Reglas de Trazabilidad
+1. **Evaluación Única:** La expresión `MATCH` se evalúa exactamente una vez y su valor y tipo se registran en el trace.
+2. **Short-Circuit Real:** Si un `CASE` coincide, los `CASEs` posteriores y el `DEFAULT` **no deben ser evaluados**.
+3. **Sin Phantoms Artificiales:** Los `CASEs` no evaluados no deben aparecer con `Value: false`. Deben marcarse explícitamente con `ShortCircuited: true` y `Reason: short_circuit` (o similar en la metadata del trace).
+4. **DEFAULT:** Si ningún `CASE` coincide, el `DEFAULT` se ejecuta. Los `CASEs` evaluados aparecerán con `matched: false`.
+5. **NO_ACTION:** Si no hay coincidencia y no hay `DEFAULT`, se ejecuta `NO_ACTION`.
+6. **SET/EMIT:** Las acciones dentro del `CASE` seleccionado se registran normalmente.
+7. **Errores:** Si la expresión `MATCH` o un `CASE` evaluado lanza un error, se conserva el contrato de V11.3 (`_error_trace` en el nodo fallido).
+
+### 8.2. Estructura Conceptual del Trace
+
+Para un match en el primer `CASE`:
+```text
+MATCH customer.status -> "ACTIVE"
+  CASE "ACTIVE" -> MATCHED
+    Action: ALLOW
+  CASE "BLOCKED" -> SHORT_CIRCUITED
+  DEFAULT -> SHORT_CIRCUITED
+Para un match en DEFAULT (ningún CASE coincidió):
+
+
+MATCH customer.status -> "PENDING"
+  CASE "ACTIVE" -> EVALUATED_FALSE
+  CASE "BLOCKED" -> EVALUATED_FALSE
+  DEFAULT -> MATCHED
+    Action: NO_ACTION
+8.3. Matriz de Pruebas de Trace (Layer 5 Tests)
+test_match_trace_first_case: Verifica que el primer CASE coincida y los demás estén marcados como short-circuited.
+test_match_trace_second_case: Verifica que el primer CASE sea false, el segundo coincida, y los demás short-circuited.
+test_match_trace_default: Verifica que todos los CASEs sean false y DEFAULT coincida.
+test_match_trace_no_default: Verifica que todos los CASEs sean false y se ejecute NO_ACTION.
+test_match_trace_set: Verifica que el SET dentro del CASE coincidido se registre en el trace.
+test_match_trace_error: Verifica que si la expresión MATCH falla, el trace capture el error en ese nodo.
+8.4. Restricción Arquitectónica
+El trace de MATCH debe construirse dentro del bloque if node.match_node: en eval_rule().
+No se debe modificar el dispatch global de eval_node() ni las rutas de V11 para acomodar el trace de MATCH.
