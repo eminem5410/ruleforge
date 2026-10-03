@@ -42,7 +42,7 @@ public class ConformanceTests
     public void Test_Conformance_Vector(string rulePath)
     {
         // V12.0: Skip MATCH/CASE vectors until Parser/Semantic are implemented
-        if (rulePath.Contains("MATCH", StringComparison.OrdinalIgnoreCase))
+        if (rulePath.Contains("MATCH", StringComparison.OrdinalIgnoreCase) && !rulePath.Contains("006") && !rulePath.Contains("007"))
         {
             Console.WriteLine($"--- SKIPPED V12 VECTOR: {rulePath} ---");
             return;

@@ -54,14 +54,42 @@ public class SemanticAnalyzer
         CheckActions(rule.ThenActions);
         CheckActions(rule.ElseActions);
         
+        if (rule.MatchNode != null)
+        {
+            AnalyzeMatchNode(rule.MatchNode);
+            return;
+        }
+        
         int depth = 0, count = 0;
-        CheckAstLimits(rule.WhenExpr, 1, ref depth, ref count);
+        CheckAstLimits(rule.WhenExpr!, 1, ref depth, ref count);
         if (depth > MaxAstDepth) throw new SemanticException("RF5001", $"Security Limit: AST depth exceeds maximum of {MaxAstDepth}");
         if (count > MaxAstNodes) throw new SemanticException("RF5002", $"Security Limit: AST node count exceeds maximum of {MaxAstNodes}");
 
-        var exprType = CheckNode(rule.WhenExpr);
+        var exprType = CheckNode(rule.WhenExpr!);
         if (exprType != "Boolean")
             throw new SemanticException("RF3002", $"WHEN condition must evaluate to Boolean, got {exprType}");
+    }
+    
+    private void AnalyzeMatchNode(MatchNode node)
+    {
+        var exprType = CheckNode(node.MatchExpression);
+        if (node.Cases.Count == 0) throw new SemanticException("RF3002", "MATCH must have at least one CASE");
+        if (node.Cases.Count > 50) throw new SemanticException("RF5002", "Security Limit: MATCH cases exceed maximum of 50");
+        
+        var seenValues = new HashSet<object>();
+        foreach (var caseNode in node.Cases)
+        {
+            var caseType = CheckNode(caseNode.Value);
+            if (caseType != exprType) throw new SemanticException("RF3001", $"Cannot match {exprType} with {caseType}");
+            var val = (caseNode.Value as LiteralExpression)?.Value ?? (caseNode.Value as DateLiteralExpression)?.Value;
+            if (val != null)
+            {
+                if (seenValues.Contains(val)) throw new SemanticException("RF3001", $"Duplicate CASE value: {val}");
+                seenValues.Add(val);
+            }
+            CheckActions(caseNode.Actions);
+        }
+        if (node.DefaultActions != null) CheckActions(node.DefaultActions);
     }
 
     private void CheckActions(List<ActionNode> actions)

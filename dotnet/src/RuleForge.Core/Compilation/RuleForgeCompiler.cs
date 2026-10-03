@@ -23,7 +23,7 @@ public class RuleForgeCompiler
             try
             {
                 var param = LinqExpr.Parameter(typeof(Dictionary<string, object?>), "ctx");
-                var body = CompileNode(rule.WhenExpr, param);
+                var body = CompileNode(rule.WhenExpr!, param);
                 if (body.Type != typeof(bool)) throw new NotImplementedException();
                 var lambda = LinqExpr.Lambda<Func<Dictionary<string, object?>, bool>>(body, param);
                 _compiledRules.Add(lambda.Compile());

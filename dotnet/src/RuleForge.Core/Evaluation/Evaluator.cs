@@ -52,7 +52,8 @@ public class Evaluator
         EvalResult condResult;
         try
         {
-            condResult = EvaluateNodeInternal(node.WhenExpr);
+            if (node.MatchNode != null) throw new EvaluatorException("RF4001", "MATCH Evaluator not implemented in V12.0-rc.1");
+            condResult = EvaluateNodeInternal(node.WhenExpr!);
         }
         catch (EvaluatorException)
         {

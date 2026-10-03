@@ -1,4 +1,4 @@
-from ..parser.ast_nodes import RuleNode, ActionNode, BinaryOpNode, UnaryOpNode, NullCheckNode, LiteralNode, IdentifierNode, PropertyAccessNode, FunctionCallNode, ArrayLiteralNode, ArrayIndexNode, DateLiteralNode, EmitActionNode, SetActionNode, AnyAllNode, FilterMapNode
+from ..parser.ast_nodes import RuleNode, ActionNode, BinaryOpNode, UnaryOpNode, NullCheckNode, LiteralNode, IdentifierNode, PropertyAccessNode, FunctionCallNode, ArrayLiteralNode, ArrayIndexNode, DateLiteralNode, EmitActionNode, SetActionNode, AnyAllNode, FilterMapNode, MatchNode
 from .errors import SemanticError
 
 MAX_AST_DEPTH = 50
@@ -31,12 +31,38 @@ class SemanticAnalyzer:
         self.check_actions(node.then_actions)
         self.check_actions(node.else_actions)
         
+        if node.match_node:
+            self.check_match_node(node.match_node)
+            return
+            
         depth, count = 0, 0
         depth, count = self.check_ast_limits(node.when_expr, 1, depth, count)
         
         expr_type = self.check_node(node.when_expr)
         if expr_type != "Boolean":
             raise SemanticError("RF3002", f"WHEN condition must evaluate to Boolean, got {expr_type}")
+
+    def check_match_node(self, node):
+        expr_type = self.check_node(node.expression)
+        if len(node.cases) == 0:
+            raise SemanticError("RF3002", "MATCH must have at least one CASE")
+        if len(node.cases) > 50:
+            raise SemanticError("RF5002", "Security Limit: MATCH cases exceed maximum of 50")
+            
+        seen_values = set()
+        for case in node.cases:
+            case_type = self.check_node(case.value)
+            if case_type != expr_type:
+                raise SemanticError("RF3001", f"Cannot match {expr_type} with {case_type}")
+            val = case.value.value if hasattr(case.value, 'value') else None
+            if val is not None:
+                if val in seen_values:
+                    raise SemanticError("RF3001", f"Duplicate CASE value: {val}")
+                seen_values.add(val)
+            self.check_actions(case.actions)
+            
+        if node.default_actions:
+            self.check_actions(node.default_actions)
 
     def check_ast_limits(self, node, current_depth, max_depth, count):
         count += 1

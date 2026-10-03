@@ -2,7 +2,7 @@ from decimal import Decimal, InvalidOperation
 from datetime import date, timedelta
 import operator as _op
 from ..parser.ast_nodes import (RuleNode, ActionNode, BinaryOpNode, UnaryOpNode,
-    NullCheckNode, LiteralNode, IdentifierNode, PropertyAccessNode,
+    NullCheckNode, LiteralNode, IdentifierNode, PropertyAccessNode, MatchNode,
     FunctionCallNode, ArrayLiteralNode, ArrayIndexNode, DateLiteralNode,
     EmitActionNode, SetActionNode, AnyAllNode, FilterMapNode)
 from .errors import EvaluatorError
@@ -110,6 +110,8 @@ class Evaluator:
     # ─── End V11.2 Trace Helpers ──────────────────────────────
 
     def eval_rule(self, node: RuleNode):
+        if node.match_node:
+            raise EvaluatorError("RF4001", "MATCH Evaluator not implemented in V12.0-rc.1")
         self.step_count = 0
         self._it_stack = []
         self.trace = []
