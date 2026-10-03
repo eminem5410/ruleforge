@@ -6,7 +6,7 @@ import sys
 # Asegurar que el paquete ruleforge sea importable sin instalarlo globalmente
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from ruleforge.engine import RuleEngine
-from tools.formatter import infer_schema, format_context, format_decision, format_trace, format_error
+from ruleforge.formatter import infer_schema, format_context, format_decision, format_trace, format_error
 
 class RuleForgeREPL(cmd.Cmd):
     intro = "RuleForge REPL v11.9.0. Type '.help' for commands. Type '.exit' to quit."

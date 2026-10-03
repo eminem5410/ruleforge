@@ -1,7 +1,7 @@
 import json
 from unittest.mock import patch
 
-from tools.repl import RuleForgeREPL
+from ruleforge.repl import RuleForgeREPL
 
 
 def run_command(repl, line):

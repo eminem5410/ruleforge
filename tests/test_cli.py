@@ -3,11 +3,11 @@ import os
 import sys
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CLI_PATH = os.path.join(REPO_ROOT, "tools", "cli.py")
+# Ejecutar como modulo instalable
 PYTHON = sys.executable
 
 def run_cli(args):
-    cmd = [PYTHON, CLI_PATH] + args
+    cmd = [PYTHON, "-m", "ruleforge.cli"] + args
     result = subprocess.run(cmd, capture_output=True, text=True, cwd=REPO_ROOT)
     return result.stdout.strip(), result.stderr.strip(), result.returncode
 

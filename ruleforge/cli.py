@@ -1,88 +1,150 @@
-import sys
+import argparse
 import json
 import os
-import argparse
-from decimal import Decimal
-from datetime import date
-from . import RuleEngine
-from .lexer import LexerError
-from .parser import ParserError
-from .semantic import SemanticError
-from .evaluator import EvaluatorError
+import sys
 
-class RuleForgeEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, Decimal): return str(obj)
-        if isinstance(obj, date): return obj.isoformat()
-        return super().default(obj)
+# Asegurar que el paquete ruleforge sea importable sin instalarlo globalmente
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from ruleforge.engine import RuleEngine
+from ruleforge.parser import ParserError
+from ruleforge.semantic import SemanticError
+from ruleforge.lexer import LexerError
+from ruleforge.formatter import infer_schema, format_decision, format_trace, format_error
 
 def main():
-    parser = argparse.ArgumentParser(description="RuleForge Decision Engine CLI")
+    parser = argparse.ArgumentParser(prog="ruleforge", description="RuleForge CLI")
     subparsers = parser.add_subparsers(dest="command")
 
-    for cmd in ["eval", "explain"]:
-        p = subparsers.add_parser(cmd)
-        p.add_argument("rule_path")
-        p.add_argument("data_path")
-        p.add_argument("schema_path")
-        p.add_argument("--json", action="store_true", dest="json_output")
+    # Comando: eval
+    eval_parser = subparsers.add_parser("eval", help="Evaluate a rule file against a context")
+    eval_parser.add_argument("rule_file", help="Path to the .rf rule file")
+    eval_parser.add_argument("--context", help="JSON string representing the context", required=True)
+    eval_parser.add_argument("--schema", help="JSON string representing the schema (optional)", required=False)
+    eval_parser.add_argument("--trace", action="store_true", help="Enable deep trace output")
+
+    # Comando: check
+    check_parser = subparsers.add_parser("check", help="Validate rule syntax and semantics without evaluating")
+    check_parser.add_argument("rule_file", help="Path to the .rf rule file")
+    check_parser.add_argument("--schema", help="JSON string representing the schema (optional)", required=False)
+
+    # Comando: trace
+    trace_parser = subparsers.add_parser("trace", help="Evaluate rules and output a diagnostic trace")
+    trace_parser.add_argument("rule_file", help="Path to the .rf rule file")
+    trace_parser.add_argument("--context", help="JSON string representing the context", required=True)
+    trace_parser.add_argument("--schema", help="JSON string representing the schema (optional)", required=False)
 
     args = parser.parse_args()
 
-    if args.command not in ["eval", "explain"]:
+    if args.command == "eval":
+        try:
+            with open(args.rule_file, 'r') as f:
+                code = f.read()
+        except FileNotFoundError:
+            print(f"❌ File not found: {args.rule_file}")
+            sys.exit(1)
+
+        try:
+            context = json.loads(args.context)
+        except json.JSONDecodeError as e:
+            print(f"❌ Invalid context JSON: {e}")
+            sys.exit(1)
+
+        schema = None
+        if args.schema:
+            try:
+                schema = json.loads(args.schema)
+            except json.JSONDecodeError as e:
+                print(f"❌ Invalid schema JSON: {e}")
+                sys.exit(1)
+        else:
+            schema = infer_schema(context)
+
+        engine = RuleEngine(schema, use_compiler=False, max_cache_size=100)
+
+        try:
+            result = engine.evaluate(code, context, trace=args.trace)
+            if result.decisions:
+                for i, d in enumerate(result.decisions):
+                    print(format_decision(d))
+                    if args.trace and result.trace:
+                        if i < len(result.trace):
+                            print(format_trace(result.trace[i]))
+            else:
+                print("⚪ No decisions returned.")
+        except Exception as e:
+            print(format_error(e))
+            sys.exit(1)
+
+    elif args.command == "check":
+        try:
+            with open(args.rule_file, 'r') as f:
+                code = f.read()
+        except FileNotFoundError:
+            print(f"❌ File not found: {args.rule_file}")
+            sys.exit(1)
+
+        schema = {}
+        if args.schema:
+            try:
+                schema = json.loads(args.schema)
+            except json.JSONDecodeError as e:
+                print(f"❌ Invalid schema JSON: {e}")
+                sys.exit(1)
+
+        engine = RuleEngine(schema, use_compiler=False, max_cache_size=100)
+
+        try:
+            ast_list = engine.check(code)
+            print("✓ Valid")
+            print(f"  Rules: {len(ast_list)}")
+            if ast_list:
+                print(f"  Language: {ast_list[0].lang_version}")
+        except (LexerError, ParserError, SemanticError) as e:
+            print(format_error(e))
+            sys.exit(1)
+        except Exception as e:
+            print(format_error(e))
+            sys.exit(1)
+
+    elif args.command == "trace":
+        try:
+            with open(args.rule_file, 'r') as f:
+                code = f.read()
+        except FileNotFoundError:
+            print(f"❌ File not found: {args.rule_file}")
+            sys.exit(1)
+
+        try:
+            context = json.loads(args.context)
+        except json.JSONDecodeError as e:
+            print(f"❌ Invalid context JSON: {e}")
+            sys.exit(1)
+
+        schema = None
+        if args.schema:
+            try:
+                schema = json.loads(args.schema)
+            except json.JSONDecodeError as e:
+                print(f"❌ Invalid schema JSON: {e}")
+                sys.exit(1)
+        else:
+            schema = infer_schema(context)
+
+        engine = RuleEngine(schema, use_compiler=False, max_cache_size=100)
+
+        try:
+            result = engine.evaluate(code, context, trace=True)
+            if result.trace:
+                for entry in result.trace:
+                    print(format_trace(entry))
+            else:
+                print("⚪ No trace returned.")
+        except Exception as e:
+            print(format_error(e))
+            sys.exit(1)
+
+    else:
         parser.print_help()
-        sys.exit(2)
-
-    for p in [args.rule_path, args.data_path, args.schema_path]:
-        if not os.path.exists(p):
-            print(f"❌ Error: Archivo no encontrado: {p}")
-            sys.exit(2)
-
-    try:
-        with open(args.rule_path, 'r', encoding='utf-8') as f: source_code = f.read()
-        with open(args.data_path, 'r', encoding='utf-8') as f: context = json.load(f)
-        with open(args.schema_path, 'r', encoding='utf-8') as f: schema = json.load(f)
-    except json.JSONDecodeError as e:
-        print(f"❌ Error: JSON inválido: {e}")
-        sys.exit(2)
-
-    try:
-        engine = RuleEngine(schema)
-        explain_mode = (args.command == "explain") or args.json_output
-        decisions = engine.evaluate(source_code, context, explain=explain_mode).decisions
-        
-        if args.json_output:
-            output = {"decisions": [d.to_dict() for d in decisions]}
-            print(json.dumps(output, indent=2, cls=RuleForgeEncoder))
-        else:
-            print(f"\n📊 Evaluando {len(decisions)} regla(s) contra el contexto...")
-            for d in decisions:
-                if args.command == "explain":
-                    print(f"\n--- TRACE '{d.rule_id}' ---")
-                    print(json.dumps(d.trace, indent=2, cls=RuleForgeEncoder))
-                    
-                print(f"\n--- DECISIÓN ---")
-                print(f"Regla      : {d.rule_id}")
-                print(f"Match      : {d.matched}")
-                for act in d.actions:
-                    print(f"Acción     : {act.action_type}", end="")
-                    if act.value and act.value != 'None': print(f" (Mensaje: {act.value})")
-                    else: print("")
-                print("----------------")
-        sys.exit(0)
-        
-    except (LexerError, ParserError, SemanticError, EvaluatorError) as e:
-        if args.json_output:
-            print(json.dumps({"error": {"code": e.code, "message": str(e)}}, indent=2, cls=RuleForgeEncoder))
-        else:
-            print(f"\n🛑 {e}\n")
-        sys.exit(1)
-    except Exception as e:
-        if args.json_output:
-            print(json.dumps({"error": {"code": "INTERNAL", "message": str(e)}}, indent=2, cls=RuleForgeEncoder))
-        else:
-            print(f"\n❌ Error inesperado: {e}\n")
-        sys.exit(2)
 
 if __name__ == "__main__":
     main()
