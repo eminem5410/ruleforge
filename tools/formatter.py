@@ -26,13 +26,13 @@ def format_decision(decision):
 def format_trace_node(node, indent=1):
     if not node or not isinstance(node, dict):
         return ""
-    
+
     sp = "  " * indent
     node_type = node.get("NodeType", "Unknown")
     val = node.get("Value")
     op = node.get("Operator")
     short_circ = node.get("ShortCircuited", False)
-    
+
     # Formatear valor para que sea legible (strings y arrays usan JSON)
     if isinstance(val, str):
         val_str = f'"{val}"' if not val.startswith('"') else val
@@ -40,35 +40,40 @@ def format_trace_node(node, indent=1):
         val_str = json.dumps(val)
     else:
         val_str = str(val)
-        
+
     label = node_type
     if op:
         label += f" {op}"
-        
+
     if short_circ:
         line = f"{sp}{label} -> [Short-Circuited]"
     else:
         line = f"{sp}{label} -> {val_str}"
-        
+
     children = node.get("Children", [])
     children_str = ""
     if children:
         children_str = "\n" + "\n".join(filter(None, [format_trace_node(c, indent+1) for c in children]))
-        
+
     return line + children_str
 
 def format_trace(trace_entry):
     if not trace_entry:
         return "  (No trace available)"
-        
+
     header = f"TRACE\n{'─' * 30}\nRule: {trace_entry.rule_name}\n"
     node_str = format_trace_node(trace_entry.evaluation_trace, indent=1)
-    
+
     result = "  ✓ Condition matched" if trace_entry.matched else "  ✗ Condition not matched"
+
+    patches_str = ""
+    if hasattr(trace_entry, 'applied_patches') and trace_entry.applied_patches:
+        patches_str = f"\n  Applied Patches: {', '.join(trace_entry.applied_patches)}"
+
     actions_str = ", ".join(trace_entry.actions)
     decision_status = "✓ MATCH" if trace_entry.matched else "✗ NO MATCH"
-    
-    footer = f"\nRESULT\n{result}\n\nDECISION\n  {decision_status}\n  Actions: {actions_str}\n{'─' * 30}"
+
+    footer = f"\nRESULT\n{result}{patches_str}\n\nDECISION\n  {decision_status}\n  Actions: {actions_str}\n{'─' * 30}"
     return header + "\n" + node_str + footer
 
 def format_error(error):

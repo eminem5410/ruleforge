@@ -27,6 +27,12 @@ def main():
     check_parser.add_argument("rule_file", help="Path to the .rf rule file")
     check_parser.add_argument("--schema", help="JSON string representing the schema (optional)", required=False)
 
+    # Comando: trace
+    trace_parser = subparsers.add_parser("trace", help="Evaluate rules and output a diagnostic trace")
+    trace_parser.add_argument("rule_file", help="Path to the .rf rule file")
+    trace_parser.add_argument("--context", help="JSON string representing the context", required=True)
+    trace_parser.add_argument("--schema", help="JSON string representing the schema (optional)", required=False)
+
     args = parser.parse_args()
 
     if args.command == "eval":
@@ -89,7 +95,7 @@ def main():
 
         try:
             ast_list = engine.check(code)
-            print(f"✓ Valid")
+            print("✓ Valid")
             print(f"  Rules: {len(ast_list)}")
             if ast_list:
                 print(f"  Language: {ast_list[0].lang_version}")
@@ -99,6 +105,44 @@ def main():
         except Exception as e:
             print(format_error(e))
             sys.exit(1)
+
+    elif args.command == "trace":
+        try:
+            with open(args.rule_file, 'r') as f:
+                code = f.read()
+        except FileNotFoundError:
+            print(f"❌ File not found: {args.rule_file}")
+            sys.exit(1)
+
+        try:
+            context = json.loads(args.context)
+        except json.JSONDecodeError as e:
+            print(f"❌ Invalid context JSON: {e}")
+            sys.exit(1)
+
+        schema = None
+        if args.schema:
+            try:
+                schema = json.loads(args.schema)
+            except json.JSONDecodeError as e:
+                print(f"❌ Invalid schema JSON: {e}")
+                sys.exit(1)
+        else:
+            schema = infer_schema(context)
+
+        engine = RuleEngine(schema, use_compiler=False, max_cache_size=100)
+
+        try:
+            result = engine.evaluate(code, context, trace=True)
+            if result.trace:
+                for entry in result.trace:
+                    print(format_trace(entry))
+            else:
+                print("⚪ No trace returned.")
+        except Exception as e:
+            print(format_error(e))
+            sys.exit(1)
+
     else:
         parser.print_help()
 
