@@ -110,12 +110,86 @@ class Evaluator:
     # ─── End V11.2 Trace Helpers ──────────────────────────────
 
     def eval_rule(self, node: RuleNode):
-        if node.match_node:
-            raise EvaluatorError("RF4001", "MATCH Evaluator not implemented in V12.0-rc.1")
         self.step_count = 0
         self._it_stack = []
         self.trace = []
         self._error_trace = None
+
+        if node.match_node:
+            try:
+                # RFC-001: MATCH expression is evaluated exactly once.
+                match_val, _ = self.eval_node(node.match_node.expression)
+
+                # A MATCH rule itself is considered matched when it executes.
+                # Whether a CASE matched is separate from decision.matched.
+                matched = True
+                case_matched = False
+                actions = [ActionNode("NO_ACTION")]
+
+                # CASE selection: first matching CASE wins.
+                for case in node.match_node.cases:
+                    case_val, _ = self.eval_node(case.value)
+
+                    # Strict runtime equality.
+                    if (
+                        type(match_val) is type(case_val)
+                        and match_val == case_val
+                    ):
+                        case_matched = True
+                        actions = case.actions
+                        break
+
+                # No CASE matched -> DEFAULT if present.
+                if not case_matched:
+                    if node.match_node.default_actions:
+                        actions = node.match_node.default_actions
+                    else:
+                        actions = [ActionNode("NO_ACTION")]
+
+                # Resolve dynamic actions exactly like the normal V11 path.
+                resolved_actions = []
+
+                for a in actions:
+                    if isinstance(a, SetActionNode):
+                        val, _ = self.eval_node(a.value_node)
+                        resolved_actions.append(
+                            ActionNode("SET", a.value, val)
+                        )
+
+                    elif isinstance(a, EmitActionNode):
+                        payload = None
+                        if a.payload_node:
+                            payload, _ = self.eval_node(a.payload_node)
+
+                        resolved_actions.append(
+                            ActionNode("EMIT", a.value, payload)
+                        )
+
+                    else:
+                        resolved_actions.append(a)
+
+                return Decision(
+                    node.name,
+                    1,
+                    node.lang_version,
+                    matched,
+                    resolved_actions,
+                    self.trace
+                )
+
+            except EvaluatorError:
+                raise
+            except Exception as e:
+                raise EvaluatorError(
+                    "RF4001",
+                    f"Unexpected runtime error: {e}"
+                )
+
+        self.step_count = 0
+        self._it_stack = []
+        self.trace = []
+        self._error_trace = None
+
         try:
             condition_result, root_trace = self.eval_node(node.when_expr)
         except EvaluatorError:

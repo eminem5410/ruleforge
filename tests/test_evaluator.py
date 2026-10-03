@@ -248,3 +248,24 @@ def test_non_literal_array_index_throws_rf2004():
     with pytest.raises(ParserError) as exc:
         Parser(tokens).parse()
     assert exc.value.code == "RF2004"
+
+
+def test_eval_match_strict_type_equality():
+    """V12.0: Evaluator must enforce strict typed equality, preventing Python's 1 == True."""
+    from ruleforge.lexer import Lexer
+    from ruleforge.parser import Parser
+    from ruleforge.evaluator import Evaluator
+    
+    # MATCH customer.active (Boolean) CASE 1 (Integer)
+    # Semantic analyzer would block this, but we test the evaluator directly to ensure runtime safety.
+    code = 'RULE r LANGUAGE 1 MATCH customer.active CASE 1: ALLOW END'
+    tokens = Lexer(code).tokenize()
+    ast = Parser(tokens).parse()
+    
+    evaluator = Evaluator({"customer": {"active": True}})
+    decision = evaluator.eval_rule(ast[0])
+    
+    # The rule executes (matched=True), but the CASE should not match because type(True) != type(1).
+    # It should fall back to NO_ACTION.
+    assert decision.matched == True
+    assert decision.actions[0].action_type == "NO_ACTION"

@@ -52,7 +52,65 @@ public class Evaluator
         EvalResult condResult;
         try
         {
-            if (node.MatchNode != null) throw new EvaluatorException("RF4001", "MATCH Evaluator not implemented in V12.0-rc.1");
+            if (node.MatchNode != null)
+            {
+                var matchRes = EvaluateNodeInternal(node.MatchNode.MatchExpression);
+                
+                bool matched = true;
+                bool caseMatched = false;
+                var matchRawActions = new List<ActionNode> { new ActionNode("NO_ACTION") };
+                
+                foreach (var caseNode in node.MatchNode.Cases)
+                {
+                    var caseRes = EvaluateNodeInternal(caseNode.Value);
+                    
+                    if (matchRes.Value.Type == caseRes.Value.Type && 
+                        object.Equals(matchRes.Value.Value, caseRes.Value.Value))
+                    {
+                        caseMatched = true;
+                        matchRawActions = caseNode.Actions;
+                        break;
+                    }
+                }
+                
+                if (!caseMatched)
+                {
+                    if (node.MatchNode.DefaultActions != null && node.MatchNode.DefaultActions.Count > 0)
+                    {
+                        matchRawActions = node.MatchNode.DefaultActions;
+                    }
+                    else
+                    {
+                        matchRawActions = new List<ActionNode> { new ActionNode("NO_ACTION") };
+                    }
+                }
+                
+                var matchResolvedActions = new List<ActionNode>();
+                foreach (var matchAction in matchRawActions)
+                {
+                    if (matchAction is SetActionNode setAct)
+                    {
+                        var val = EvaluateNode(setAct.ValueExpr);
+                        matchResolvedActions.Add(new ActionNode("SET", setAct.Path, UnwrapRuleValue(val)));
+                    }
+                    else if (matchAction is EmitActionNode emit)
+                    {
+                        object? payload = null;
+                        if (emit.PayloadPath != null)
+                        {
+                            var payloadVal = EvaluateNode(emit.PayloadPath);
+                            payload = UnwrapRuleValue(payloadVal);
+                        }
+                        matchResolvedActions.Add(new ActionNode("EMIT", emit.IntentName, payload));
+                    }
+                    else
+                    {
+                        matchResolvedActions.Add(matchAction);
+                    }
+                }
+                
+                return new Decision(node.Name, 1, node.LanguageVersion, matched, matchResolvedActions);
+            }
             condResult = EvaluateNodeInternal(node.WhenExpr!);
         }
         catch (EvaluatorException)

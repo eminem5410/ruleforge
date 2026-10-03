@@ -27,8 +27,6 @@ invalid_cases = get_cases('invalid')
 
 @pytest.mark.parametrize("rule_path, data_path", valid_cases)
 def test_valid_conformance(rule_path, data_path):
-    if "MATCH" in rule_path and "006" not in rule_path and "007" not in rule_path:
-        pytest.xfail("V12 MATCH valid cases pending Evaluator implementation")
     with open(rule_path, 'r', encoding='utf-8') as f: source_code = f.read()
     with open(data_path, 'r', encoding='utf-8') as f: data = json.load(f)
 
@@ -53,8 +51,6 @@ def test_valid_conformance(rule_path, data_path):
 
 @pytest.mark.parametrize("rule_path, data_path", invalid_cases)
 def test_invalid_conformance(rule_path, data_path):
-    if "MATCH" in rule_path and "006" not in rule_path and "007" not in rule_path:
-        pytest.xfail("V12 MATCH valid cases pending Evaluator implementation")
     with open(rule_path, 'r', encoding='utf-8') as f: source_code = f.read()
     with open(data_path, 'r', encoding='utf-8') as f: data = json.load(f)
 
