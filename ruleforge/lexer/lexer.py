@@ -4,7 +4,7 @@ from .errors import LexerError
 
 KEYWORDS = {
     "RULE": TokenType.RULE, "LANGUAGE": TokenType.LANGUAGE, "WHEN": TokenType.WHEN,
-    "THEN": TokenType.THEN, "ELSE": TokenType.ELSE, "END": TokenType.END,
+    "THEN": TokenType.THEN, "ELSE": TokenType.ELSE, "END": TokenType.END, "MATCH": TokenType.MATCH, "CASE": TokenType.CASE, "DEFAULT": TokenType.DEFAULT,
     "ALLOW": TokenType.ALLOW, "DENY": TokenType.DENY, "NO_ACTION": TokenType.NO_ACTION,
     "ALERT": TokenType.ALERT, "APPLY": TokenType.APPLY, "AND": TokenType.AND,
     "OR": TokenType.OR, "NOT": TokenType.NOT, "IS": TokenType.IS, "NULL": TokenType.NULL,
@@ -137,7 +137,7 @@ class Lexer:
                 tokens.append(Token(single_ops[char], char, start_line, start_col))
                 self.advance(); continue
                 
-            symbols = {'(': TokenType.LPAREN, ')': TokenType.RPAREN, '.': TokenType.DOT, ',': TokenType.COMMA, '[': TokenType.LBRACKET, ']': TokenType.RBRACKET}
+            symbols = {'(': TokenType.LPAREN, ')': TokenType.RPAREN, '.': TokenType.DOT, ',': TokenType.COMMA, '[': TokenType.LBRACKET, ']': TokenType.RBRACKET, ':': TokenType.COLON}
             if char in symbols:
                 tokens.append(Token(symbols[char], char, start_line, start_col))
                 self.advance(); continue

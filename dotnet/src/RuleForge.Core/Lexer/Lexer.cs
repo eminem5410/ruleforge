@@ -14,7 +14,7 @@ public class Lexer
     {
         { "RULE", TokenType.RULE }, { "LANGUAGE", TokenType.LANGUAGE },
         { "WHEN", TokenType.WHEN }, { "THEN", TokenType.THEN },
-        { "ELSE", TokenType.ELSE }, { "END", TokenType.END },
+        { "ELSE", TokenType.ELSE }, { "END", TokenType.END }, { "MATCH", TokenType.MATCH }, { "CASE", TokenType.CASE }, { "DEFAULT", TokenType.DEFAULT },
         { "ALLOW", TokenType.ALLOW }, { "DENY", TokenType.DENY },
         { "NO_ACTION", TokenType.NO_ACTION }, { "ALERT", TokenType.ALERT },
         { "APPLY", TokenType.APPLY }, { "AND", TokenType.AND },
@@ -166,6 +166,7 @@ public class Lexer
                 case ']': tokens.Add(new Token(TokenType.RBRACKET, "]", startLine, startCol)); Advance(); break;
                 case '.': tokens.Add(new Token(TokenType.DOT, ".", startLine, startCol)); Advance(); break;
                 case ',': tokens.Add(new Token(TokenType.COMMA, ",", startLine, startCol)); Advance(); break;
+                case ':': tokens.Add(new Token(TokenType.COLON, ":", startLine, startCol)); Advance(); break;
                 default: throw new LexerException("RF1001", $"Unexpected character '{_currentChar}'", startLine, startCol);
             }
         }

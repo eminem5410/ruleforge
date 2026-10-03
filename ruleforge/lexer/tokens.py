@@ -1,6 +1,6 @@
 class TokenType:
     # Keywords
-    RULE="RULE"; LANGUAGE="LANGUAGE"; WHEN="WHEN"; THEN="THEN"; ELSE="ELSE"; END="END"
+    RULE="RULE"; LANGUAGE="LANGUAGE"; WHEN="WHEN"; THEN="THEN"; ELSE="ELSE"; END="END"; MATCH="MATCH"; CASE="CASE"; DEFAULT="DEFAULT"
     ALLOW="ALLOW"; DENY="DENY"; NO_ACTION="NO_ACTION"; ALERT="ALERT"; APPLY="APPLY"
     AND="AND"; OR="OR"; NOT="NOT"; IS="IS"; NULL="NULL"; SET="SET"; ANY="ANY"; ALL="ALL"; WHERE="WHERE"; FILTER="FILTER"; MAP="MAP"; USING="USING"
     
@@ -16,7 +16,7 @@ class TokenType:
     LBRACKET="["; RBRACKET="]"
     
     # Control
-    EOF="EOF"
+    COLON=":"; EOF="EOF"
 
 class Token:
     def __init__(self, type, value, line, column):

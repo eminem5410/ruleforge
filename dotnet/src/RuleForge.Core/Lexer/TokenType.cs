@@ -3,7 +3,7 @@ namespace RuleForge.Core.Lexing;
 public enum TokenType
 {
     // Keywords
-    RULE, LANGUAGE, WHEN, THEN, ELSE, END,
+    RULE, LANGUAGE, WHEN, THEN, ELSE, END, MATCH, CASE, DEFAULT,
     ALLOW, DENY, NO_ACTION, ALERT, APPLY,
     AND, OR, NOT, IS, NULL,
     
@@ -19,5 +19,6 @@ public enum TokenType
     LBRACKET, RBRACKET,
     
     // Control
+    COLON,
     EOF
 }
