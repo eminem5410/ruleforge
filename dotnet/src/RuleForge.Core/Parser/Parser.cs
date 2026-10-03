@@ -50,8 +50,10 @@ public class Parser
             throw new ParserException("RF2002", "Expected integer for language version", CurrentToken.Line, CurrentToken.Column);
         Expect(TokenType.INTEGER);
         
-        Expect(TokenType.WHEN);
-        var whenExpr = Expression();
+        if (CurrentToken.Type == TokenType.WHEN)
+        {
+            Advance();
+            var whenExpr = Expression();
         
         Expect(TokenType.THEN);
         var thenActions = ActionList();
@@ -64,7 +66,64 @@ public class Parser
         }
         
         Expect(TokenType.END);
-        return new RuleNode(name, langVer, whenExpr, thenActions, elseActions);
+        return new RuleNode(name, langVer, whenExpr, thenActions, elseActions, null);
+        }
+        
+        if (CurrentToken.Type == TokenType.MATCH)
+        {
+            var matchNode = ParseMatch();
+            Expect(TokenType.END);
+            return new RuleNode(name, langVer, null, new List<ActionNode>(), new List<ActionNode>(), matchNode);
+        }
+        
+        throw new ParserException("RF2002", $"Expected WHEN or MATCH but got {CurrentToken.Type} ('{CurrentToken.Value}')", CurrentToken.Line, CurrentToken.Column);
+    }
+    
+    public MatchNode ParseMatch()
+    {
+        Expect(TokenType.MATCH);
+        var matchExpr = Expression();
+        var cases = new List<CaseNode>();
+        List<ActionNode>? defaultActions = null;
+        
+        while (CurrentToken.Type == TokenType.CASE)
+        {
+            Advance();
+            var valExpr = ParseCaseLiteral();
+            Expect(TokenType.COLON);
+            var actions = ActionList();
+            cases.Add(new CaseNode(valExpr, actions));
+        }
+        
+        if (CurrentToken.Type == TokenType.DEFAULT)
+        {
+            Advance();
+            Expect(TokenType.COLON);
+            defaultActions = ActionList();
+        }
+        
+        return new MatchNode(matchExpr, cases, defaultActions);
+    }
+    
+    private Expression ParseCaseLiteral()
+    {
+        var token = CurrentToken;
+        if (token.Type == TokenType.DATE)
+        {
+            Advance();
+            var strToken = Expect(TokenType.STRING);
+            if (DateOnly.TryParseExact(strToken.Value, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var dateVal))
+            {
+                return new DateLiteralExpression(dateVal);
+            }
+            throw new ParserException("RF2002", "Invalid date format, expected YYYY-MM-DD", token.Line, token.Column);
+        }
+        if (token.Type == TokenType.STRING || token.Type == TokenType.INTEGER || token.Type == TokenType.DECIMAL || token.Type == TokenType.BOOLEAN)
+        {
+            Advance();
+            return new LiteralExpression(token.Value, token.Type);
+        }
+        throw new ParserException("RF2002", $"Expected literal in CASE but got {token.Type} ('{token.Value}')", token.Line, token.Column);
     }
 
     private List<ActionNode> ActionList()
@@ -74,7 +133,7 @@ public class Parser
         
         while (CurrentToken.Type == TokenType.ALLOW || CurrentToken.Type == TokenType.DENY || 
                CurrentToken.Type == TokenType.ALERT || CurrentToken.Type == TokenType.APPLY || 
-               CurrentToken.Type == TokenType.NO_ACTION)
+               CurrentToken.Type == TokenType.NO_ACTION || CurrentToken.Type == TokenType.EMIT || CurrentToken.Type == TokenType.SET)
         {
             actions.Add(ParseAction());
         }

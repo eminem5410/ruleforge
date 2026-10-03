@@ -127,3 +127,25 @@ def test_parse_err_007_deep_nesting():
     with pytest.raises(ParserError) as exc:
         Parser(tokens).parse()
     assert exc.value.code == "RF2004"
+
+
+def test_parse_match_basic():
+    """V12.0: Parser can build MatchNode AST correctly."""
+    from ruleforge.lexer import Lexer
+    code = 'RULE r LANGUAGE 1 MATCH customer.status CASE "ACTIVE": ALLOW DEFAULT: NO_ACTION END'
+    tokens = Lexer(code).tokenize()
+    ast = Parser(tokens).parse()
+    
+    assert len(ast) == 1
+    rule = ast[0]
+    assert rule.match_node is not None
+    assert rule.when_expr is None
+    assert rule.then_actions == []
+    
+    match = rule.match_node
+    assert len(match.cases) == 1
+    assert match.cases[0].value.value == "ACTIVE"
+    assert match.cases[0].actions[0].action_type == "ALLOW"
+    
+    assert match.default_actions is not None
+    assert match.default_actions[0].action_type == "NO_ACTION"

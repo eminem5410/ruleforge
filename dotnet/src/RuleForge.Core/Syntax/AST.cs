@@ -31,6 +31,9 @@ public sealed record EmitActionNode(string IntentName, Expression? PayloadPath) 
 
 public sealed record SetActionNode(string Path, Expression ValueExpr) : ActionNode("SET", Path);
 
-public sealed record RuleNode(string Name, int LanguageVersion, Expression WhenExpr, List<ActionNode> ThenActions, List<ActionNode> ElseActions);
+public sealed record RuleNode(string Name, int LanguageVersion, Expression? WhenExpr, List<ActionNode> ThenActions, List<ActionNode> ElseActions, MatchNode? MatchNode = null);
+
+public sealed record MatchNode(Expression MatchExpression, List<CaseNode> Cases, List<ActionNode>? DefaultActions);
+public sealed record CaseNode(Expression Value, List<ActionNode> Actions);
 
 public sealed record DateLiteralExpression(DateOnly Value) : Expression;

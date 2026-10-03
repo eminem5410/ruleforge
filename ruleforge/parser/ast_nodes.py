@@ -1,7 +1,7 @@
 class RuleNode:
-    def __init__(self, name, lang_version, when_expr, then_actions, else_actions):
+    def __init__(self, name, lang_version, when_expr, then_actions, else_actions, match_node=None):
         self.name = name; self.lang_version = lang_version
-        self.when_expr = when_expr; self.then_actions = then_actions; self.else_actions = else_actions
+        self.when_expr = when_expr; self.then_actions = then_actions; self.else_actions = else_actions; self.match_node = match_node
     def __repr__(self): return f"RuleNode(name='{self.name}', lang={self.lang_version})"
 
 class ActionNode:
@@ -92,3 +92,21 @@ class FilterMapNode:
         self.array_node = array_node
         self.expr_node = expr_node
     def __repr__(self): return f"FilterMap({'MAP' if self.is_map else 'FILTER'} {self.array_node} {'USING' if self.is_map else 'WHERE'} {self.expr_node})"
+
+
+class MatchNode:
+    def __init__(self, expression, cases, default_actions=None):
+        self.expression = expression
+        self.cases = cases
+        self.default_actions = default_actions
+
+    def __repr__(self):
+        return f"Match({self.expression}, cases={self.cases}, default={self.default_actions})"
+
+class CaseNode:
+    def __init__(self, value, actions):
+        self.value = value
+        self.actions = actions
+
+    def __repr__(self):
+        return f"Case({self.value}: {self.actions})"

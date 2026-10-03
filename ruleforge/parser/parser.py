@@ -1,5 +1,5 @@
 from ..lexer import TokenType
-from .ast_nodes import RuleNode, ActionNode, BinaryOpNode, UnaryOpNode, NullCheckNode, LiteralNode, IdentifierNode, PropertyAccessNode, FunctionCallNode
+from .ast_nodes import RuleNode, ActionNode, BinaryOpNode, UnaryOpNode, NullCheckNode, LiteralNode, IdentifierNode, PropertyAccessNode, FunctionCallNode, MatchNode, CaseNode
 from .errors import ParserError
 
 class Parser:
@@ -46,16 +46,58 @@ class Parser:
             lang_version = int(int_token.value)
         except ValueError:
             raise ParserError("RF2002", f"Language version number too large", int_token.line, int_token.column)
-        self.expect(TokenType.WHEN)
-        when_expr = self.expression()
-        self.expect(TokenType.THEN)
-        then_actions = self.action_list()
-        else_actions = []
-        if self.current_token.type == TokenType.ELSE:
+            
+        if self.current_token.type == TokenType.WHEN:
             self.advance()
-            else_actions = self.action_list()
-        self.expect(TokenType.END)
-        return RuleNode(rule_name, lang_version, when_expr, then_actions, else_actions)
+            when_expr = self.expression()
+            self.expect(TokenType.THEN)
+            then_actions = self.action_list()
+            else_actions = []
+            if self.current_token.type == TokenType.ELSE:
+                self.advance()
+                else_actions = self.action_list()
+            self.expect(TokenType.END)
+            return RuleNode(rule_name, lang_version, when_expr, then_actions, else_actions)
+            
+        elif self.current_token.type == TokenType.MATCH:
+            match_node = self.parse_match()
+            self.expect(TokenType.END)
+            return RuleNode(rule_name, lang_version, None, [], [], match_node)
+            
+        t = self.current_token
+        raise ParserError("RF2002", f"Expected WHEN or MATCH but got {t.type} ('{t.value}')", t.line, t.column)
+        
+    def parse_match(self):
+        self.expect(TokenType.MATCH)
+        expression = self.expression()
+        cases = []
+        default_actions = None
+        
+        while self.current_token.type == TokenType.CASE:
+            self.advance()
+            value_node = self.parse_case_literal()
+            self.expect(TokenType.COLON)
+            actions = self.action_list()
+            cases.append(CaseNode(value_node, actions))
+            
+        if self.current_token.type == TokenType.DEFAULT:
+            self.advance()
+            self.expect(TokenType.COLON)
+            default_actions = self.action_list()
+            
+        return MatchNode(expression, cases, default_actions)
+        
+    def parse_case_literal(self):
+        token = self.current_token
+        if token.type == TokenType.DATE:
+            self.advance()
+            str_token = self.expect(TokenType.STRING)
+            from .ast_nodes import DateLiteralNode
+            return DateLiteralNode(str_token.value)
+        elif token.type in [TokenType.STRING, TokenType.INTEGER, TokenType.DECIMAL, TokenType.BOOLEAN]:
+            self.advance()
+            return LiteralNode(token.value, token.type)
+        raise ParserError("RF2002", f"Expected literal in CASE but got {token.type} ('{token.value}')", token.line, token.column)
 
     def action_list(self):
         actions = []
