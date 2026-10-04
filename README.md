@@ -301,15 +301,19 @@ ruleforge --help
 
 ## Installation
 
-Install the Python package from the repository:
+Install from PyPI (recommended):
 
 ```bash
-pip install .
+pip install ruleforge-engine
 ```
 
-For development:
+Or clone and develop:
 
 ```bash
+git clone https://github.com/eminem5410/ruleforge.git
+cd ruleforge
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -e .
 ```
 

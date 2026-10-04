@@ -3,12 +3,46 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "ruleforge"
-version = "7.0.1"
-description = "A deterministic, typed, and sandboxed domain-independent rule engine."
-authors = [{name = "Pablo Diez"}]
-requires-python = ">=3.10"
+name = "ruleforge-engine"
+version = "12.0.0"
+description = "Deterministic, typed, sandboxed, and auditable rule execution engine for predictable policy decisions."
 readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+authors = [
+    {name = "Pablo Diez", email = "eminem5410@users.noreply.github.com"}
+]
+keywords = [
+    "rule-engine",
+    "policy-engine",
+    "dsl",
+    "domain-specific-language",
+    "deterministic",
+    "compiler",
+    "parser",
+    "lexer",
+    "ast",
+    "pattern-matching",
+    "sandbox",
+    "audit",
+    "compliance"
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Software Development :: Compilers",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: System :: Distributed Computing",
+    "Typing :: Typed"
+]
 dependencies = [
     "fastapi",
     "pydantic",
@@ -28,6 +62,13 @@ test = ["pytest", "pytest-asyncio", "httpx", "aiosqlite"]
 
 [project.scripts]
 ruleforge = "ruleforge.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/eminem5410/ruleforge"
+Documentation = "https://github.com/eminem5410/ruleforge#readme"
+Repository = "https://github.com/eminem5410/ruleforge"
+"Bug Tracker" = "https://github.com/eminem5410/ruleforge/issues"
+"Release Notes" = "https://github.com/eminem5410/ruleforge/releases"
 
 [tool.setuptools.packages.find]
 include = ["ruleforge*"]
