@@ -424,6 +424,27 @@ Potential future work includes JSON Schema integration, additional language expr
 
 ---
 
+## Development Setup
+
+To regenerate visual assets and READMEs from the baseline content:
+
+```bash
+# 1. Create the local environment
+python3 -m venv .venv
+.venv/bin/pip install playwright
+.venv/bin/playwright install chromium
+
+# 2. Generate PNG assets (logo, banner, architecture diagram, OG image)
+.venv/bin/python build_ruleforge_assets.py
+
+# 3. Regenerate README.md and README.es.md
+.venv/bin/python rebuild_readmes.py
+```
+
+The `.venv/` directory is gitignored. Each contributor must create their own local environment after cloning.
+
+---
+
 ## Architectural Baseline
 
 The stable V12.0.0 architecture is frozen and documented in:

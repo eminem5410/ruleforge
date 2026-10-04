@@ -429,6 +429,27 @@ Posibles líneas de evolución incluyen:
 
 ---
 
+## Configuración de desarrollo
+
+Para regenerar los assets visuales y los READMEs desde el contenido baseline:
+
+```bash
+# 1. Crear el entorno local
+python3 -m venv .venv
+.venv/bin/pip install playwright
+.venv/bin/playwright install chromium
+
+# 2. Generar los assets PNG (logo, banner, diagrama de arquitectura, imagen OG)
+.venv/bin/python build_ruleforge_assets.py
+
+# 3. Regenerar README.md y README.es.md
+.venv/bin/python rebuild_readmes.py
+```
+
+El directorio `.venv/` está gitignored. Cada contribuidor debe crear su propio entorno local después de clonar.
+
+---
+
 ## Architectural Baseline
 
 La arquitectura estable de V12.0.0 está congelada y documentada en:
