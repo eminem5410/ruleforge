@@ -1,5 +1,7 @@
 # RuleForge
 
+[English](./README.md) | [Español](./README.es.md)
+
 <p align="center">
   <strong>Deterministic, typed, sandboxed, and auditable rule execution<br>
   for applications that need predictable policy decisions.</strong>

@@ -1,5 +1,7 @@
 # RuleForge
 
+[English](./README.md) | [Español](./README.es.md)
+
 <p align="center">
   <strong>Ejecución de reglas determinista, tipada, aislada y auditable<br>
   para aplicaciones que necesitan decisiones de política predecibles.</strong>
