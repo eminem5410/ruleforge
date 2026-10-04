@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ruleforge-engine"
-version = "12.0.0"
+version = "12.0.1"
 description = "Deterministic, typed, sandboxed, and auditable rule execution engine for predictable policy decisions."
 readme = "README.md"
 license = {text = "MIT"}
