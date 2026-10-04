@@ -3,6 +3,10 @@
 [English](./README.md) | [Español](./README.es.md)
 
 <p align="center">
+  <img src="docs/assets/ruleforge-banner.png" alt="RuleForge" width="800">
+</p>
+
+<p align="center">
   <strong>Deterministic, typed, sandboxed, and auditable rule execution<br>
   for applications that need predictable policy decisions.</strong>
 </p>
@@ -56,36 +60,9 @@ This separation is fundamental to RuleForge's security and determinism model. Th
 
 RuleForge is structured as a layered pipeline. Each layer has a single, well-defined responsibility and produces an artifact consumed by the next layer. This separation enables independent testing, conformance verification, and cross-language parity.
 
-```text
-                         Rule Source
-                              |
-                              v
-                       +--------------+
-                       |    Lexer     |
-                       +------+-------+
-                              |
-                              v
-                       +--------------+
-                       |    Parser    |
-                       +------+-------+
-                              |
-                              v
-                  +--------------------------+
-                  |    Semantic Analyzer     |
-                  |                          |
-                  |        + Schema          |
-                  +------------+-------------+
-                               |
-                               v
-                       +---------------+
-                       |   Evaluator   |
-                       +-------+-------+
-                               |
-                +--------------+--------------+
-                |              |              |
-                v              v              v
-            Decision         Trace        Patches
-```
+<img src="docs/assets/ruleforge-architecture.png" alt="RuleForge Architecture" width="800">
+
+
 
 The compiler provides an optimized execution path while preserving the same observable semantics as the interpreter.
 

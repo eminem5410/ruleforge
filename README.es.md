@@ -3,6 +3,10 @@
 [English](./README.md) | [Español](./README.es.md)
 
 <p align="center">
+  <img src="docs/assets/ruleforge-banner.png" alt="RuleForge" width="800">
+</p>
+
+<p align="center">
   <strong>Ejecución de reglas determinista, tipada, aislada y auditable<br>
   para aplicaciones que necesitan decisiones de política predecibles.</strong>
 </p>
@@ -56,36 +60,9 @@ Esta separación es fundamental para el modelo de seguridad y determinismo de Ru
 
 RuleForge está estructurado como un pipeline por capas. Cada capa tiene una única responsabilidad bien definida y produce un artefacto consumido por la siguiente capa. Esta separación habilita testing independiente, verificación de conformidad y paridad cross-language.
 
-```text
-                         Rule Source
-                              |
-                              v
-                       +--------------+
-                       |    Lexer     |
-                       +------+-------+
-                              |
-                              v
-                       +--------------+
-                       |    Parser    |
-                       +------+-------+
-                              |
-                              v
-                  +--------------------------+
-                  |    Semantic Analyzer     |
-                  |                          |
-                  |        + Schema          |
-                  +------------+-------------+
-                               |
-                               v
-                       +---------------+
-                       |   Evaluator   |
-                       +-------+-------+
-                               |
-                +--------------+--------------+
-                |              |              |
-                v              v              v
-            Decision         Trace        Patches
-```
+<img src="docs/assets/ruleforge-architecture.png" alt="RuleForge Architecture" width="800">
+
+
 
 El compilador proporciona una ruta de ejecución optimizada preservando la misma semántica observable que el intérprete.
 
